@@ -5,7 +5,7 @@ Coverage execution and subprocess management for the Coverage MCP Server
 import asyncio
 import logging
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from models import TestRunConfig
 
@@ -23,16 +23,33 @@ class CoverageRunner:
         self, config: TestRunConfig
     ) -> Tuple[str, str, int]:
         """Run tests with coverage and return (stdout, stderr, returncode)"""
-        cmd = self._build_pytest_command(config)
+        # Determine working directory - if source contains a service path, use that
+        service_dir = self._get_service_directory(config.source)
+        cwd = service_dir if service_dir else self.project_root
 
-        logger.info("Running command: %s", " ".join(cmd))
+        # Adjust config paths if running from service directory
+        if service_dir:
+            adjusted_config = TestRunConfig(
+                test_path="tests",
+                source="src",
+                min_coverage=config.min_coverage,
+                parallel=config.parallel,
+                markers=config.markers,
+                verbose=config.verbose,
+            )
+        else:
+            adjusted_config = config
+
+        cmd = self._build_pytest_command(adjusted_config)
+
+        logger.info("Running command: %s in directory: %s", " ".join(cmd), cwd)
 
         try:
             result = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.project_root,
+                cwd=cwd,
             )
             stdout, stderr = await result.communicate()
 
@@ -52,6 +69,17 @@ class CoverageRunner:
             error_msg = f"Test execution failed: {str(e)}"
             logger.error(error_msg)
             return "", error_msg, 1
+
+    def _get_service_directory(self, source_path: str) -> Optional[Path]:
+        """Extract service directory from source path if it contains services/"""
+        source = Path(source_path)
+        if "services" in source.parts and source.parts[-1] == "src":
+            # Find the service directory (parent of src)
+            services_idx = source.parts.index("services")
+            if len(source.parts) > services_idx + 2:  # services/service-name/src
+                service_name = source.parts[services_idx + 1]
+                return self.project_root / "services" / service_name
+        return None
 
     def _build_pytest_command(self, config: TestRunConfig) -> List[str]:
         """Build the pytest command with coverage options"""
