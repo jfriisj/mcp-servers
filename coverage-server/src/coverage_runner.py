@@ -1,0 +1,108 @@
+"""
+Coverage execution and subprocess management for the Coverage MCP Server
+"""
+import asyncio
+import logging
+from pathlib import Path
+from typing import List, Tuple
+
+from models import TestRunConfig
+
+logger = logging.getLogger(__name__)
+
+
+class CoverageRunner:
+    """Handles test execution with coverage measurement"""
+
+    def __init__(self, project_root: Path, config_manager):
+        self.project_root = project_root
+        self.config_manager = config_manager
+
+    async def run_tests_with_coverage(
+        self, config: TestRunConfig
+    ) -> Tuple[str, str, int]:
+        """Run tests with coverage and return (stdout, stderr, returncode)"""
+        cmd = self._build_pytest_command(config)
+
+        logger.info("Running command: %s", " ".join(cmd))
+
+        try:
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.project_root,
+            )
+            stdout, stderr = await result.communicate()
+
+            output = stdout.decode() if stdout else ""
+            error = stderr.decode() if stderr else ""
+
+            return output, error, result.returncode or 0
+
+        except FileNotFoundError:
+            error_msg = (
+                "pytest or coverage not found. "
+                "Install with: pip install pytest pytest-cov"
+            )
+            logger.error(error_msg)
+            return "", error_msg, 1
+        except Exception as e:
+            error_msg = f"Test execution failed: {str(e)}"
+            logger.error(error_msg)
+            return "", error_msg, 1
+
+    def _build_pytest_command(self, config: TestRunConfig) -> List[str]:
+        """Build the pytest command with coverage options"""
+        cmd = ["python", "-m", "pytest"]
+
+        # Add coverage options
+        cmd.extend([f"--cov={config.source}", "--cov-report=term-missing"])
+        cmd.extend([f"--cov-fail-under={config.min_coverage}"])
+
+        # Add test path
+        if Path(config.test_path).exists():
+            cmd.append(config.test_path)
+
+        # Add parallel execution if requested
+        if config.parallel:
+            cmd.extend(["-n", "auto"])
+
+        # Add markers if specified
+        if config.markers:
+            cmd.extend(["-m", config.markers])
+
+        # Add verbosity
+        if config.verbose:
+            cmd.append("-v")
+
+        # Use configuration file if available
+        if self.config_manager.pytest_ini:
+            cmd.extend(["-c", str(self.config_manager.pytest_ini)])
+
+        return cmd
+
+    async def run_coverage_command(
+        self, cmd: List[str]
+    ) -> Tuple[str, str, int]:
+        """Run a coverage command and return (stdout, stderr, returncode)"""
+        logger.info("Running coverage command: %s", " ".join(cmd))
+
+        try:
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.project_root,
+            )
+            stdout, stderr = await result.communicate()
+
+            output = stdout.decode() if stdout else ""
+            error = stderr.decode() if stderr else ""
+
+            return output, error, result.returncode or 0
+
+        except Exception as e:
+            error_msg = f"Coverage command failed: {str(e)}"
+            logger.error(error_msg)
+            return "", error_msg, 1
