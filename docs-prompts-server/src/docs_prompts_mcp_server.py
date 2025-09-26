@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import re
 import yaml
+import os
 from dataclasses import dataclass, asdict
 
 from mcp.types import (
@@ -114,7 +115,7 @@ class DocumentationPromptsServer:
             server_dir = Path(__file__).parent.parent
             config_path = server_dir / "config" / "server_config.yaml"  
         self.config_path = Path(config_path)
-        self.db_path = self.project_root / ".docs_prompts_index.db"
+        self.db_path = server_dir / ".docs_prompts_index.db"
         self.prompts_dir = Path(server_dir / "prompts")
         self.config = self._load_config()
         self._init_database()
@@ -1777,10 +1778,9 @@ async def call_tool(
         return [TextContent(type="text", text=f"Error executing {name}: {str(e)}" )]
 
 # Initialize the server
-# Use the project root (parent of mcp-servers directory)
-server_project_root = Path(__file__).parent.parent.parent.parent
-# docs-prompts-server/src -> ... -> workspace_root
-docs_prompts_server = DocumentationPromptsServer(str(server_project_root))
+# Use environment variable or current working directory as project root
+server_project_root = os.environ.get('DOCS_PROJECT_ROOT', os.getcwd())
+docs_prompts_server = DocumentationPromptsServer(server_project_root)
 
 
 async def main():

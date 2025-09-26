@@ -239,11 +239,48 @@ Add to `.vscode/mcp.json`:
 
 ```json
 {
-  "mcpServers": {
-    "python-dev-tools": {
-      "command": "python",
-      "args": ["path/to/mcp-servers/coverage-server/src/coverage_mcp_server.py"],
+  "servers": {
+    "spec-workflow": {
+      "command": "npx",
+      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "."],
       "cwd": "${workspaceFolder}"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "ruff": {
+      "command": "python",
+      "args": [
+        "ruff-server/src/ruff_mcp_server.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "coverage": {
+      "command": "python",
+      "args": [
+        "coverage-server/src/coverage_mcp_server.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "docs": {
+      "command": "python",
+      "args": [
+        "docs-prompts-server/src/docs_prompts_mcp_server.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     }
   }
 }
