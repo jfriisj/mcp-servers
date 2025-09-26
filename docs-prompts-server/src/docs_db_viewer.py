@@ -266,7 +266,7 @@ class DocsPromptsGUI:
         # Create main window
         self.root = tk.Tk()
         self.root.title("Documentation & Prompts Database Viewer")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x800")
 
         # Status bar variable (must be created early)
         self.status_var = tk.StringVar()
@@ -281,7 +281,6 @@ class DocsPromptsGUI:
         self.create_documents_tab()
         self.create_prompts_tab()
         self.create_analytics_tab()
-        self.create_search_tab()
         self.create_tools_tab()
 
         # Status bar
@@ -310,11 +309,24 @@ class DocsPromptsGUI:
         self.update_stats(stats_text)
 
     def create_documents_tab(self):
-        """Create documents explorer tab"""
+        """Create documents explorer tab with integrated search"""
         frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="🔍 Documents")
+        self.notebook.add(frame, text="� Documents")
 
-        # Split pane
+        # Search controls at the top
+        search_frame = ttk.Frame(frame)
+        search_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Label(search_frame, text="Filter:").pack(side=tk.LEFT)
+        self.doc_search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.doc_search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=5)
+        search_entry.bind("<KeyRelease>", self.on_document_filter)
+
+        clear_btn = ttk.Button(search_frame, text="Clear", command=self.clear_document_filter)
+        clear_btn.pack(side=tk.LEFT, padx=5)
+
+        # Split pane for documents and content
         paned = ttk.PanedWindow(frame, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
@@ -329,7 +341,7 @@ class DocsPromptsGUI:
         self.doc_tree.heading("type", text="Type")
         self.doc_tree.heading("path", text="Path")
         self.doc_tree.column("title", width=200)
-        self.doc_tree.column("type", width=100)
+        self.doc_tree.column("type", width=50)
         self.doc_tree.column("path", width=300)
 
         scrollbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.doc_tree.yview)
@@ -348,8 +360,10 @@ class DocsPromptsGUI:
         # Bind selection event
         self.doc_tree.bind("<<TreeviewSelect>>", lambda e: self.show_document_content(content_text))
 
+        # Store all documents for filtering
+        self.all_documents = []
         # Load documents
-        self.load_documents()
+        self.load_all_documents()
 
     def create_prompts_tab(self):
         """Create prompts library tab"""
@@ -408,29 +422,7 @@ class DocsPromptsGUI:
         # Initial load
         self.update_analytics(analytics_text)
 
-    def create_search_tab(self):
-        """Create live search tab"""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="🔎 Search")
 
-        # Search controls
-        search_frame = ttk.Frame(frame)
-        search_frame.pack(fill=tk.X, padx=5, pady=5)
-
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT)
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=50)
-        search_entry.pack(side=tk.LEFT, padx=5)
-        search_entry.bind("<KeyRelease>", self.on_search)
-
-        search_btn = ttk.Button(search_frame, text="Search", command=self.perform_search)
-        search_btn.pack(side=tk.LEFT, padx=5)
-
-        # Results display
-        results_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, height=20)
-        results_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        self.search_results = results_text
 
     def update_stats(self, text_widget):
         """Update database statistics display"""
@@ -453,19 +445,57 @@ class DocsPromptsGUI:
 
         self.status_var.set("Statistics updated")
 
-    def load_documents(self):
-        """Load documents into the tree view"""
+    def load_all_documents(self):
+        """Load all documents and store them for filtering"""
+        self.all_documents = self.viewer.get_all_documents()
+        self.display_filtered_documents("")
+
+    def display_filtered_documents(self, filter_text):
+        """Display documents filtered by the given text"""
         # Clear existing items
         for item in self.doc_tree.get_children():
             self.doc_tree.delete(item)
 
-        documents = self.viewer.get_all_documents()
-        for doc in documents:
+        # Filter documents
+        if filter_text.strip():
+            filtered_docs = []
+            filter_lower = filter_text.lower()
+            for doc in self.all_documents:
+                # Search in title, path, and content
+                searchable_text = (
+                    doc["title"].lower() + " " +
+                    doc["path"].lower() + " " +
+                    (doc.get("content", "").lower()
+                     if "content" in doc else "")
+                )
+                if filter_lower in searchable_text:
+                    filtered_docs.append(doc)
+        else:
+            filtered_docs = self.all_documents
+
+        # Display filtered documents
+        for doc in filtered_docs:
             self.doc_tree.insert("", tk.END, values=(
                 doc["title"],
                 doc["doc_type"],
                 doc["path"]
             ))
+
+        # Update status
+        self.status_var.set(
+            f"Showing {len(filtered_docs)} of "
+            f"{len(self.all_documents)} documents"
+        )
+
+    def on_document_filter(self, event):
+        """Handle document filter input changes"""
+        filter_text = self.doc_search_var.get().strip()
+        self.display_filtered_documents(filter_text)
+
+    def clear_document_filter(self):
+        """Clear the document filter"""
+        self.doc_search_var.set("")
+        self.display_filtered_documents("")
 
     def show_document_content(self, text_widget):
         """Show selected document content"""
@@ -529,9 +559,13 @@ class DocsPromptsGUI:
 
             if details:
                 text_widget.insert(tk.END, f"🎯 {details['name']}\n")
-                text_widget.insert(tk.END, f"🏷️ Category: {details['category']}\n")
-                text_widget.insert(tk.END, f"📊 Usage: {details['usage_count']}\n")
-                text_widget.insert(tk.END, f"⭐ Effectiveness: {details['effectiveness_score']:.2f}\n\n")
+                text_widget.insert(tk.END,
+                                   f"🏷️ Category: {details['category']}\n")
+                text_widget.insert(tk.END,
+                                   f"📊 Usage: {details['usage_count']}\n")
+                text_widget.insert(tk.END,
+                                   f"⭐ Effectiveness: "
+                                   f"{details['effectiveness_score']:.2f}\n\n")
 
                 text_widget.insert(tk.END, "📝 Description:\n")
                 text_widget.insert(tk.END, "-" * 50 + "\n")
@@ -570,10 +604,11 @@ class DocsPromptsGUI:
 
             for i, stat in enumerate(stats[:10], 1):
                 text_widget.insert(tk.END,
-                    f"{i}. {stat['name']} ({stat['category']})\n"
-                    f"   Usage: {stat['usage_count']} | "
-                    f"Effectiveness: {stat['effectiveness_score']:.2f}\n\n"
-                )
+                                   f"{i}. {stat['name']} ({stat['category']})\n"
+                                   f"   Usage: {stat['usage_count']} | "
+                                   f"Effectiveness: "
+                                   f"{stat['effectiveness_score']:.2f}\n\n"
+                                   )
 
             # Category breakdown
             categories = {}
@@ -584,7 +619,8 @@ class DocsPromptsGUI:
             text_widget.insert(tk.END, "🏷️ Usage by Category:\n")
             text_widget.insert(tk.END, "-" * 30 + "\n")
 
-            for category, usage in sorted(categories.items(), key=lambda x: x[1], reverse=True):
+            for category, usage in sorted(
+                    categories.items(), key=lambda x: x[1], reverse=True):
                 text_widget.insert(tk.END, f"• {category}: {usage} uses\n")
         else:
             text_widget.insert(tk.END, "❌ Unable to load analytics data")
@@ -607,24 +643,27 @@ class DocsPromptsGUI:
         self.search_results.delete(1.0, tk.END)
 
         if results:
-            self.search_results.insert(tk.END, f"🔍 Search Results for: '{query}'\n")
+            self.search_results.insert(tk.END,
+                                      f"🔍 Search Results for: '{query}'\n")
             self.search_results.insert(tk.END, "=" * 50 + "\n\n")
 
             for result in results:
                 if result["type"] == "document":
                     self.search_results.insert(tk.END,
-                        f"📄 {result['title']} ({result['doc_type']})\n"
-                        f"   📁 {result['path']}\n"
-                        f"   📑 {result['section']}\n"
-                        f"   💬 {result['snippet']}\n\n"
-                    )
+                                               f"📄 {result['title']} "
+                                               f"({result['doc_type']})\n"
+                                               f"   📁 {result['path']}\n"
+                                               f"   📑 {result['section']}\n"
+                                               f"   💬 {result['snippet']}\n\n")
                 elif result["type"] == "prompt":
                     self.search_results.insert(tk.END,
-                        f"🎯 {result['name']} ({result['category']})\n"
-                        f"   📝 {result['description']}\n\n"
-                    )
+                                               f"🎯 {result['name']} "
+                                               f"({result['category']})\n"
+                                               f"   📝 "
+                                               f"{result['description']}\n\n")
         else:
-            self.search_results.insert(tk.END, f"❌ No results found for: '{query}'")
+            self.search_results.insert(tk.END,
+                                      f"❌ No results found for: '{query}'")
 
         self.status_var.set(f"Found {len(results)} results")
 
