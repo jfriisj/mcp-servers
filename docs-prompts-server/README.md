@@ -1,12 +1,4 @@
-# Do## 🚀 Overview
-
-The Documentation and Prompts MCP Server transforms how AI assistants interact with your codebase by providing:
-
-- **📚 Smart Documentation Indexing** - Automatically indexes and searches your project's documentation with configurable root folder support
-- **🎯 Intelligent Prompt Management** - Context-aware prompts that automatically incorporate relevant documentation
-- **🔗 Seamless Integration** - Documentation informs prompts, prompts reference documentation
-- **⚡ Real-time GUI Viewer** - Visual interface for exploring indexed content and managing prompts
-- **📊 Analytics & Insights** - Usage tracking and effectiveness metrics for continuous improvementon and Prompts MCP Server
+# Documentation and Prompts MCP Server
 
 A comprehensive Model Context Protocol (MCP) server that combines intelligent documentation indexing with advanced prompt management, enabling AI assistants to understand project architecture and apply context-aware prompts for consistent, high-quality development.
 
@@ -14,24 +6,23 @@ A comprehensive Model Context Protocol (MCP) server that combines intelligent do
 
 The Documentation and Prompts MCP Server transforms how AI assistants interact with your codebase by providing:
 
-- **📚 Smart Documentation Indexing** - Automatically indexes and searches your project's documentation
-- **🎯 Intelligent Prompt Management** - Context-aware prompts that reference your specific documentation
+- **📚 Smart Documentation Indexing** - Automatically indexes and searches your project's documentation with configurable root folder support
+- **🎯 Intelligent Prompt Management** - Context-aware prompts that automatically incorporate relevant documentation
 - **🔗 Seamless Integration** - Documentation informs prompts, prompts reference documentation
 - **⚡ Real-time GUI Viewer** - Visual interface for exploring indexed content and managing prompts
 - **📊 Analytics & Insights** - Usage tracking and effectiveness metrics for continuous improvement
 
 ## ✨ Key Features
 
-### **📖 Advanced Documentation Analysis**
+### 🐍 Python Code Analysis
 
-- **Multi-format support**: Markdown, reStructuredText, YAML, JSON schemas
-- **Semantic search** with keyword matching for contextual understanding
-- **Architecture pattern detection** using configurable keyword analysis
-- **Incremental indexing** with change detection and automatic updates
-- **Cross-reference mapping** between related documents and sections
-- **Metadata extraction** including file size, line counts, and structure analysis
+- **Shared utility indexing** - Automatically indexes Python files from service utils directories
+- **Class and function extraction** - Parses Python source code to extract classes, functions, and methods
+- **Docstring preservation** - Maintains and indexes Python docstrings for context
+- **Import relationship mapping** - Tracks module dependencies and imports
+- **Cross-service code reuse** - Enables easy discovery of shared functionality across services
 
-### **🎯 Intelligent Prompt System**
+### 🎯 Intelligent Prompt System
 
 - **Context-aware prompts** that automatically incorporate relevant documentation
 - **Template-based prompts** with dynamic variable substitution from your docs
@@ -40,7 +31,7 @@ The Documentation and Prompts MCP Server transforms how AI assistants interact w
 - **Custom prompt creation** with full versioning and management
 - **Smart suggestions** based on task context and documentation patterns
 
-### **🖥️ GUI Database Viewer**
+### 🖥️ GUI Database Viewer
 
 - **Real-time database exploration** of indexed documents and prompts
 - **Interactive search and filtering** across all content
@@ -48,7 +39,7 @@ The Documentation and Prompts MCP Server transforms how AI assistants interact w
 - **Document structure visualization** showing sections and metadata
 - **Live server integration** for immediate content updates
 
-### **🔧 Enterprise-Grade Architecture**
+### 🔧 Enterprise-Grade Architecture
 
 - **SQLite-based storage** with optimized indexing for fast searches
 - **Configurable performance settings** for large codebases
@@ -82,19 +73,19 @@ docs-prompts-server/
 
 ## 🛠️ Installation & Setup
 
-### **Prerequisites**
+### Prerequisites
 
 - Python 3.8+
 - MCP-compatible client (VS Code with MCP extension, Claude Desktop, etc.)
 
-### **1. Install Dependencies**
+### 1. Install Dependencies
 
 ```bash
 cd docs-prompts-server
 pip install -r requirements.txt
 ```
 
-### **2. Configure the Server**
+### 2. Configure the Server
 
 The server uses `config/server_config.yaml` for configuration. Key settings include:
 
@@ -118,7 +109,7 @@ architecture_keywords:
   - "service"
 ```
 
-### **3. Add to MCP Configuration**
+### 3. Add to MCP Configuration
 
 #### VS Code (.vscode/mcp.json)
 
@@ -158,7 +149,7 @@ architecture_keywords:
 }
 ```
 
-### **4. Command Line Options**
+### 4. Command Line Options
 
 The server supports the following command line arguments:
 
@@ -176,9 +167,7 @@ export DOCS_PROJECT_ROOT=/path/to/project
 python src/main.py
 ```
 
-### **5. Launch GUI Viewer (Optional)**
-
-### **4. Launch GUI Viewer (Optional)**
+### 5. Launch GUI Viewer (Optional)
 
 ```bash
 cd docs-prompts-server/src
@@ -187,7 +176,7 @@ python docs_db_viewer.py --gui
 
 ## ⚙️ Configuration
 
-### **Core Settings**
+### Core Settings
 
 | Setting | Description | Default |
 |---------|-------------|---------|
@@ -197,7 +186,7 @@ python docs_db_viewer.py --gui
 | `max_file_size_mb` | Maximum file size to index | `10` |
 | `architecture_keywords` | Keywords for architecture detection | See config file |
 
-### **Root Folder Configuration**
+### Root Folder Configuration
 
 The server can be configured to index documentation from a specific root folder using either:
 
@@ -207,7 +196,7 @@ The server can be configured to index documentation from a specific root folder 
 
 When no root folder is specified, the server defaults to the current working directory.
 
-### **Performance Tuning**
+### Performance Tuning
 
 ```yaml
 indexing:
@@ -223,7 +212,7 @@ search:
   fuzzy_matching: true
 ```
 
-### **Prompt Management**
+### Prompt Management
 
 ```yaml
 prompts:
@@ -246,17 +235,80 @@ The server exposes several MCP resources for programmatic access:
 
 ## 🔧 Available Tools
 
-### **📖 Documentation Tools**
+### 🔍 Code Reuse Tools (USE FIRST)
 
-#### `search_docs`
+#### `find_code_reuse`
 
-Search documentation using keywords or phrases.
+**ALWAYS USE THIS TOOL FIRST** when looking for existing code patterns, utilities, or implementations across services. This tool prioritizes Python code search to enable code reuse and maintain consistency.
 
 **Parameters:**
 
 ```json
 {
-  "query": "architecture patterns",
+  "functionality": "logging",
+  "service_context": "translation-service",
+  "limit": 5
+}
+```
+
+**Example:**
+
+```python
+# Always search for reusable code first
+await call_tool("find_code_reuse", {
+    "functionality": "circuit_breaker",
+    "service_context": "api-gateway"
+})
+```
+
+**Why use this first:**
+
+- ✅ Finds existing implementations across services
+- ✅ Provides reuse suggestions and import guidance
+- ✅ Maintains architectural consistency
+- ✅ Reduces code duplication
+- ✅ Discovers proven patterns
+
+### 📖 Documentation Tools
+
+#### `find_documents`
+
+Find relevant documentation and guides (optimized for document discovery). This tool focuses specifically on documentation files and excludes code files for targeted document searches.
+
+**Parameters:**
+
+```json
+{
+  "topic": "architecture patterns",
+  "doc_type": ".md",
+  "limit": 10
+}
+```
+
+**Example:**
+
+```python
+await call_tool("find_documents", {
+    "topic": "microservice architecture",
+    "limit": 5
+})
+```
+
+**Use cases:**
+- Finding design documents and guides
+- Locating API documentation
+- Discovering architectural patterns
+- Researching implementation guides
+
+#### `search_docs`
+
+General documentation search with flexible querying. Searches across all indexed content including both documentation and code files.
+
+**Parameters:**
+
+```json
+{
+  "query": "circuit breaker pattern",
   "doc_type": ".md",
   "limit": 10
 }
@@ -266,16 +318,25 @@ Search documentation using keywords or phrases.
 
 ```python
 await call_tool("search_docs", {
-    "query": "microservice architecture",
+    "query": "error handling",
     "limit": 5
 })
 ```
+
+**Use cases:**
+- Broad searches across all content types
+- When you need both docs and code results
+- Complex queries with multiple terms
+
+### 🏗️ Architecture Tools
 
 #### `get_architecture_info`
 
 Extract architecture patterns and design information from indexed documentation.
 
 **Returns:** Summary of architecture-related documents with content snippets.
+
+### 🔄 Management Tools
 
 #### `index_documentation`
 
@@ -289,11 +350,11 @@ Re-index all documentation files or force a complete rebuild.
 }
 ```
 
-### **🎯 Prompt Management Tools**
+### 🎯 Prompt Management Tools
 
 #### `search_prompts`
 
-Search prompts by name, description, category, or tags.
+Search prompts by keyword, category, or tags.
 
 **Parameters:**
 
@@ -307,7 +368,7 @@ Search prompts by name, description, category, or tags.
 
 #### `get_prompt`
 
-Retrieve a specific prompt with full details and variable information.
+Retrieve a specific prompt with full details.
 
 **Parameters:**
 
@@ -319,7 +380,7 @@ Retrieve a specific prompt with full details and variable information.
 
 #### `suggest_prompts`
 
-Get context-aware prompt suggestions based on task description.
+Get context-aware prompt suggestions.
 
 **Parameters:**
 
@@ -331,7 +392,7 @@ Get context-aware prompt suggestions based on task description.
 
 #### `create_prompt`
 
-Create a new custom prompt in the library.
+Create a new custom prompt.
 
 **Parameters:**
 
@@ -346,11 +407,11 @@ Create a new custom prompt in the library.
 }
 ```
 
-### **🔗 Integration Tools**
+### 🔗 Integration Tools
 
 #### `generate_contextual_prompt`
 
-Generate a prompt automatically from relevant documentation context.
+Generate a prompt from documentation context.
 
 **Parameters:**
 
@@ -363,7 +424,7 @@ Generate a prompt automatically from relevant documentation context.
 
 #### `apply_prompt_with_context`
 
-Apply a prompt with automatic context filling from documentation.
+Apply a prompt with automatic context filling.
 
 **Parameters:**
 
@@ -375,57 +436,24 @@ Apply a prompt with automatic context filling from documentation.
 }
 ```
 
-## 🎯 Default Prompt Categories
+## 🎯 Tool Usage Guidelines
 
-The server includes 8 predefined prompt categories:
+### When to Use Each Tool
 
-### **🔍 Code Quality**
+| Tool | Purpose | Best For |
+|------|---------|----------|
+| `find_code_reuse` | **ALWAYS FIRST** - Find reusable code patterns | Code reuse, shared utilities, implementation discovery |
+| `find_documents` | Documentation-focused search | Design docs, guides, architectural patterns |
+| `search_docs` | General content search | Broad queries, mixed content types |
+| `get_architecture_info` | Architecture overview | System design, architectural patterns |
+| `search_prompts` | Find existing prompts | Code review, testing, documentation tasks |
 
-- Comprehensive Code Review
-- Code standards validation
-- Best practices enforcement
+### Recommended Workflow
 
-### **🏗️ Architecture**
-
-- Architecture Compliance Check
-- Design pattern validation
-- System integration verification
-
-### **📚 Documentation**
-
-- API Documentation Generator
-- Code documentation assistance
-- README and guide creation
-
-### **🧪 Testing**
-
-- Test Strategy and Generation
-- Test coverage analysis
-- Quality assurance prompts
-
-### **🔧 Refactoring**
-
-- Code Refactoring Recommendations
-- Performance optimization
-- Maintainability improvements
-
-### **🔌 API**
-
-- API design validation
-- Endpoint documentation
-- Integration guidelines
-
-### **🔒 Security**
-
-- Security Vulnerability Assessment
-- Threat model analysis
-- Compliance checking
-
-### **⚙️ Custom**
-
-- Project-specific prompts
-- Team workflow automation
-- Domain-specific guidance
+1. **🔍 Code Reuse First**: Always start with `find_code_reuse` to discover existing implementations
+2. **📚 Documentation Search**: Use `find_documents` for design documents and guides
+3. **🔧 Implementation**: Use `search_docs` for broader technical searches
+4. **🎯 Apply Context**: Use prompt tools with documentation context
 
 ## 🖥️ GUI Database Viewer
 
@@ -436,7 +464,7 @@ cd docs-prompts-server/src
 python docs_db_viewer.py --gui
 ```
 
-### **Features:**
+### Features:
 
 - **📊 Database Statistics** - Overview of indexed documents and prompts
 - **🔍 Document Explorer** - Browse all indexed documentation with metadata
@@ -447,17 +475,32 @@ python docs_db_viewer.py --gui
 
 ## 📖 Usage Examples
 
-### **Basic Documentation Search**
+### Code Reuse Discovery
 
 ```python
-# Search for architecture documentation
-results = await call_tool("search_docs", {
-    "query": "architecture patterns",
-    "limit": 5
+# Always check for existing implementations first
+results = await call_tool("find_code_reuse", {
+    "functionality": "logging",
+    "service_context": "translation-service"
 })
 ```
 
-### **Context-Aware Code Review**
+### Documentation Search
+
+```python
+# Find architectural documentation
+docs = await call_tool("find_documents", {
+    "topic": "microservice architecture",
+    "limit": 5
+})
+
+# General search across all content
+all_results = await call_tool("search_docs", {
+    "query": "error handling patterns"
+})
+```
+
+### Context-Aware Code Review
 
 ```python
 # Get architecture context
@@ -471,39 +514,16 @@ result = await call_tool("apply_prompt_with_context", {
 })
 ```
 
-### **Generate Documentation**
-
-```python
-# Create API docs based on existing patterns
-prompt = await call_tool("generate_contextual_prompt", {
-    "task": "API documentation",
-    "docs_query": "api patterns"
-})
-```
-
-### **Custom Prompt Creation**
-
-```python
-# Add project-specific prompt
-await call_tool("create_prompt", {
-    "name": "Team Code Standards",
-    "description": "Enforce team-specific coding standards",
-    "template": "Review against our standards: {team_standards}\n\nCode: {code_content}",
-    "category": "custom",
-    "variables": ["team_standards", "code_content"]
-})
-```
-
 ## 🔄 Workflow Integration
 
-### **Development Workflow**
+### Development Workflow
 
 1. **Index Documentation** - Server automatically indexes project docs on startup
 2. **Context-Aware Assistance** - AI gets relevant docs for each task
 3. **Consistent Quality** - Prompts enforce documented standards
 4. **Continuous Learning** - Usage analytics improve prompt effectiveness
 
-### **Team Collaboration**
+### Team Collaboration
 
 - **Shared Knowledge Base** - Documentation accessible to all AI assistants
 - **Standardized Practices** - Prompts ensure consistent code quality
@@ -511,13 +531,13 @@ await call_tool("create_prompt", {
 
 ## 📊 Analytics & Monitoring
 
-### **Usage Tracking**
+### Usage Tracking
 
 - Prompt usage frequency and effectiveness scores
 - Search query analytics and popular topics
 - Document access patterns and relevance metrics
 
-### **Performance Metrics**
+### Performance Metrics
 
 - Indexing speed and document processing statistics
 - Search response times and result quality
@@ -525,9 +545,9 @@ await call_tool("create_prompt", {
 
 ## 🐛 Troubleshooting
 
-### **Common Issues**
+### Common Issues
 
-#### **Database Not Found**
+#### Database Not Found
 
 ```
 ❌ Database not found. Tried locations: [...]
@@ -539,58 +559,46 @@ await call_tool("create_prompt", {
 python src/main.py
 ```
 
-#### **No Documents Indexed**
+#### No Documents Indexed
 
 **Check:**
+
 - Verify `documentation_paths` in config include your docs
 - Ensure files match `file_patterns`
 - Check file permissions and accessibility
 
-#### **Search Returns No Results**
+#### Search Returns No Results
 
 **Check:**
+
 - Try broader search terms
 - Verify documents are properly indexed
 - Check minimum query length (default: 2 characters)
 
-#### **GUI Won't Launch**
+#### GUI Won't Launch
 
 **Check:**
+
 - Tkinter installation: `pip install tk`
 - Display environment for headless systems
 - Database exists and is accessible
 
-### **Performance Tuning**
-
-#### **Large Codebases**
-```yaml
-indexing:
-  batch_size: 50  # Reduce for memory constraints
-  cache_search_results: true
-  max_cache_size: 500
-
-search:
-  default_limit: 5  # Reduce default results
-```
-
-#### **Slow Searches**
-- Enable `cache_search_results`
-- Increase `max_cache_size`
-- Use more specific search queries
-
 ## 🤝 Contributing
 
-### **Adding Custom Prompts**
+### Adding Custom Prompts
+
 1. Use `create_prompt` tool or add directly to database
 2. Follow naming conventions and include comprehensive variables
 3. Test effectiveness and gather usage feedback
 
-### **Extending Document Support**
+### Extending Document Support
+
 1. Add new file patterns to configuration
 2. Implement custom parsers in the server code
 3. Update metadata extraction logic
 
-### **GUI Enhancements**
+### GUI Enhancements
+
 1. Modify `docs_db_viewer.py` for new features
 2. Maintain thread safety with server integration
 3. Follow existing UI patterns and styling
@@ -602,7 +610,8 @@ search:
 - **Database**: SQLite (automatic)
 - **GUI**: Tkinter (optional, for viewer)
 
-### **Core Dependencies**
+### Core Dependencies
+
 ```
 mcp>=0.1.0
 PyYAML>=6.0
@@ -612,7 +621,8 @@ fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
 ```
 
-### **GUI Dependencies** (Optional)
+### GUI Dependencies (Optional)
+
 ```
 tkinter  # Usually included with Python
 ```
@@ -626,6 +636,12 @@ tkinter  # Usually included with Python
 
 ## 🔄 Version History
 
+- **v1.1.0**: Added Python source code indexing for shared utilities across services
+  - Indexes Python files from service utils directories
+  - Extracts classes, functions, and docstrings
+  - Enables cross-service code reuse discovery
+  - Enhanced search capabilities for shared functionality
+  - Added `find_documents` tool for documentation-focused searches
 - **v1.0.0**: Initial release with core documentation indexing and prompt management
 - Comprehensive MCP integration with all major clients
 - GUI database viewer for content exploration

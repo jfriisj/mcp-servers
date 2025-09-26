@@ -8,23 +8,50 @@
 # Documentation paths to scan (all paths are relative to project root)
 # INCLUSION-ONLY APPROACH: Only files in explicitly listed directories are indexed
 documentation_paths:
-  # Root level documentation
-  - "README.md"
+  # Documentation directory - all supported file types
+  - "docs/**/*.md"
+  - "docs/**/*.rst"
+  - "docs/**/*.txt"
+  - "docs/**/*.yaml"
+  - "docs/**/*.yml"
+  - "docs/**/*.json"
   
-  # Server documentation
-  - "coverage-server/README.md"
-  - "docs-prompts-server/README.md"
-  - "ruff-server/README.md"
+  # Documentation alternative directory
+  - "documentation/**/*.md"
+  - "documentation/**/*.rst"
+  - "documentation/**/*.txt"
+  - "documentation/**/*.yaml"
+  - "documentation/**/*.yml"
+  - "documentation/**/*.json"
+  
+  # MCP spec workflow documentation
+  - ".spec-workflow/**/*.md"
+  - ".spec-workflow/**/*.yaml"
+  - ".spec-workflow/**/*.yml"
+  - ".spec-workflow/**/*.json"
   
   # Configuration files
-  - "docs-prompts-server/config/**/*.yaml"
-  - "docs-prompts-server/config/**/*.yml"
-  - "docs-prompts-server/config/**/*.json"
+  - "config/**/*.yaml"
+  - "config/**/*.yml"
+  - "config/**/*.json"
   
-  # Prompt templates
-  - "docs-prompts-server/prompts/**/*.yaml"
-  - "docs-prompts-server/prompts/**/*.yml"
-  - "docs-prompts-server/prompts/**/*.json"
+  # Shared Python utility files across services
+  - "services/*/src/utils/*.py"
+  - "services/*/src/models/*.py"
+  - "services/*/src/exceptions*.py"
+  - "services/*/src/interfaces/*.py"
+  - "services/*/src/core/*.py"
+  - "scripts/*.py"
+  - "quality/**/*.py"
+  
+  # Specific shared/common files
+  - "language-config.yaml"
+  
+  # Specific root-level documentation files only
+  - "README.md"
+  - "CHANGELOG.md"
+  - "CONTRIBUTING.md"
+  - "WARP.md"
 
 # File patterns to include
 file_patterns:
@@ -34,6 +61,7 @@ file_patterns:
   - "*.yaml"
   - "*.yml"
   - "*.json"
+  - "*.py"
 
 # Patterns to exclude from indexing (minimal - inclusion-only approach is primary control)
 exclude_patterns:
@@ -41,6 +69,7 @@ exclude_patterns:
   - "**/.*"  # Hidden files and directories within allowed paths
   - "**/node_modules/**"  # Node modules within allowed directories (unlikely but safe)
   - "**/__pycache__/**"  # Python cache within allowed directories (unlikely but safe)
+  - "**/__init__.py"  # Python init files (typically just imports, not useful for code reuse)
 
 # Maximum file size to index (in MB)
 max_file_size_mb: 10
@@ -64,6 +93,28 @@ architecture_keywords:
   - "infrastructure"
   - "system"
   - "integration"
+  - "class"
+  - "function"
+  - "method"
+  - "utility"
+  - "helper"
+  - "shared"
+  - "common"
+  - "base"
+  - "abstract"
+  - "interface"
+  - "protocol"
+  - "validation"
+  - "logging"
+  - "metrics"
+  - "monitoring"
+  - "circuit_breaker"
+  - "correlation"
+  - "hardware"
+  - "text_processing"
+  - "audio_processor"
+  - "unicode"
+  - "performance"
 
 # Prompt categories
 prompt_categories:

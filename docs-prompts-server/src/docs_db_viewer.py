@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import argparse
 import asyncio
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -348,13 +349,11 @@ class DocsPromptsGUI:
 
         # Index management buttons
         ttk.Button(
-            search_frame, text="Clear All Indexes",
-            command=self.clear_all_indexes
+            search_frame, text="Clear All Indexes", command=self.clear_all_indexes
         ).pack(side=tk.LEFT, padx=5)
 
         ttk.Button(
-            search_frame, text="Index All Documents",
-            command=self.index_all_documents
+            search_frame, text="Index All Documents", command=self.index_all_documents
         ).pack(side=tk.LEFT, padx=5)
 
         # Split pane for documents and content
@@ -718,180 +717,23 @@ class DocsPromptsGUI:
             text_widget.insert(tk.END, "=" * 60 + "\n\n")
 
     def get_mcp_tools_info(self):
-        """Get formatted information about all MCP tools"""
-        return [
-            {
-                "name": "search_docs",
-                "description": "Search through indexed documentation using keywords or phrases",
-                "parameters": [
-                    {
-                        "name": "query",
-                        "description": "Search keywords or phrases",
-                        "required": True,
-                    },
-                    {
-                        "name": "doc_type",
-                        "description": "Filter by document type (.md, .rst, etc.)",
-                        "required": False,
-                    },
-                    {
-                        "name": "limit",
-                        "description": "Maximum results (1-50)",
-                        "required": False,
-                    },
-                ],
-                "usage": "Use when agents need to find specific information in documentation, research topics, or understand project structure.",
-                "example": '{"query": "authentication flow", "doc_type": ".md", "limit": 10}',
-            },
-            {
-                "name": "get_architecture_info",
-                "description": "Extract architecture patterns and design information from documentation",
-                "parameters": [],
-                "usage": "Use when agents need to understand system architecture, design patterns, or technical decisions.",
-                "example": "{}",
-            },
-            {
-                "name": "index_documentation",
-                "description": "Re-index all documentation files to update the search database",
-                "parameters": [
-                    {
-                        "name": "force",
-                        "description": "Force complete re-indexing",
-                        "required": False,
-                    }
-                ],
-                "usage": "Use when new documentation has been added or when search results seem outdated.",
-                "example": '{"force": true}',
-            },
-            {
-                "name": "search_prompts",
-                "description": "Search through available prompt templates by keyword, category, or tags",
-                "parameters": [
-                    {
-                        "name": "query",
-                        "description": "Search terms for prompt name/description/tags",
-                        "required": True,
-                    },
-                    {
-                        "name": "category",
-                        "description": "Filter by prompt category",
-                        "required": False,
-                    },
-                    {
-                        "name": "limit",
-                        "description": "Maximum results (1-50)",
-                        "required": False,
-                    },
-                ],
-                "usage": "Use when agents need to find appropriate prompt templates for specific tasks or domains.",
-                "example": '{"query": "code review", "category": "development", "limit": 5}',
-            },
-            {
-                "name": "get_prompt",
-                "description": "Retrieve complete details of a specific prompt template by ID",
-                "parameters": [
-                    {
-                        "name": "prompt_id",
-                        "description": "Unique identifier of the prompt",
-                        "required": True,
-                    }
-                ],
-                "usage": "Use when agents have a specific prompt ID and need the full template details and variables.",
-                "example": '{"prompt_id": "code-review-template-001"}',
-            },
-            {
-                "name": "suggest_prompts",
-                "description": "Get context-aware prompt suggestions based on current task or content",
-                "parameters": [
-                    {
-                        "name": "context",
-                        "description": "Description of the current task or context",
-                        "required": False,
-                    }
-                ],
-                "usage": "Use when agents need help selecting appropriate prompts for their current task.",
-                "example": '{"context": "analyzing Python code for security vulnerabilities"}',
-            },
-            {
-                "name": "create_prompt",
-                "description": "Create a new custom prompt template for future use",
-                "parameters": [
-                    {
-                        "name": "name",
-                        "description": "Name of the prompt",
-                        "required": True,
-                    },
-                    {
-                        "name": "description",
-                        "description": "What the prompt does",
-                        "required": True,
-                    },
-                    {
-                        "name": "template",
-                        "description": "Prompt template with {variable} placeholders",
-                        "required": True,
-                    },
-                    {
-                        "name": "category",
-                        "description": "Prompt category",
-                        "required": False,
-                    },
-                    {
-                        "name": "variables",
-                        "description": "List of variable names used in template",
-                        "required": False,
-                    },
-                    {
-                        "name": "tags",
-                        "description": "Tags for searching and categorization",
-                        "required": False,
-                    },
-                ],
-                "usage": "Use when agents want to save reusable prompt templates for future tasks.",
-                "example": '{"name": "API Analysis", "description": "Analyze API endpoints", "template": "Analyze this API: {api_spec}", "variables": ["api_spec"]}',
-            },
-            {
-                "name": "generate_contextual_prompt",
-                "description": "Generate a prompt based on current documentation context and task type",
-                "parameters": [
-                    {
-                        "name": "task",
-                        "description": "Task type (code_review, documentation, etc.)",
-                        "required": True,
-                    },
-                    {
-                        "name": "docs_query",
-                        "description": "Query to find relevant documentation",
-                        "required": True,
-                    },
-                ],
-                "usage": "Use when agents need dynamically generated prompts tailored to specific documentation and tasks.",
-                "example": '{"task": "code_review", "docs_query": "authentication security"}',
-            },
-            {
-                "name": "apply_prompt_with_context",
-                "description": "Apply a prompt template with documentation context automatically filled",
-                "parameters": [
-                    {
-                        "name": "prompt_id",
-                        "description": "ID of prompt template to use",
-                        "required": True,
-                    },
-                    {
-                        "name": "content",
-                        "description": "Content to analyze with the prompt",
-                        "required": True,
-                    },
-                    {
-                        "name": "auto_fill_context",
-                        "description": "Auto-fill context variables",
-                        "required": False,
-                    },
-                ],
-                "usage": "Use when agents want to apply prompt templates with automatic context filling from documentation.",
-                "example": '{"prompt_id": "security-review-001", "content": "function authenticate(user, pass) { ... }", "auto_fill_context": true}',
-            },
-        ]
+        """Get formatted information about all MCP tools from YAML config"""
+        config_dir = Path(__file__).parent.parent / "config"
+        config_path = config_dir / "mcp_tools_info.yaml"
+        logger.info("Loading MCP tools config from %s", config_path)
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+                return config.get("tools", [])
+        except FileNotFoundError:
+            logger.error("MCP tools config not found at %s", config_path)
+            return []
+        except yaml.YAMLError as e:
+            logger.error("Error parsing MCP tools config: %s", e)
+            return []
+        except Exception as e:
+            logger.error("Unexpected error loading MCP tools config: %s", e)
+            return []
 
     def run(self):
         """Start the GUI application"""
@@ -903,7 +745,11 @@ class DocsPromptsGUI:
 
     def clear_all_indexes(self):
         """Clear all documents and search indexes"""
-        if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear all indexes? This will delete all indexed documents."):
+        if messagebox.askyesno(
+            "Confirm Clear",
+            "Are you sure you want to clear all indexes? "
+            "This will delete all indexed documents.",
+        ):
             try:
                 if self.server:
                     self.server.clear_index()
@@ -922,12 +768,19 @@ class DocsPromptsGUI:
             if self.server:
                 # Run indexing in a separate thread to avoid blocking GUI
                 import threading
+
                 def do_index():
                     try:
                         result = asyncio.run(self.server.index_all_documents())
                         self.root.after(0, lambda: self._show_index_result(result))
                     except Exception as e:
-                        self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to index documents: {e}"))
+                        error_msg = str(e)
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showerror(
+                                "Error", f"Failed to index documents: {error_msg}"
+                            ),
+                        )
 
                 threading.Thread(target=do_index, daemon=True).start()
                 self.status_var.set("Indexing documents...")
@@ -942,7 +795,12 @@ class DocsPromptsGUI:
         errors = result.get("error_count", 0)
         total = result.get("total_documents", 0)
 
-        message = f"Indexing complete!\nIndexed: {indexed}\nErrors: {errors}\nTotal documents: {total}"
+        message = (
+            f"Indexing complete!\n"
+            f"Indexed: {indexed}\n"
+            f"Errors: {errors}\n"
+            f"Total documents: {total}"
+        )
         messagebox.showinfo("Indexing Complete", message)
         self.status_var.set(f"Indexed {indexed} documents")
 

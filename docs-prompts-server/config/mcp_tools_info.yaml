@@ -1,0 +1,155 @@
+tools:
+  - name: find_code_reuse
+    description: Find reusable code patterns across services - ALWAYS USE FIRST when looking for existing implementations
+    parameters:
+      - name: functionality
+        description: Functionality needed (e.g., 'logging', 'validation')
+        required: true
+      - name: service_context
+        description: Current service context
+        required: false
+      - name: limit
+        description: Maximum results (1-20)
+        required: false
+    usage: |
+      CRITICAL: Always use this tool first when looking for existing code patterns, utilities, or implementations across services. Helps maintain architectural consistency and reduces code duplication.
+    example: '{"functionality": "circuit_breaker", "service_context": "api-gateway", "limit": 5}'
+
+  - name: find_documents
+    description: Find relevant documentation and guides (optimized for document discovery)
+    parameters:
+      - name: topic
+        description: Topic or subject to find documentation for
+        required: true
+      - name: doc_type
+        description: Document type filter (e.g., '.md', '.rst')
+        required: false
+      - name: limit
+        description: Maximum results (1-50)
+        required: false
+    usage: |
+      Use for finding design documents, guides, and architectural patterns. Excludes code files for focused document searches.
+    example: '{"topic": "microservice architecture", "doc_type": ".md", "limit": 10}'
+
+  - name: search_docs
+    description: General documentation search with flexible querying
+    parameters:
+      - name: query
+        description: Search query for documentation content
+        required: true
+      - name: doc_type
+        description: Document type filter
+        required: false
+      - name: limit
+        description: Maximum results (1-50)
+        required: false
+    usage: |
+      Use for broad searches across all indexed content including both documentation and code files. Good for complex queries or when you need mixed results.
+    example: '{"query": "error handling patterns", "limit": 10}'
+
+  - name: get_architecture_info
+    description: Extract architecture patterns and design information from documentation
+    parameters: []
+    usage: |
+      Use when agents need to understand system architecture, design patterns, or technical decisions.
+    example: "{}"
+
+  - name: index_documentation
+    description: Re-index all documentation files to update the search database
+    parameters:
+      - name: force
+        description: Force complete re-indexing
+        required: false
+    usage: |
+      Use when new documentation has been added or when search results seem outdated.
+    example: '{"force": true}'
+
+  - name: search_prompts
+    description: Search through available prompt templates by keyword, category, or tags
+    parameters:
+      - name: query
+        description: Search terms for prompt name/description/tags
+        required: true
+      - name: category
+        description: Filter by prompt category
+        required: false
+      - name: limit
+        description: Maximum results (1-50)
+        required: false
+    usage: |
+      Use when agents need to find appropriate prompt templates for specific tasks or domains.
+    example: '{"query": "code review", "category": "development", "limit": 5}'
+
+  - name: get_prompt
+    description: Retrieve complete details of a specific prompt template by ID
+    parameters:
+      - name: prompt_id
+        description: Unique identifier of the prompt
+        required: true
+    usage: |
+      Use when agents have a specific prompt ID and need the full template details and variables.
+    example: '{"prompt_id": "code-review-template-001"}'
+
+  - name: suggest_prompts
+    description: Get context-aware prompt suggestions based on current task or content
+    parameters:
+      - name: context
+        description: Description of the current task or context
+        required: false
+    usage: |
+      Use when agents need help selecting appropriate prompts for their current task.
+    example: '{"context": "analyzing Python code for security vulnerabilities"}'
+
+  - name: create_prompt
+    description: Create a new custom prompt template for future use
+    parameters:
+      - name: name
+        description: Name of the prompt
+        required: true
+      - name: description
+        description: What the prompt does
+        required: true
+      - name: template
+        description: Prompt template with {variable} placeholders
+        required: true
+      - name: category
+        description: Prompt category
+        required: false
+      - name: variables
+        description: List of variable names used in template
+        required: false
+      - name: tags
+        description: Tags for searching and categorization
+        required: false
+    usage: |
+      Use when agents want to save reusable prompt templates for future tasks.
+    example: '{"name": "API Analysis", "description": "Analyze API endpoints", "template": "Analyze this API: {api_spec}", "variables": ["api_spec"]}'
+
+  - name: generate_contextual_prompt
+    description: Generate a prompt based on current documentation context and task type
+    parameters:
+      - name: task
+        description: Task type (code_review, documentation, etc.)
+        required: true
+      - name: docs_query
+        description: Query to find relevant documentation
+        required: true
+    usage: |
+      Use when agents need dynamically generated prompts tailored to specific documentation and tasks.
+    example: '{"task": "code_review", "docs_query": "authentication security"}'
+
+  - name: apply_prompt_with_context
+    description: Apply a prompt template with documentation context automatically filled
+    parameters:
+      - name: prompt_id
+        description: ID of prompt template to use
+        required: true
+      - name: content
+        description: Content to analyze with the prompt
+        required: true
+      - name: auto_fill_context
+        description: Auto-fill context variables
+        required: false
+    usage: |
+      Use when agents want to apply prompt templates with automatic context filling from documentation.
+    example: '{"prompt_id": "security-review-001", "content": "function authenticate(user, pass) { ... }", "auto_fill_context": true}'

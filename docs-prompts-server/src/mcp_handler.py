@@ -68,20 +68,78 @@ class MCPHandler:
     def get_tools(self) -> List[Tool]:
         """List available documentation and prompt tools"""
         return [
-            # Provide a user-friendly alias that matches the project's guidance "Run docs"
+            # Code reuse tools (use first)
+            Tool(
+                name="find_code_reuse",
+                description="Find reusable code patterns across services "
+                           "(use before other searches)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "functionality": {
+                            "type": "string",
+                            "description": "Functionality needed "
+                                         "(e.g., 'logging', 'validation')",
+                        },
+                        "service_context": {
+                            "type": "string",
+                            "description": "Current service context",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 5,
+                            "minimum": 1,
+                            "maximum": 20,
+                        },
+                    },
+                    "required": ["functionality"],
+                },
+            ),
+            # Documentation tools
+            Tool(
+                name="find_documents",
+                description="Find relevant documentation and guides "
+                           "(optimized for document discovery)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "Topic or subject to find "
+                                "documentation for",
+                        },
+                        "doc_type": {
+                            "type": "string",
+                            "description": "Document type filter "
+                                "(e.g., '.md', '.rst')",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 50,
+                        },
+                    },
+                    "required": ["topic"],
+                },
+            ),
             Tool(
                 name="search_docs",
-                description="Search documentation using keywords or phrases",
+                description="General documentation search with "
+                           "flexible querying",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query (keywords or phrases)",
+                            "description": "Search query for "
+                                         "documentation content",
                         },
                         "doc_type": {
                             "type": "string",
-                            "description": "Filter by document type (.md, .rst, .yaml, etc.)",
+                            "description": "Document type filter",
                         },
                         "limit": {
                             "type": "integer",
@@ -317,10 +375,166 @@ class MCPHandler:
         else:
             raise ValueError(f"Unknown resource: {uri}")
 
+    def _find_reusable_code(self, functionality: str, service_context: str, limit: int) -> List[Dict[str, Any]]:
+        """Find reusable code patterns across services"""
+        results = []
+
+        # Search Python files specifically
+        py_results = self.document_indexer.search_documents(functionality, ".py", limit * 2)
+
+        for result in py_results:
+            if len(results) >= limit:
+                break
+
+            path = result['path']
+            title = result['title']
+
+            # Extract service name from path
+            service = self._extract_service_from_path(path)
+
+            # Determine code type and reuse suggestion
+            code_type, reuse_suggestion = self._analyze_code_reusability(
+                title, path, functionality, service_context
+            )
+
+            # Extract docstring if available
+            docstring = self._extract_docstring_from_result(result)
+
+            results.append({
+                'title': title,
+                'service': service,
+                'file': path.split('/')[-1],
+                'code_type': code_type,
+                'docstring': docstring,
+                'reuse_suggestion': reuse_suggestion,
+                'path': path
+            })
+
+        return results
+
+    def _extract_service_from_path(self, path: str) -> str:
+        """Extract service name from file path"""
+        if 'services/' in path:
+            parts = path.split('services/')[1].split('/')
+            return parts[0] if parts else 'unknown'
+        return 'shared'
+
+    def _analyze_code_reusability(self, title: str, path: str, functionality: str, service_context: str) -> tuple[str, str]:
+        """Analyze code for reusability and provide suggestions"""
+        title_lower = title.lower()
+        path_lower = path.lower()
+
+        # Determine code type
+        if 'class' in title_lower:
+            code_type = 'Class'
+        elif 'function' in title_lower or 'def ' in title_lower:
+            code_type = 'Function'
+        elif 'utils' in path_lower or 'utilities' in path_lower:
+            code_type = 'Utility Module'
+        elif 'handler' in path_lower:
+            code_type = 'Handler'
+        else:
+            code_type = 'Module'
+
+        # Generate reuse suggestion
+        if service_context and service_context.lower() in path_lower:
+            reuse_suggestion = f"Direct import from {path}"
+        else:
+            reuse_suggestion = f"Import from {path} (consider service abstraction)"
+
+        # Add specific suggestions based on functionality
+        if functionality.lower() in ['logging', 'log']:
+            reuse_suggestion += " - Standardize logging across services"
+        elif functionality.lower() in ['validation', 'validate']:
+            reuse_suggestion += " - Use consistent validation patterns"
+        elif functionality.lower() in ['circuit_breaker', 'circuit breaker']:
+            reuse_suggestion += " - Implement resilient service calls"
+        elif functionality.lower() in ['metrics', 'monitoring']:
+            reuse_suggestion += " - Centralize observability"
+
+        return code_type, reuse_suggestion
+
+    def _extract_docstring_from_result(self, result: Dict[str, Any]) -> str:
+        """Extract docstring from search result"""
+        content = result.get('content_snippet', '')
+        # Look for docstring patterns in the content
+        if '"""' in content or "'''" in content:
+            # Extract first docstring-like content
+            lines = content.split('\n')
+            docstring_lines = []
+            in_docstring = False
+
+            for line in lines[:10]:  # Check first 10 lines
+                if ('"""' in line or "'''" in line) and not in_docstring:
+                    in_docstring = True
+                    # Remove opening quotes
+                    line = line.replace('"""', '').replace("'''", '').strip()
+                    if line:
+                        docstring_lines.append(line)
+                elif in_docstring:
+                    if '"""' in line or "'''" in line:
+                        break
+                    docstring_lines.append(line.strip())
+
+            if docstring_lines:
+                return ' '.join(docstring_lines[:5])  # First 5 lines of docstring
+
+        return ""
+
     def call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
         """Handle tool calls for documentation and prompts"""
         try:
-            if name == "search_docs":
+            if name == "find_code_reuse":
+                functionality = arguments["functionality"]
+                service_context = arguments.get("service_context", "")
+                limit = arguments.get("limit", 5)
+
+                # Search Python files specifically for reusable code
+                results = self._find_reusable_code(functionality, service_context, limit)
+
+                response_text = f"🔍 Code Reuse Search for '{functionality}':\n\n"
+
+                if results:
+                    for i, result in enumerate(results, 1):
+                        response_text += f"{i}. **{result['title']}**\n"
+                        response_text += f"   📁 Service: {result['service']}\n"
+                        response_text += f"   📄 File: {result['file']}\n"
+                        response_text += f"   🔧 Type: {result['code_type']}\n"
+                        if result.get('docstring'):
+                            response_text += f"   📝 Docs: {result['docstring'][:100]}...\n"
+                        response_text += f"   💡 Reuse: {result['reuse_suggestion']}\n\n"
+                else:
+                    response_text += f"❌ No reusable {functionality} code found.\n"
+                    response_text += "💡 Try searching documentation or creating new implementation."
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "find_documents":
+                topic = arguments["topic"]
+                doc_type = arguments.get("doc_type")
+                limit = arguments.get("limit", 10)
+
+                # Search documentation files (exclude Python files)
+                results = self.document_indexer.search_documents(topic, doc_type, limit)
+
+                # Filter out Python files for document-focused search
+                doc_results = [r for r in results if not r['path'].endswith('.py')]
+
+                response_text = f"📚 Document Search for '{topic}':\n\n"
+
+                if doc_results:
+                    for i, result in enumerate(doc_results[:limit], 1):
+                        response_text += f"{i}. **{result['title']}** ({result['doc_type']})\n"
+                        response_text += f"   📁 Path: {result['path']}\n"
+                        response_text += f"   📄 Section: {result['section_title']}\n"
+                        response_text += f"   📝 Content: {result['content_snippet'][:200]}...\n\n"
+                else:
+                    response_text += f"❌ No documentation found for '{topic}'.\n"
+                    response_text += "💡 Try broader search terms or check spelling."
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "search_docs":
                 query = arguments["query"]
                 doc_type = arguments.get("doc_type")
                 limit = arguments.get("limit", 10)

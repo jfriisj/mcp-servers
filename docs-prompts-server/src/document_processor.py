@@ -52,7 +52,9 @@ class DocumentProcessor:
                         return False
 
             # Tertiary check: validate file type matches allowed patterns
-            allowed_extensions = {".md", ".rst", ".txt", ".yaml", ".yml", ".json"}
+            allowed_extensions = {
+                ".md", ".rst", ".txt", ".yaml", ".yml", ".json", ".py"
+            }
             if file_path.suffix.lower() in allowed_extensions:
                 file_allowed = True
             else:
@@ -129,6 +131,8 @@ class DocumentProcessor:
             return self._extract_markdown_metadata(content)
         elif doc_type in [".yaml", ".yml"]:
             return self._extract_yaml_metadata(content, file_path)
+        elif doc_type == ".py":
+            return self._extract_python_metadata(content, file_path)
         else:
             # Plain text or other formats
             return self._extract_plain_metadata(content, file_path)
@@ -228,3 +232,160 @@ class DocumentProcessor:
         title = file_path.stem
         sections = [{"title": "Content", "content": content, "level": 1}]
         return title, sections, [], []
+
+    def _extract_python_metadata(
+        self, content: str, file_path: Path
+    ) -> Tuple[str, List[Dict], List[str], List[Dict]]:
+        """Extract metadata from Python source code"""
+        lines = content.split("\n")
+        title = file_path.stem.replace("_", " ").title()
+        sections = []
+        links = []
+        code_blocks = []
+
+        # Extract classes, functions, and docstrings
+        current_class = None
+        current_function = None
+        current_docstring = []
+        in_docstring = False
+        docstring_delimiter = None
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+
+            # Class definitions
+            if stripped.startswith("class "):
+                # Save previous function if exists
+                if current_function:
+                    sections.append({
+                        "title": f"Function: {current_function}",
+                        "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
+                        "level": 3 if current_class else 2,
+                    })
+                    current_function = None
+                    current_docstring = []
+
+                class_match = re.match(r"class\s+(\w+)", stripped)
+                if class_match:
+                    current_class = class_match.group(1)
+                    sections.append({
+                        "title": f"Class: {current_class}",
+                        "content": f"Class definition at line {i+1}",
+                        "level": 2,
+                    })
+
+            # Function/method definitions
+            elif stripped.startswith("def ") or stripped.startswith("    def "):
+                # Save previous function if exists
+                if current_function:
+                    sections.append({
+                        "title": f"Function: {current_function}",
+                        "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
+                        "level": 3 if current_class else 2,
+                    })
+
+                func_match = re.match(r"(?:    )?def\s+(\w+)", stripped)
+                if func_match:
+                    current_function = func_match.group(1)
+                    current_docstring = []
+                    in_docstring = False
+
+            # Docstring detection
+            elif current_function and not in_docstring:
+                if stripped.startswith('"""') or stripped.startswith("'''"):
+                    in_docstring = True
+                    docstring_delimiter = '"""' if stripped.startswith('"""') else "'''"
+                    # Remove the opening delimiter
+                    docstring_content = stripped[len(docstring_delimiter):]
+                    if docstring_content:
+                        current_docstring.append(docstring_content)
+                    if stripped.count(docstring_delimiter) == 2:  # Single line docstring
+                        in_docstring = False
+                        docstring_delimiter = None
+                elif stripped.startswith('r"""') or stripped.startswith("r'''"):
+                    in_docstring = True
+                    docstring_delimiter = 'r"""' if stripped.startswith('r"""') else "r'''"
+                    docstring_content = stripped[len(docstring_delimiter):]
+                    if docstring_content:
+                        current_docstring.append(docstring_content)
+
+            # Continue collecting docstring
+            elif in_docstring and current_function:
+                if docstring_delimiter and docstring_delimiter in stripped:
+                    # End of docstring
+                    parts = stripped.split(docstring_delimiter, 1)
+                    if parts[0]:
+                        current_docstring.append(parts[0])
+                    in_docstring = False
+                    docstring_delimiter = None
+                else:
+                    current_docstring.append(line)
+
+            # Import statements (potential links)
+            elif stripped.startswith("from ") or stripped.startswith("import "):
+                # Extract module names as potential links
+                if stripped.startswith("from "):
+                    module_match = re.match(r"from\s+([\w.]+)", stripped)
+                    if module_match:
+                        links.append(module_match.group(1))
+                elif stripped.startswith("import "):
+                    import_match = re.match(r"import\s+([\w.,\s]+)", stripped)
+                    if import_match:
+                        imports = [imp.strip() for imp in import_match.group(1).replace(",", " ").split()]
+                        links.extend(imports)
+
+        # Add final function if exists
+        if current_function:
+            sections.append({
+                "title": f"Function: {current_function}",
+                "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
+                "level": 3 if current_class else 2,
+            })
+
+        # Add module-level docstring if found
+        module_docstring = self._extract_module_docstring(content)
+        if module_docstring:
+            sections.insert(0, {
+                "title": "Module Docstring",
+                "content": module_docstring,
+                "level": 1,
+            })
+
+        return title, sections, links, code_blocks
+
+    def _extract_module_docstring(self, content: str) -> Optional[str]:
+        """Extract module-level docstring from Python code"""
+        lines = content.split("\n")
+        docstring_lines = []
+        in_docstring = False
+        docstring_delimiter = None
+
+        for line in lines:
+            stripped = line.strip()
+
+            if not in_docstring and not docstring_lines:  # Looking for start
+                if stripped.startswith('"""') or stripped.startswith("'''"):
+                    in_docstring = True
+                    docstring_delimiter = '"""' if stripped.startswith('"""') else "'''"
+                    docstring_content = stripped[len(docstring_delimiter):]
+                    if docstring_content:
+                        docstring_lines.append(docstring_content)
+                    if stripped.count(docstring_delimiter) == 2:  # Single line
+                        return docstring_content
+                elif stripped.startswith('r"""') or stripped.startswith("r'''"):
+                    in_docstring = True
+                    docstring_delimiter = 'r"""' if stripped.startswith('r"""') else "r'''"
+                    docstring_content = stripped[len(docstring_delimiter):]
+                    if docstring_content:
+                        docstring_lines.append(docstring_content)
+            elif in_docstring:
+                if docstring_delimiter and docstring_delimiter in stripped:
+                    # End of docstring
+                    parts = stripped.split(docstring_delimiter, 1)
+                    if parts[0]:
+                        docstring_lines.append(parts[0])
+                    break
+                else:
+                    docstring_lines.append(line)
+
+        return "\n".join(docstring_lines).strip() if docstring_lines else None
