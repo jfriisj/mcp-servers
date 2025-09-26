@@ -1,4 +1,12 @@
-# Documentation and Prompts MCP Server
+# Do## 🚀 Overview
+
+The Documentation and Prompts MCP Server transforms how AI assistants interact with your codebase by providing:
+
+- **📚 Smart Documentation Indexing** - Automatically indexes and searches your project's documentation with configurable root folder support
+- **🎯 Intelligent Prompt Management** - Context-aware prompts that automatically incorporate relevant documentation
+- **🔗 Seamless Integration** - Documentation informs prompts, prompts reference documentation
+- **⚡ Real-time GUI Viewer** - Visual interface for exploring indexed content and managing prompts
+- **📊 Analytics & Insights** - Usage tracking and effectiveness metrics for continuous improvementon and Prompts MCP Server
 
 A comprehensive Model Context Protocol (MCP) server that combines intelligent documentation indexing with advanced prompt management, enabling AI assistants to understand project architecture and apply context-aware prompts for consistent, high-quality development.
 
@@ -53,23 +61,23 @@ The Documentation and Prompts MCP Server transforms how AI assistants interact w
 ```
 docs-prompts-server/
 ├── src/
-│   ├── docs_prompts_mcp_server.py    # Main MCP server implementation
-│   └── docs_db_viewer.py              # GUI database viewer
+│   ├── main.py                        # Main MCP server entry point
+│   ├── server.py                       # Core server facade
+│   ├── config.py                       # Configuration management
+│   ├── database.py                     # Database operations
+│   ├── document_indexer.py             # Document indexing logic
+│   ├── document_processor.py           # Document processing utilities
+│   ├── prompt_manager.py               # Prompt management system
+│   ├── mcp_handler.py                  # MCP protocol handling
+│   ├── gui_manager.py                  # GUI management
+│   ├── models.py                       # Data models
+│   └── docs_db_viewer.py               # GUI database viewer
 ├── config/
-│   └── server_config.yaml            # Server configuration
+│   └── server_config.yaml             # Server configuration
 ├── prompts/
-│   ├── categories.yaml               # Prompt category definitions
-│   ├── code-quality/                 # Code quality prompts
-│   ├── architecture/                 # Architecture prompts
-│   ├── documentation/                # Documentation prompts
-│   ├── testing/                      # Testing prompts
-│   ├── refactoring/                  # Refactoring prompts
-│   ├── api/                          # API prompts
-│   ├── security/                     # Security prompts
-│   ├── custom/                       # Custom prompts
-│   └── templates/                    # Prompt templates
-├── requirements.txt                  # Python dependencies
-└── README.md                         # This file
+│   └── categories.yaml                # Prompt category definitions
+├── requirements.txt                   # Python dependencies
+└── README.md                          # This file
 ```
 
 ## 🛠️ Installation & Setup
@@ -116,11 +124,18 @@ architecture_keywords:
 
 ```json
 {
-  "mcpServers": {
-    "docs-prompts": {
-      "command": "python",
-      "args": ["${workspaceFolder}/docs-prompts-server/src/docs_prompts_mcp_server.py"],
-      "cwd": "${workspaceFolder}"
+  "servers": {
+    "docs": {
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": [
+        "mcp-servers/docs-prompts-server/src/main.py",
+        "--root-folder",
+        "${workspaceFolder}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     }
   }
 }
@@ -131,13 +146,37 @@ architecture_keywords:
 ```json
 {
   "mcpServers": {
-    "docs-prompts": {
+    "docs": {
       "command": "python",
-      "args": ["/path/to/docs-prompts-server/src/docs_prompts_mcp_server.py"]
+      "args": [
+        "/path/to/docs-prompts-server/src/main.py",
+        "--root-folder",
+        "/path/to/your/project"
+      ]
     }
   }
 }
 ```
+
+### **4. Command Line Options**
+
+The server supports the following command line arguments:
+
+- `--root-folder PATH`: Specify the root folder for documentation indexing (defaults to current directory or `DOCS_PROJECT_ROOT` environment variable)
+- `--help`: Show help message and exit
+
+**Example usage:**
+
+```bash
+# Use specific project root
+python src/main.py --root-folder /path/to/project
+
+# Use environment variable
+export DOCS_PROJECT_ROOT=/path/to/project
+python src/main.py
+```
+
+### **5. Launch GUI Viewer (Optional)**
 
 ### **4. Launch GUI Viewer (Optional)**
 
@@ -157,6 +196,16 @@ python docs_db_viewer.py --gui
 | `exclude_patterns` | Paths to skip during indexing | `["node_modules/", ".git/"]` |
 | `max_file_size_mb` | Maximum file size to index | `10` |
 | `architecture_keywords` | Keywords for architecture detection | See config file |
+
+### **Root Folder Configuration**
+
+The server can be configured to index documentation from a specific root folder using either:
+
+1. **Command line argument**: `--root-folder /path/to/project`
+2. **Environment variable**: `DOCS_PROJECT_ROOT=/path/to/project`
+3. **MCP server configuration**: Pass `--root-folder ${workspaceFolder}` in the args array
+
+When no root folder is specified, the server defaults to the current working directory.
 
 ### **Performance Tuning**
 
@@ -487,7 +536,7 @@ await call_tool("create_prompt", {
 **Solution:** Run the server first to create the database:
 
 ```bash
-python src/docs_prompts_mcp_server.py
+python src/main.py
 ```
 
 #### **No Documents Indexed**
