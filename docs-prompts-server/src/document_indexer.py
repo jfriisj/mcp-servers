@@ -23,6 +23,7 @@ class DocumentIndexer:
     ):
         self.config = config
         self.project_root = project_root
+        logger.info(f"Project root set to: {self.project_root}")
         self.db_manager = db_manager
         self.processor = DocumentProcessor(config, project_root)
 

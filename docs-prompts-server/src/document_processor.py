@@ -52,9 +52,12 @@ class DocumentProcessor:
                         return False
 
             # Tertiary check: validate file type matches allowed patterns
-            allowed_extensions = {
-                ".md", ".rst", ".txt", ".yaml", ".yml", ".json", ".py"
-            }
+            # Convert glob patterns from config to file extensions
+            allowed_extensions = set()
+            for pattern in self.config.get("file_patterns", []):
+                if pattern.startswith("*."):
+                    allowed_extensions.add(pattern[1:].lower())
+
             if file_path.suffix.lower() in allowed_extensions:
                 file_allowed = True
             else:
@@ -257,32 +260,42 @@ class DocumentProcessor:
             if stripped.startswith("class "):
                 # Save previous function if exists
                 if current_function:
-                    sections.append({
-                        "title": f"Function: {current_function}",
-                        "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
-                        "level": 3 if current_class else 2,
-                    })
+                    sections.append(
+                        {
+                            "title": f"Function: {current_function}",
+                            "content": "\n".join(current_docstring).strip()
+                            if current_docstring
+                            else "No docstring",
+                            "level": 3 if current_class else 2,
+                        }
+                    )
                     current_function = None
                     current_docstring = []
 
                 class_match = re.match(r"class\s+(\w+)", stripped)
                 if class_match:
                     current_class = class_match.group(1)
-                    sections.append({
-                        "title": f"Class: {current_class}",
-                        "content": f"Class definition at line {i+1}",
-                        "level": 2,
-                    })
+                    sections.append(
+                        {
+                            "title": f"Class: {current_class}",
+                            "content": f"Class definition at line {i + 1}",
+                            "level": 2,
+                        }
+                    )
 
             # Function/method definitions
             elif stripped.startswith("def ") or stripped.startswith("    def "):
                 # Save previous function if exists
                 if current_function:
-                    sections.append({
-                        "title": f"Function: {current_function}",
-                        "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
-                        "level": 3 if current_class else 2,
-                    })
+                    sections.append(
+                        {
+                            "title": f"Function: {current_function}",
+                            "content": "\n".join(current_docstring).strip()
+                            if current_docstring
+                            else "No docstring",
+                            "level": 3 if current_class else 2,
+                        }
+                    )
 
                 func_match = re.match(r"(?:    )?def\s+(\w+)", stripped)
                 if func_match:
@@ -296,16 +309,20 @@ class DocumentProcessor:
                     in_docstring = True
                     docstring_delimiter = '"""' if stripped.startswith('"""') else "'''"
                     # Remove the opening delimiter
-                    docstring_content = stripped[len(docstring_delimiter):]
+                    docstring_content = stripped[len(docstring_delimiter) :]
                     if docstring_content:
                         current_docstring.append(docstring_content)
-                    if stripped.count(docstring_delimiter) == 2:  # Single line docstring
+                    if (
+                        stripped.count(docstring_delimiter) == 2
+                    ):  # Single line docstring
                         in_docstring = False
                         docstring_delimiter = None
                 elif stripped.startswith('r"""') or stripped.startswith("r'''"):
                     in_docstring = True
-                    docstring_delimiter = 'r"""' if stripped.startswith('r"""') else "r'''"
-                    docstring_content = stripped[len(docstring_delimiter):]
+                    docstring_delimiter = (
+                        'r"""' if stripped.startswith('r"""') else "r'''"
+                    )
+                    docstring_content = stripped[len(docstring_delimiter) :]
                     if docstring_content:
                         current_docstring.append(docstring_content)
 
@@ -331,25 +348,35 @@ class DocumentProcessor:
                 elif stripped.startswith("import "):
                     import_match = re.match(r"import\s+([\w.,\s]+)", stripped)
                     if import_match:
-                        imports = [imp.strip() for imp in import_match.group(1).replace(",", " ").split()]
+                        imports = [
+                            imp.strip()
+                            for imp in import_match.group(1).replace(",", " ").split()
+                        ]
                         links.extend(imports)
 
         # Add final function if exists
         if current_function:
-            sections.append({
-                "title": f"Function: {current_function}",
-                "content": "\n".join(current_docstring).strip() if current_docstring else "No docstring",
-                "level": 3 if current_class else 2,
-            })
+            sections.append(
+                {
+                    "title": f"Function: {current_function}",
+                    "content": "\n".join(current_docstring).strip()
+                    if current_docstring
+                    else "No docstring",
+                    "level": 3 if current_class else 2,
+                }
+            )
 
         # Add module-level docstring if found
         module_docstring = self._extract_module_docstring(content)
         if module_docstring:
-            sections.insert(0, {
-                "title": "Module Docstring",
-                "content": module_docstring,
-                "level": 1,
-            })
+            sections.insert(
+                0,
+                {
+                    "title": "Module Docstring",
+                    "content": module_docstring,
+                    "level": 1,
+                },
+            )
 
         return title, sections, links, code_blocks
 
@@ -367,15 +394,17 @@ class DocumentProcessor:
                 if stripped.startswith('"""') or stripped.startswith("'''"):
                     in_docstring = True
                     docstring_delimiter = '"""' if stripped.startswith('"""') else "'''"
-                    docstring_content = stripped[len(docstring_delimiter):]
+                    docstring_content = stripped[len(docstring_delimiter) :]
                     if docstring_content:
                         docstring_lines.append(docstring_content)
                     if stripped.count(docstring_delimiter) == 2:  # Single line
                         return docstring_content
                 elif stripped.startswith('r"""') or stripped.startswith("r'''"):
                     in_docstring = True
-                    docstring_delimiter = 'r"""' if stripped.startswith('r"""') else "r'''"
-                    docstring_content = stripped[len(docstring_delimiter):]
+                    docstring_delimiter = (
+                        'r"""' if stripped.startswith('r"""') else "r'''"
+                    )
+                    docstring_content = stripped[len(docstring_delimiter) :]
                     if docstring_content:
                         docstring_lines.append(docstring_content)
             elif in_docstring:

@@ -53,6 +53,7 @@ class DocumentationPromptsServer:
             logger.info("Auto-indexing documents on startup...")
             try:
                 import asyncio
+
                 # Run indexing in background to not block startup
                 import threading
 
