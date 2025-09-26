@@ -2,6 +2,7 @@
 Main entry point for the Documentation and Prompts MCP Server
 """
 import asyncio
+import argparse
 import logging
 
 from mcp.server import Server
@@ -49,8 +50,23 @@ async def call_tool(name: str, arguments):
 
 async def main():
     """Main entry point for the documentation and prompts MCP server"""
+    parser = argparse.ArgumentParser(
+        description='Documentation and Prompts MCP Server'
+    )
+    parser.add_argument(
+        '--root-folder', type=str,
+        help='Root folder for documentation indexing'
+    )
+    args = parser.parse_args()
+
     try:
         from mcp.server.stdio import stdio_server
+
+        # Initialize the server with root folder if provided
+        global docs_prompts_server
+        docs_prompts_server = DocumentationPromptsServer(
+            project_root=args.root_folder
+        )
 
         # Auto-index documentation on startup
         try:
