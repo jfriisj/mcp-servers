@@ -1,6 +1,7 @@
 """
 Coverage execution and subprocess management for the Coverage MCP Server
 """
+
 import asyncio
 import logging
 from pathlib import Path
@@ -82,9 +83,7 @@ class CoverageRunner:
 
         return cmd
 
-    async def run_coverage_command(
-        self, cmd: List[str]
-    ) -> Tuple[str, str, int]:
+    async def run_coverage_command(self, cmd: List[str]) -> Tuple[str, str, int]:
         """Run a coverage command and return (stdout, stderr, returncode)"""
         logger.info("Running coverage command: %s", " ".join(cmd))
 

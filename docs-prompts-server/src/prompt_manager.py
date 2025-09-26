@@ -1,6 +1,7 @@
 """
 Prompt management for the Documentation and Prompts MCP Server
 """
+
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -50,10 +51,14 @@ class PromptManager:
                 6. Test coverage adequacy
 
                 Provide specific recommendations for improvements.""",
-                "variables": ["architecture_info", "coding_standards", "security_requirements", "code_content"],
-                "tags": ["review", "quality", "security", "best-practices"]
+                "variables": [
+                    "architecture_info",
+                    "coding_standards",
+                    "security_requirements",
+                    "code_content",
+                ],
+                "tags": ["review", "quality", "security", "best-practices"],
             },
-
             "api_documentation": {
                 "id": "api_documentation",
                 "name": "API Documentation Generator",
@@ -76,10 +81,14 @@ class PromptManager:
                 - Rate limiting information
                 - Usage examples in multiple languages
                 - Integration guidelines""",
-                "variables": ["existing_api_patterns", "architecture_style", "auth_method", "api_code"],
-                "tags": ["api", "documentation", "openapi", "endpoints"]
+                "variables": [
+                    "existing_api_patterns",
+                    "architecture_style",
+                    "auth_method",
+                    "api_code",
+                ],
+                "tags": ["api", "documentation", "openapi", "endpoints"],
             },
-
             "architecture_review": {
                 "id": "architecture_review",
                 "name": "Architecture Compliance Check",
@@ -103,11 +112,15 @@ class PromptManager:
                 5. Error handling strategy
                 6. Monitoring and observability
                 7. Security architecture adherence""",
-                "variables": ["architecture_docs", "design_patterns", "integration_guidelines",
-                             "scalability_requirements", "implementation_code"],
-                "tags": ["architecture", "validation", "patterns", "scalability"]
+                "variables": [
+                    "architecture_docs",
+                    "design_patterns",
+                    "integration_guidelines",
+                    "scalability_requirements",
+                    "implementation_code",
+                ],
+                "tags": ["architecture", "validation", "patterns", "scalability"],
             },
-
             "security_analysis": {
                 "id": "security_analysis",
                 "name": "Security Vulnerability Assessment",
@@ -133,10 +146,14 @@ class PromptManager:
                 8. Compliance with documented security standards
 
                 Provide risk assessment and mitigation strategies.""",
-                "variables": ["security_guidelines", "threat_model", "compliance_requirements", "code_content"],
-                "tags": ["security", "vulnerability", "compliance", "risk-assessment"]
+                "variables": [
+                    "security_guidelines",
+                    "threat_model",
+                    "compliance_requirements",
+                    "code_content",
+                ],
+                "tags": ["security", "vulnerability", "compliance", "risk-assessment"],
             },
-
             "test_generation": {
                 "id": "test_generation",
                 "name": "Test Strategy and Generation",
@@ -160,10 +177,14 @@ class PromptManager:
                 6. Mock and fixture requirements
                 7. Test data setup and teardown
                 8. Coverage goals and metrics""",
-                "variables": ["testing_guidelines", "coverage_requirements", "testing_framework", "code_content"],
-                "tags": ["testing", "unit-tests", "coverage", "test-strategy"]
+                "variables": [
+                    "testing_guidelines",
+                    "coverage_requirements",
+                    "testing_framework",
+                    "code_content",
+                ],
+                "tags": ["testing", "unit-tests", "coverage", "test-strategy"],
             },
-
             "refactoring_analysis": {
                 "id": "refactoring_analysis",
                 "name": "Code Refactoring Recommendations",
@@ -189,16 +210,23 @@ class PromptManager:
                 8. Documentation and naming improvements
 
                 Provide specific refactoring steps and expected benefits.""",
-                "variables": ["quality_guidelines", "design_patterns", "performance_requirements", "code_content"],
-                "tags": ["refactoring", "optimization", "code-quality", "patterns"]
-            }
+                "variables": [
+                    "quality_guidelines",
+                    "design_patterns",
+                    "performance_requirements",
+                    "code_content",
+                ],
+                "tags": ["refactoring", "optimization", "code-quality", "patterns"],
+            },
         }
 
         # Store default prompts in database
         for prompt_data in default_prompts.values():
             self.db_manager.store_prompt(prompt_data)
 
-    def search_prompts(self, query: str, category: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_prompts(
+        self, query: str, category: Optional[str] = None, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Search prompts by keyword or category"""
         return self.db_manager.search_prompts(query, category, limit)
 
@@ -223,7 +251,7 @@ class PromptManager:
                 "security": ["security"],
                 "refactor": ["refactoring"],
                 "architecture": ["architecture"],
-                "document": ["documentation"]
+                "document": ["documentation"],
             }
 
             relevant_categories = set()
@@ -242,7 +270,9 @@ class PromptManager:
 
         return suggestions
 
-    def get_prompts_by_category(self, category: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_prompts_by_category(
+        self, category: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Get prompts by category"""
         return self.db_manager.get_prompts_by_category(category, limit)
 
@@ -252,7 +282,9 @@ class PromptManager:
         self.db_manager.store_prompt(prompt_data)
         return prompt_id
 
-    def record_prompt_usage(self, prompt_id: str, context: str = "", effectiveness: int = 5):
+    def record_prompt_usage(
+        self, prompt_id: str, context: str = "", effectiveness: int = 5
+    ):
         """Record prompt usage for analytics"""
         self.db_manager.record_prompt_usage(prompt_id, context, effectiveness)
 

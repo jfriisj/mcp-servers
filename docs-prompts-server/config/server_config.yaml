@@ -8,39 +8,23 @@
 # Documentation paths to scan (all paths are relative to project root)
 # INCLUSION-ONLY APPROACH: Only files in explicitly listed directories are indexed
 documentation_paths:
-  # Documentation directory - all supported file types
-  - "docs/**/*.md"
-  - "docs/**/*.rst"
-  - "docs/**/*.txt"
-  - "docs/**/*.yaml"
-  - "docs/**/*.yml"
-  - "docs/**/*.json"
+  # Root level documentation
+  - "README.md"
   
-  # Documentation alternative directory
-  - "documentation/**/*.md"
-  - "documentation/**/*.rst"
-  - "documentation/**/*.txt"
-  - "documentation/**/*.yaml"
-  - "documentation/**/*.yml"
-  - "documentation/**/*.json"
-  
-  # MCP spec workflow documentation
-  - ".spec-workflow/**/*.md"
-  - ".spec-workflow/**/*.yaml"
-  - ".spec-workflow/**/*.yml"
-  - ".spec-workflow/**/*.json"
+  # Server documentation
+  - "coverage-server/README.md"
+  - "docs-prompts-server/README.md"
+  - "ruff-server/README.md"
   
   # Configuration files
-  - "config/**/*.yaml"
-  - "config/**/*.yml"
-  - "config/**/*.json"
+  - "docs-prompts-server/config/**/*.yaml"
+  - "docs-prompts-server/config/**/*.yml"
+  - "docs-prompts-server/config/**/*.json"
   
-  # Specific root-level documentation files only
-  - "README.md"
-  - "CHANGELOG.md"
-  - "CONTRIBUTING.md"
-  - "WARP.md"
-  - "language-config.yaml"
+  # Prompt templates
+  - "docs-prompts-server/prompts/**/*.yaml"
+  - "docs-prompts-server/prompts/**/*.yml"
+  - "docs-prompts-server/prompts/**/*.json"
 
 # File patterns to include
 file_patterns:

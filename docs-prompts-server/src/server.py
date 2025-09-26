@@ -2,6 +2,7 @@
 Main facade for the Documentation and Prompts MCP Server
 Follows SOLID principles with dependency injection
 """
+
 import logging
 import os
 from pathlib import Path
@@ -23,33 +24,48 @@ class DocumentationPromptsServer:
     def __init__(self, project_root: Optional[str] = None):
         # Determine project root
         if project_root is None:
-            project_root = os.environ.get('DOCS_PROJECT_ROOT', os.getcwd())
+            project_root = os.environ.get("DOCS_PROJECT_ROOT", os.getcwd())
 
         self.project_root = Path(project_root)
 
         # Initialize components with dependency injection
         self.config_manager = ConfigurationManager(
-            config_path=self._get_config_path(),
-            project_root=self.project_root
+            config_path=self._get_config_path(), project_root=self.project_root
         )
 
         self.db_manager = DatabaseManager(self._get_db_path())
         self.document_indexer = DocumentIndexer(
-            self.config_manager.config,
-            self.project_root,
-            self.db_manager
+            self.config_manager.config, self.project_root, self.db_manager
         )
-        self.prompt_manager = PromptManager(
-            self.db_manager, self.config_manager.config
-        )
+        self.prompt_manager = PromptManager(self.db_manager, self.config_manager.config)
         self.gui_manager = GUIManager(self._get_db_path(), self)
         self.mcp_handler = MCPHandler(
             self.document_indexer,
             self.prompt_manager,
             self.db_manager,
             self.config_manager.config,
-            self._get_db_path()
+            self._get_db_path(),
         )
+
+        # Auto-index documents on startup if configured
+        indexing_config = self.config_manager.config.get("indexing", {})
+        if indexing_config.get("auto_index_on_startup", False):
+            logger.info("Auto-indexing documents on startup...")
+            try:
+                import asyncio
+                # Run indexing in background to not block startup
+                import threading
+
+                def auto_index():
+                    try:
+                        result = asyncio.run(self.index_all_documents())
+                        logger.info(f"Auto-indexing complete: {result}")
+                    except Exception as e:
+                        logger.error(f"Auto-indexing failed: {e}")
+
+                threading.Thread(target=auto_index, daemon=True).start()
+            except Exception as e:
+                logger.error(f"Failed to start auto-indexing: {e}")
 
         # Launch GUI
         self.gui_manager.launch_gui()
@@ -121,3 +137,7 @@ class DocumentationPromptsServer:
     def call_tool(self, name: str, arguments):
         """Call MCP tool"""
         return self.mcp_handler.call_tool(name, arguments)
+
+    def clear_index(self):
+        """Clear all documents and search index"""
+        return self.document_indexer.clear_index()

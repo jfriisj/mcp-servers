@@ -1,6 +1,7 @@
 """
 MCP protocol handling for the Documentation and Prompts MCP Server
 """
+
 import json
 import logging
 import sqlite3
@@ -29,40 +30,39 @@ class MCPHandler:
                 uri="docs://index",
                 name="Documentation Index",
                 description="Complete index of all documented files and metadata",
-                mimeType="application/json"
+                mimeType="application/json",
             ),
             Resource(
                 uri="docs://architecture",
                 name="Architecture Information",
                 description="Extracted architecture patterns and design information",
-                mimeType="application/json"
+                mimeType="application/json",
             ),
             Resource(
                 uri="docs://statistics",
                 name="Documentation Statistics",
                 description="Statistics about indexed documentation",
-                mimeType="application/json"
+                mimeType="application/json",
             ),
-
             # Prompt resources
             Resource(
                 uri="prompts://library",
                 name="Prompt Library",
                 description="Complete library of available prompts",
-                mimeType="application/json"
+                mimeType="application/json",
             ),
             Resource(
                 uri="prompts://categories",
                 name="Prompt Categories",
                 description="Available prompt categories and organization",
-                mimeType="application/json"
+                mimeType="application/json",
             ),
             Resource(
                 uri="prompts://usage-stats",
                 name="Prompt Usage Statistics",
                 description="Usage statistics and effectiveness metrics",
-                mimeType="application/json"
-            )
+                mimeType="application/json",
+            ),
         ]
 
     def get_tools(self) -> List[Tool]:
@@ -77,30 +77,27 @@ class MCPHandler:
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query (keywords or phrases)"
+                            "description": "Search query (keywords or phrases)",
                         },
                         "doc_type": {
                             "type": "string",
-                            "description": "Filter by document type (.md, .rst, .yaml, etc.)"
+                            "description": "Filter by document type (.md, .rst, .yaml, etc.)",
                         },
                         "limit": {
                             "type": "integer",
                             "description": "Maximum number of results",
                             "default": 10,
                             "minimum": 1,
-                            "maximum": 50
-                        }
+                            "maximum": 50,
+                        },
                     },
-                    "required": ["query"]
-                }
+                    "required": ["query"],
+                },
             ),
             Tool(
                 name="get_architecture_info",
                 description="Extract architecture patterns and design information",
-                inputSchema={
-                    "type": "object",
-                    "properties": {}
-                }
+                inputSchema={"type": "object", "properties": {}},
             ),
             Tool(
                 name="index_documentation",
@@ -111,12 +108,11 @@ class MCPHandler:
                         "force": {
                             "type": "boolean",
                             "description": "Force re-indexing of all files",
-                            "default": False
+                            "default": False,
                         }
-                    }
-                }
+                    },
+                },
             ),
-
             # Prompt management tools
             Tool(
                 name="search_prompts",
@@ -126,22 +122,22 @@ class MCPHandler:
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query for prompt name, description, or tags"
+                            "description": "Search query for prompt name, description, or tags",
                         },
                         "category": {
                             "type": "string",
-                            "description": "Filter by prompt category"
+                            "description": "Filter by prompt category",
                         },
                         "limit": {
                             "type": "integer",
                             "description": "Maximum number of results",
                             "default": 10,
                             "minimum": 1,
-                            "maximum": 50
-                        }
+                            "maximum": 50,
+                        },
                     },
-                    "required": ["query"]
-                }
+                    "required": ["query"],
+                },
             ),
             Tool(
                 name="get_prompt",
@@ -151,11 +147,11 @@ class MCPHandler:
                     "properties": {
                         "prompt_id": {
                             "type": "string",
-                            "description": "ID of the prompt to retrieve"
+                            "description": "ID of the prompt to retrieve",
                         }
                     },
-                    "required": ["prompt_id"]
-                }
+                    "required": ["prompt_id"],
+                },
             ),
             Tool(
                 name="suggest_prompts",
@@ -165,10 +161,10 @@ class MCPHandler:
                     "properties": {
                         "context": {
                             "type": "string",
-                            "description": "Context description for prompt suggestions (optional)"
+                            "description": "Context description for prompt suggestions (optional)",
                         }
-                    }
-                }
+                    },
+                },
             ),
             Tool(
                 name="create_prompt",
@@ -176,38 +172,34 @@ class MCPHandler:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Name of the prompt"
-                        },
+                        "name": {"type": "string", "description": "Name of the prompt"},
                         "description": {
                             "type": "string",
-                            "description": "Description of what the prompt does"
+                            "description": "Description of what the prompt does",
                         },
                         "template": {
                             "type": "string",
-                            "description": "The prompt template with variables in {variable} format"
+                            "description": "The prompt template with variables in {variable} format",
                         },
                         "category": {
                             "type": "string",
                             "description": "Prompt category",
-                            "default": "custom"
+                            "default": "custom",
                         },
                         "variables": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "List of variable names used in the template"
+                            "description": "List of variable names used in the template",
                         },
                         "tags": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Tags for categorizing and searching"
-                        }
+                            "description": "Tags for categorizing and searching",
+                        },
                     },
-                    "required": ["name", "description", "template"]
-                }
+                    "required": ["name", "description", "template"],
+                },
             ),
-
             # Integration tools
             Tool(
                 name="generate_contextual_prompt",
@@ -217,15 +209,15 @@ class MCPHandler:
                     "properties": {
                         "task": {
                             "type": "string",
-                            "description": "The task type (e.g., 'code_review', 'documentation', 'architecture_analysis')"
+                            "description": "The task type (e.g., 'code_review', 'documentation', 'architecture_analysis')",
                         },
                         "docs_query": {
                             "type": "string",
-                            "description": "Query to find relevant documentation context"
-                        }
+                            "description": "Query to find relevant documentation context",
+                        },
                     },
-                    "required": ["task", "docs_query"]
-                }
+                    "required": ["task", "docs_query"],
+                },
             ),
             Tool(
                 name="apply_prompt_with_context",
@@ -235,21 +227,21 @@ class MCPHandler:
                     "properties": {
                         "prompt_id": {
                             "type": "string",
-                            "description": "ID of the prompt to apply"
+                            "description": "ID of the prompt to apply",
                         },
                         "content": {
                             "type": "string",
-                            "description": "Content to analyze (code, documentation, etc.)"
+                            "description": "Content to analyze (code, documentation, etc.)",
                         },
                         "auto_fill_context": {
                             "type": "boolean",
                             "description": "Automatically fill context variables from documentation",
-                            "default": True
-                        }
+                            "default": True,
+                        },
                     },
-                    "required": ["prompt_id", "content"]
-                }
-            )
+                    "required": ["prompt_id", "content"],
+                },
+            ),
         ]
 
     def read_resource(self, uri: str) -> ReadResourceResult:
@@ -264,26 +256,27 @@ class MCPHandler:
                 """)
 
                 for row in cursor.fetchall():
-                    docs.append({
-                        "path": row[0],
-                        "title": row[1],
-                        "doc_type": row[2],
-                        "metadata": json.loads(row[3]),
-                        "last_modified": row[4]
-                    })
+                    docs.append(
+                        {
+                            "path": row[0],
+                            "title": row[1],
+                            "doc_type": row[2],
+                            "metadata": json.loads(row[3]),
+                            "last_modified": row[4],
+                        }
+                    )
 
             content = TextContent(
                 type="text",
-                text=json.dumps({"documents": docs, "total_count": len(docs)}, indent=2)
+                text=json.dumps(
+                    {"documents": docs, "total_count": len(docs)}, indent=2
+                ),
             )
             return ReadResourceResult(contents=[content])
 
         elif uri == "docs://architecture":
             arch_info = self.document_indexer.get_architecture_info()
-            content = TextContent(
-                type="text",
-                text=json.dumps(arch_info, indent=2)
-            )
+            content = TextContent(type="text", text=json.dumps(arch_info, indent=2))
             return ReadResourceResult(contents=[content])
 
         elif uri == "docs://statistics":
@@ -291,19 +284,18 @@ class MCPHandler:
             stats = {
                 "total_documents": doc_count,
                 "index_file": str(self.db_path),
-                "documentation_paths": self.config["documentation_paths"]
+                "documentation_paths": self.config["documentation_paths"],
             }
-            content = TextContent(
-                type="text",
-                text=json.dumps(stats, indent=2)
-            )
+            content = TextContent(type="text", text=json.dumps(stats, indent=2))
             return ReadResourceResult(contents=[content])
 
         elif uri == "prompts://library":
             prompts = self.db_manager.get_all_prompts()
             content = TextContent(
                 type="text",
-                text=json.dumps({"prompts": prompts, "total_count": len(prompts)}, indent=2)
+                text=json.dumps(
+                    {"prompts": prompts, "total_count": len(prompts)}, indent=2
+                ),
             )
             return ReadResourceResult(contents=[content])
 
@@ -311,16 +303,14 @@ class MCPHandler:
             # This would need access to the prompts directory
             categories_data = {"categories": {}}
             content = TextContent(
-                type="text",
-                text=json.dumps(categories_data, indent=2)
+                type="text", text=json.dumps(categories_data, indent=2)
             )
             return ReadResourceResult(contents=[content])
 
         elif uri == "prompts://usage-stats":
             stats = self.prompt_manager.get_usage_stats()
             content = TextContent(
-                type="text",
-                text=json.dumps({"usage_statistics": stats}, indent=2)
+                type="text", text=json.dumps({"usage_statistics": stats}, indent=2)
             )
             return ReadResourceResult(contents=[content])
 
@@ -341,7 +331,9 @@ class MCPHandler:
 
                 if results:
                     for i, result in enumerate(results, 1):
-                        response_text += f"{i}. **{result['title']}** ({result['doc_type']})\n"
+                        response_text += (
+                            f"{i}. **{result['title']}** ({result['doc_type']})\n"
+                        )
                         response_text += f"   Path: {result['path']}\n"
                         response_text += f"   Section: {result['section_title']}\n"
                         response_text += f"   Content: {result['content_snippet']}\n\n"

@@ -1,6 +1,7 @@
 """
 Coverage report generation and formatting for the Coverage MCP Server
 """
+
 import logging
 from pathlib import Path
 
@@ -57,16 +58,12 @@ class CoverageReporter:
         if config.skip_covered:
             cmd.append("--skip-covered")
 
-        output, error, returncode = await self.coverage_runner.run_coverage_command(
-            cmd
-        )
+        output, error, returncode = await self.coverage_runner.run_coverage_command(cmd)
 
         if returncode == 0:
             if format_type in ["html", "xml", "json"]:
                 output_path = self._get_output_path(format_type, config)
-                result = (
-                    f"✅ {format_type.upper()} report generated: {output_path}"
-                )
+                result = f"✅ {format_type.upper()} report generated: {output_path}"
                 return result
             else:
                 return f"📊 {format_type.upper()} Coverage Report:\n{output}"
@@ -86,18 +83,14 @@ class CoverageReporter:
             return f"{config.output_dir}/coverage.json"
         return config.output_dir
 
-    async def check_threshold(
-        self, threshold: float, per_file: bool = False
-    ) -> str:
+    async def check_threshold(self, threshold: float, per_file: bool = False) -> str:
         """Check if coverage meets threshold requirements"""
         cmd = ["coverage", "report"]
 
         if per_file:
             cmd.append("--show-missing")
 
-        output, error, returncode = await self.coverage_runner.run_coverage_command(
-            cmd
-        )
+        output, error, returncode = await self.coverage_runner.run_coverage_command(cmd)
 
         if returncode == 0 or output:
             # Parse total coverage
@@ -115,9 +108,7 @@ class CoverageReporter:
                         f"({total_coverage:.1f}% < {threshold:.1f}%)\n\n"
                     )
             else:
-                response = (
-                    "⚠️ Could not parse coverage percentage from output.\n\n"
-                )
+                response = "⚠️ Could not parse coverage percentage from output.\n\n"
 
             if per_file:
                 response += "📄 Coverage Report:\n" + output

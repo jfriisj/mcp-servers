@@ -14,6 +14,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import argparse
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -44,15 +45,11 @@ class DocsPromptsViewer:
                 prompt_count, categories = prompt_cursor.fetchone()
 
                 # Usage statistics
-                usage_cursor = conn.execute(
-                    "SELECT COUNT(*) FROM prompt_usage"
-                )
+                usage_cursor = conn.execute("SELECT COUNT(*) FROM prompt_usage")
                 usage_count = usage_cursor.fetchone()[0]
 
                 # Search index statistics
-                search_cursor = conn.execute(
-                    "SELECT COUNT(*) FROM search_index"
-                )
+                search_cursor = conn.execute("SELECT COUNT(*) FROM search_index")
                 search_count = search_cursor.fetchone()[0]
 
                 return {
@@ -78,13 +75,15 @@ class DocsPromptsViewer:
 
                 documents = []
                 for row in cursor.fetchall():
-                    documents.append({
-                        "path": row[0],
-                        "title": row[1],
-                        "doc_type": row[2],
-                        "metadata": json.loads(row[3]) if row[3] else {},
-                        "last_modified": row[4],
-                    })
+                    documents.append(
+                        {
+                            "path": row[0],
+                            "title": row[1],
+                            "doc_type": row[2],
+                            "metadata": json.loads(row[3]) if row[3] else {},
+                            "last_modified": row[4],
+                        }
+                    )
                 return documents
         except sqlite3.Error as e:
             logger.error(f"Database error: {e}")
@@ -94,11 +93,14 @@ class DocsPromptsViewer:
         """Get full document content and metadata"""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT path, title, content, sections, metadata,
                            last_modified, doc_type, links, code_blocks
                     FROM documents WHERE path = ?
-                """, (path,))
+                """,
+                    (path,),
+                )
 
                 row = cursor.fetchone()
                 if row:
@@ -130,15 +132,17 @@ class DocsPromptsViewer:
 
                 prompts = []
                 for row in cursor.fetchall():
-                    prompts.append({
-                        "id": row[0],
-                        "name": row[1],
-                        "description": row[2],
-                        "category": row[3],
-                        "tags": json.loads(row[4]) if row[4] else [],
-                        "usage_count": row[5],
-                        "effectiveness_score": row[6] or 0.0,
-                    })
+                    prompts.append(
+                        {
+                            "id": row[0],
+                            "name": row[1],
+                            "description": row[2],
+                            "category": row[3],
+                            "tags": json.loads(row[4]) if row[4] else [],
+                            "usage_count": row[5],
+                            "effectiveness_score": row[6] or 0.0,
+                        }
+                    )
                 return prompts
         except sqlite3.Error as e:
             logger.error(f"Database error: {e}")
@@ -148,12 +152,15 @@ class DocsPromptsViewer:
         """Get full prompt details"""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT id, name, description, category, template,
                            variables, tags, created_at, updated_at,
                            usage_count, effectiveness_score
                     FROM prompts WHERE id = ?
-                """, (prompt_id,))
+                """,
+                    (prompt_id,),
+                )
 
                 row = cursor.fetchone()
                 if row:
@@ -190,15 +197,17 @@ class DocsPromptsViewer:
 
                 stats = []
                 for row in cursor.fetchall():
-                    stats.append({
-                        "id": row[0],
-                        "name": row[1],
-                        "category": row[2],
-                        "usage_count": row[3],
-                        "effectiveness_score": row[4] or 0.0,
-                        "total_uses": row[5],
-                        "avg_effectiveness": row[6] or 0.0,
-                    })
+                    stats.append(
+                        {
+                            "id": row[0],
+                            "name": row[1],
+                            "category": row[2],
+                            "usage_count": row[3],
+                            "effectiveness_score": row[4] or 0.0,
+                            "total_uses": row[5],
+                            "avg_effectiveness": row[6] or 0.0,
+                        }
+                    )
                 return stats
         except sqlite3.Error as e:
             logger.error(f"Database error: {e}")
@@ -210,45 +219,53 @@ class DocsPromptsViewer:
             with sqlite3.connect(self.db_path) as conn:
                 # Search documents
                 doc_results = []
-                doc_cursor = conn.execute("""
+                doc_cursor = conn.execute(
+                    """
                     SELECT DISTINCT d.path, d.title, d.doc_type,
                            s.section_title, s.content_chunk
                     FROM documents d
                     JOIN search_index s ON d.path = s.doc_path
                     WHERE s.content_chunk LIKE ? OR d.title LIKE ?
                     LIMIT 20
-                """, (f"%{query}%", f"%{query}%"))
+                """,
+                    (f"%{query}%", f"%{query}%"),
+                )
 
                 for row in doc_cursor.fetchall():
-                    snippet_text = (
-                        row[4][:200] + "..." if len(row[4]) > 200 else row[4]
+                    snippet_text = row[4][:200] + "..." if len(row[4]) > 200 else row[4]
+                    doc_results.append(
+                        {
+                            "type": "document",
+                            "path": row[0],
+                            "title": row[1],
+                            "doc_type": row[2],
+                            "section": row[3],
+                            "snippet": snippet_text,
+                        }
                     )
-                    doc_results.append({
-                        "type": "document",
-                        "path": row[0],
-                        "title": row[1],
-                        "doc_type": row[2],
-                        "section": row[3],
-                        "snippet": snippet_text,
-                    })
 
                 # Search prompts
                 prompt_results = []
-                prompt_cursor = conn.execute("""
+                prompt_cursor = conn.execute(
+                    """
                     SELECT id, name, description, category
                     FROM prompts
                     WHERE name LIKE ? OR description LIKE ?
                     LIMIT 10
-                """, (f"%{query}%", f"%{query}%"))
+                """,
+                    (f"%{query}%", f"%{query}%"),
+                )
 
                 for row in prompt_cursor.fetchall():
-                    prompt_results.append({
-                        "type": "prompt",
-                        "id": row[0],
-                        "name": row[1],
-                        "description": row[2],
-                        "category": row[3],
-                    })
+                    prompt_results.append(
+                        {
+                            "type": "prompt",
+                            "id": row[0],
+                            "name": row[1],
+                            "description": row[2],
+                            "category": row[3],
+                        }
+                    )
 
                 return doc_results + prompt_results
         except sqlite3.Error as e:
@@ -300,8 +317,7 @@ class DocsPromptsGUI:
 
         # Refresh button
         refresh_btn = ttk.Button(
-            frame, text="Refresh",
-            command=lambda: self.update_stats(stats_text)
+            frame, text="Refresh", command=lambda: self.update_stats(stats_text)
         )
         refresh_btn.pack(pady=5)
 
@@ -319,12 +335,27 @@ class DocsPromptsGUI:
 
         ttk.Label(search_frame, text="Filter:").pack(side=tk.LEFT)
         self.doc_search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.doc_search_var, width=40)
+        search_entry = ttk.Entry(
+            search_frame, textvariable=self.doc_search_var, width=40
+        )
         search_entry.pack(side=tk.LEFT, padx=5)
         search_entry.bind("<KeyRelease>", self.on_document_filter)
 
-        clear_btn = ttk.Button(search_frame, text="Clear", command=self.clear_document_filter)
+        clear_btn = ttk.Button(
+            search_frame, text="Clear", command=self.clear_document_filter
+        )
         clear_btn.pack(side=tk.LEFT, padx=5)
+
+        # Index management buttons
+        ttk.Button(
+            search_frame, text="Clear All Indexes",
+            command=self.clear_all_indexes
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            search_frame, text="Index All Documents",
+            command=self.index_all_documents
+        ).pack(side=tk.LEFT, padx=5)
 
         # Split pane for documents and content
         paned = ttk.PanedWindow(frame, orient=tk.HORIZONTAL)
@@ -336,7 +367,9 @@ class DocsPromptsGUI:
 
         # Document list
         columns = ("title", "type", "path")
-        self.doc_tree = ttk.Treeview(left_frame, columns=columns, show="headings", height=20)
+        self.doc_tree = ttk.Treeview(
+            left_frame, columns=columns, show="headings", height=20
+        )
         self.doc_tree.heading("title", text="Title")
         self.doc_tree.heading("type", text="Type")
         self.doc_tree.heading("path", text="Path")
@@ -344,7 +377,9 @@ class DocsPromptsGUI:
         self.doc_tree.column("type", width=50)
         self.doc_tree.column("path", width=300)
 
-        scrollbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.doc_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            left_frame, orient=tk.VERTICAL, command=self.doc_tree.yview
+        )
         self.doc_tree.configure(yscrollcommand=scrollbar.set)
 
         self.doc_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -358,7 +393,9 @@ class DocsPromptsGUI:
         content_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Bind selection event
-        self.doc_tree.bind("<<TreeviewSelect>>", lambda e: self.show_document_content(content_text))
+        self.doc_tree.bind(
+            "<<TreeviewSelect>>", lambda e: self.show_document_content(content_text)
+        )
 
         # Store all documents for filtering
         self.all_documents = []
@@ -380,12 +417,16 @@ class DocsPromptsGUI:
 
         # Prompt list
         columns = ("name", "category", "usage")
-        self.prompt_tree = ttk.Treeview(left_frame, columns=columns, show="headings", height=20)
+        self.prompt_tree = ttk.Treeview(
+            left_frame, columns=columns, show="headings", height=20
+        )
         self.prompt_tree.heading("name", text="Name")
         self.prompt_tree.heading("category", text="Category")
         self.prompt_tree.heading("usage", text="Usage")
 
-        scrollbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.prompt_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            left_frame, orient=tk.VERTICAL, command=self.prompt_tree.yview
+        )
         self.prompt_tree.configure(yscrollcommand=scrollbar.set)
 
         self.prompt_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -399,7 +440,9 @@ class DocsPromptsGUI:
         details_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Bind selection event
-        self.prompt_tree.bind("<<TreeviewSelect>>", lambda e: self.show_prompt_details(details_text))
+        self.prompt_tree.bind(
+            "<<TreeviewSelect>>", lambda e: self.show_prompt_details(details_text)
+        )
 
         # Load prompts
         self.load_prompts()
@@ -414,15 +457,14 @@ class DocsPromptsGUI:
         analytics_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         refresh_btn = ttk.Button(
-            frame, text="Refresh Analytics",
-            command=lambda: self.update_analytics(analytics_text)
+            frame,
+            text="Refresh Analytics",
+            command=lambda: self.update_analytics(analytics_text),
         )
         refresh_btn.pack(pady=5)
 
         # Initial load
         self.update_analytics(analytics_text)
-
-
 
     def update_stats(self, text_widget):
         """Update database statistics display"""
@@ -434,12 +476,14 @@ class DocsPromptsGUI:
             text_widget.insert(tk.END, "=" * 50 + "\n\n")
 
             text_widget.insert(tk.END, f"📄 Documents: {stats['documents']}\n")
-            doc_types = stats['document_types']
+            doc_types = stats["document_types"]
             text_widget.insert(tk.END, f"📁 Document Types: {doc_types}\n")
             text_widget.insert(tk.END, f"🎯 Prompts: {stats['prompts']}\n")
             text_widget.insert(tk.END, f"🏷️ Categories: {stats['categories']}\n")
             text_widget.insert(tk.END, f"📈 Usage Records: {stats['usage_records']}\n")
-            text_widget.insert(tk.END, f"🔍 Search Entries: {stats['search_entries']}\n")
+            text_widget.insert(
+                tk.END, f"🔍 Search Entries: {stats['search_entries']}\n"
+            )
         else:
             text_widget.insert(tk.END, "❌ Unable to load database statistics")
 
@@ -463,10 +507,11 @@ class DocsPromptsGUI:
             for doc in self.all_documents:
                 # Search in title, path, and content
                 searchable_text = (
-                    doc["title"].lower() + " " +
-                    doc["path"].lower() + " " +
-                    (doc.get("content", "").lower()
-                     if "content" in doc else "")
+                    doc["title"].lower()
+                    + " "
+                    + doc["path"].lower()
+                    + " "
+                    + (doc.get("content", "").lower() if "content" in doc else "")
                 )
                 if filter_lower in searchable_text:
                     filtered_docs.append(doc)
@@ -475,16 +520,13 @@ class DocsPromptsGUI:
 
         # Display filtered documents
         for doc in filtered_docs:
-            self.doc_tree.insert("", tk.END, values=(
-                doc["title"],
-                doc["doc_type"],
-                doc["path"]
-            ))
+            self.doc_tree.insert(
+                "", tk.END, values=(doc["title"], doc["doc_type"], doc["path"])
+            )
 
         # Update status
         self.status_var.set(
-            f"Showing {len(filtered_docs)} of "
-            f"{len(self.all_documents)} documents"
+            f"Showing {len(filtered_docs)} of {len(self.all_documents)} documents"
         )
 
     def on_document_filter(self, event):
@@ -516,12 +558,12 @@ class DocsPromptsGUI:
 
             text_widget.insert(tk.END, "📖 Content:\n")
             text_widget.insert(tk.END, "-" * 50 + "\n")
-            text_widget.insert(tk.END, content['content'] + "\n\n")
+            text_widget.insert(tk.END, content["content"] + "\n\n")
 
-            if content['sections']:
+            if content["sections"]:
                 text_widget.insert(tk.END, "📑 Sections:\n")
                 text_widget.insert(tk.END, "-" * 50 + "\n")
-                for section in content['sections']:
+                for section in content["sections"]:
                     text_widget.insert(tk.END, f"• {section['title']}\n")
         else:
             text_widget.insert(tk.END, "❌ Unable to load document content")
@@ -534,11 +576,11 @@ class DocsPromptsGUI:
 
         prompts = self.viewer.get_all_prompts()
         for prompt in prompts:
-            self.prompt_tree.insert("", tk.END, values=(
-                prompt["name"],
-                prompt["category"],
-                prompt["usage_count"]
-            ))
+            self.prompt_tree.insert(
+                "",
+                tk.END,
+                values=(prompt["name"], prompt["category"], prompt["usage_count"]),
+            )
 
     def show_prompt_details(self, text_widget):
         """Show selected prompt details"""
@@ -559,32 +601,31 @@ class DocsPromptsGUI:
 
             if details:
                 text_widget.insert(tk.END, f"🎯 {details['name']}\n")
-                text_widget.insert(tk.END,
-                                   f"🏷️ Category: {details['category']}\n")
-                text_widget.insert(tk.END,
-                                   f"📊 Usage: {details['usage_count']}\n")
-                text_widget.insert(tk.END,
-                                   f"⭐ Effectiveness: "
-                                   f"{details['effectiveness_score']:.2f}\n\n")
+                text_widget.insert(tk.END, f"🏷️ Category: {details['category']}\n")
+                text_widget.insert(tk.END, f"📊 Usage: {details['usage_count']}\n")
+                text_widget.insert(
+                    tk.END,
+                    f"⭐ Effectiveness: {details['effectiveness_score']:.2f}\n\n",
+                )
 
                 text_widget.insert(tk.END, "📝 Description:\n")
                 text_widget.insert(tk.END, "-" * 50 + "\n")
-                text_widget.insert(tk.END, details['description'] + "\n\n")
+                text_widget.insert(tk.END, details["description"] + "\n\n")
 
                 text_widget.insert(tk.END, "📋 Template:\n")
                 text_widget.insert(tk.END, "-" * 50 + "\n")
-                text_widget.insert(tk.END, details['template'] + "\n\n")
+                text_widget.insert(tk.END, details["template"] + "\n\n")
 
-                if details['variables']:
+                if details["variables"]:
                     text_widget.insert(tk.END, "🔧 Variables:\n")
                     text_widget.insert(tk.END, "-" * 50 + "\n")
-                    for var in details['variables']:
+                    for var in details["variables"]:
                         text_widget.insert(tk.END, f"• {var}\n")
 
-                if details['tags']:
+                if details["tags"]:
                     text_widget.insert(tk.END, "\n🏷️ Tags:\n")
                     text_widget.insert(tk.END, "-" * 50 + "\n")
-                    text_widget.insert(tk.END, ", ".join(details['tags']))
+                    text_widget.insert(tk.END, ", ".join(details["tags"]))
             else:
                 text_widget.insert(tk.END, "❌ Unable to load prompt details")
         else:
@@ -603,69 +644,31 @@ class DocsPromptsGUI:
             text_widget.insert(tk.END, "-" * 30 + "\n")
 
             for i, stat in enumerate(stats[:10], 1):
-                text_widget.insert(tk.END,
-                                   f"{i}. {stat['name']} ({stat['category']})\n"
-                                   f"   Usage: {stat['usage_count']} | "
-                                   f"Effectiveness: "
-                                   f"{stat['effectiveness_score']:.2f}\n\n"
-                                   )
+                text_widget.insert(
+                    tk.END,
+                    f"{i}. {stat['name']} ({stat['category']})\n"
+                    f"   Usage: {stat['usage_count']} | "
+                    f"Effectiveness: "
+                    f"{stat['effectiveness_score']:.2f}\n\n",
+                )
 
             # Category breakdown
             categories = {}
             for stat in stats:
-                cat = stat['category']
-                categories[cat] = categories.get(cat, 0) + stat['usage_count']
+                cat = stat["category"]
+                categories[cat] = categories.get(cat, 0) + stat["usage_count"]
 
             text_widget.insert(tk.END, "🏷️ Usage by Category:\n")
             text_widget.insert(tk.END, "-" * 30 + "\n")
 
             for category, usage in sorted(
-                    categories.items(), key=lambda x: x[1], reverse=True):
+                categories.items(), key=lambda x: x[1], reverse=True
+            ):
                 text_widget.insert(tk.END, f"• {category}: {usage} uses\n")
         else:
             text_widget.insert(tk.END, "❌ Unable to load analytics data")
 
         self.status_var.set("Analytics updated")
-
-    def on_search(self, event):
-        """Handle search input changes"""
-        query = self.search_var.get().strip()
-        if len(query) >= 2:  # Minimum search length
-            self.perform_search()
-
-    def perform_search(self):
-        """Perform search across content"""
-        query = self.search_var.get().strip()
-        if not query:
-            return
-
-        results = self.viewer.search_content(query)
-        self.search_results.delete(1.0, tk.END)
-
-        if results:
-            self.search_results.insert(tk.END,
-                                      f"🔍 Search Results for: '{query}'\n")
-            self.search_results.insert(tk.END, "=" * 50 + "\n\n")
-
-            for result in results:
-                if result["type"] == "document":
-                    self.search_results.insert(tk.END,
-                                               f"📄 {result['title']} "
-                                               f"({result['doc_type']})\n"
-                                               f"   📁 {result['path']}\n"
-                                               f"   📑 {result['section']}\n"
-                                               f"   💬 {result['snippet']}\n\n")
-                elif result["type"] == "prompt":
-                    self.search_results.insert(tk.END,
-                                               f"🎯 {result['name']} "
-                                               f"({result['category']})\n"
-                                               f"   📝 "
-                                               f"{result['description']}\n\n")
-        else:
-            self.search_results.insert(tk.END,
-                                      f"❌ No results found for: '{query}'")
-
-        self.status_var.set(f"Found {len(results)} results")
 
     def create_tools_tab(self):
         """Create MCP tools information tab"""
@@ -687,7 +690,9 @@ class DocsPromptsGUI:
         text_widget.insert(tk.END, "🛠️ MCP Server Tools for AI Agents\n")
         text_widget.insert(tk.END, "=" * 60 + "\n\n")
 
-        text_widget.insert(tk.END, "This MCP server provides tools that AI agents can use to:\n")
+        text_widget.insert(
+            tk.END, "This MCP server provides tools that AI agents can use to:\n"
+        )
         text_widget.insert(tk.END, "• Search and access documentation\n")
         text_widget.insert(tk.END, "• Manage and use prompt templates\n")
         text_widget.insert(tk.END, "• Extract architecture information\n")
@@ -698,15 +703,18 @@ class DocsPromptsGUI:
             text_widget.insert(tk.END, "-" * 40 + "\n")
             text_widget.insert(tk.END, f"📝 {tool['description']}\n\n")
 
-            if tool['parameters']:
+            if tool["parameters"]:
                 text_widget.insert(tk.END, "📋 Parameters:\n")
-                for param in tool['parameters']:
-                    required = " (required)" if param['required'] else " (optional)"
-                    text_widget.insert(tk.END, f"  • {param['name']}: {param['description']}{required}\n")
+                for param in tool["parameters"]:
+                    required = " (required)" if param["required"] else " (optional)"
+                    text_widget.insert(
+                        tk.END,
+                        f"  • {param['name']}: {param['description']}{required}\n",
+                    )
                 text_widget.insert(tk.END, "\n")
 
             text_widget.insert(tk.END, f"🎯 Agent Usage:\n{tool['usage']}\n\n")
-            text_widget.insert(tk.END, "💡 Example:\n" + tool['example'] + "\n\n")
+            text_widget.insert(tk.END, "💡 Example:\n" + tool["example"] + "\n\n")
             text_widget.insert(tk.END, "=" * 60 + "\n\n")
 
     def get_mcp_tools_info(self):
@@ -716,93 +724,173 @@ class DocsPromptsGUI:
                 "name": "search_docs",
                 "description": "Search through indexed documentation using keywords or phrases",
                 "parameters": [
-                    {"name": "query", "description": "Search keywords or phrases", "required": True},
-                    {"name": "doc_type", "description": "Filter by document type (.md, .rst, etc.)", "required": False},
-                    {"name": "limit", "description": "Maximum results (1-50)", "required": False}
+                    {
+                        "name": "query",
+                        "description": "Search keywords or phrases",
+                        "required": True,
+                    },
+                    {
+                        "name": "doc_type",
+                        "description": "Filter by document type (.md, .rst, etc.)",
+                        "required": False,
+                    },
+                    {
+                        "name": "limit",
+                        "description": "Maximum results (1-50)",
+                        "required": False,
+                    },
                 ],
                 "usage": "Use when agents need to find specific information in documentation, research topics, or understand project structure.",
-                "example": '{"query": "authentication flow", "doc_type": ".md", "limit": 10}'
+                "example": '{"query": "authentication flow", "doc_type": ".md", "limit": 10}',
             },
             {
                 "name": "get_architecture_info",
                 "description": "Extract architecture patterns and design information from documentation",
                 "parameters": [],
                 "usage": "Use when agents need to understand system architecture, design patterns, or technical decisions.",
-                "example": "{}"
+                "example": "{}",
             },
             {
                 "name": "index_documentation",
                 "description": "Re-index all documentation files to update the search database",
                 "parameters": [
-                    {"name": "force", "description": "Force complete re-indexing", "required": False}
+                    {
+                        "name": "force",
+                        "description": "Force complete re-indexing",
+                        "required": False,
+                    }
                 ],
                 "usage": "Use when new documentation has been added or when search results seem outdated.",
-                "example": '{"force": true}'
+                "example": '{"force": true}',
             },
             {
                 "name": "search_prompts",
                 "description": "Search through available prompt templates by keyword, category, or tags",
                 "parameters": [
-                    {"name": "query", "description": "Search terms for prompt name/description/tags", "required": True},
-                    {"name": "category", "description": "Filter by prompt category", "required": False},
-                    {"name": "limit", "description": "Maximum results (1-50)", "required": False}
+                    {
+                        "name": "query",
+                        "description": "Search terms for prompt name/description/tags",
+                        "required": True,
+                    },
+                    {
+                        "name": "category",
+                        "description": "Filter by prompt category",
+                        "required": False,
+                    },
+                    {
+                        "name": "limit",
+                        "description": "Maximum results (1-50)",
+                        "required": False,
+                    },
                 ],
                 "usage": "Use when agents need to find appropriate prompt templates for specific tasks or domains.",
-                "example": '{"query": "code review", "category": "development", "limit": 5}'
+                "example": '{"query": "code review", "category": "development", "limit": 5}',
             },
             {
                 "name": "get_prompt",
                 "description": "Retrieve complete details of a specific prompt template by ID",
                 "parameters": [
-                    {"name": "prompt_id", "description": "Unique identifier of the prompt", "required": True}
+                    {
+                        "name": "prompt_id",
+                        "description": "Unique identifier of the prompt",
+                        "required": True,
+                    }
                 ],
                 "usage": "Use when agents have a specific prompt ID and need the full template details and variables.",
-                "example": '{"prompt_id": "code-review-template-001"}'
+                "example": '{"prompt_id": "code-review-template-001"}',
             },
             {
                 "name": "suggest_prompts",
                 "description": "Get context-aware prompt suggestions based on current task or content",
                 "parameters": [
-                    {"name": "context", "description": "Description of the current task or context", "required": False}
+                    {
+                        "name": "context",
+                        "description": "Description of the current task or context",
+                        "required": False,
+                    }
                 ],
                 "usage": "Use when agents need help selecting appropriate prompts for their current task.",
-                "example": '{"context": "analyzing Python code for security vulnerabilities"}'
+                "example": '{"context": "analyzing Python code for security vulnerabilities"}',
             },
             {
                 "name": "create_prompt",
                 "description": "Create a new custom prompt template for future use",
                 "parameters": [
-                    {"name": "name", "description": "Name of the prompt", "required": True},
-                    {"name": "description", "description": "What the prompt does", "required": True},
-                    {"name": "template", "description": "Prompt template with {variable} placeholders", "required": True},
-                    {"name": "category", "description": "Prompt category", "required": False},
-                    {"name": "variables", "description": "List of variable names used in template", "required": False},
-                    {"name": "tags", "description": "Tags for searching and categorization", "required": False}
+                    {
+                        "name": "name",
+                        "description": "Name of the prompt",
+                        "required": True,
+                    },
+                    {
+                        "name": "description",
+                        "description": "What the prompt does",
+                        "required": True,
+                    },
+                    {
+                        "name": "template",
+                        "description": "Prompt template with {variable} placeholders",
+                        "required": True,
+                    },
+                    {
+                        "name": "category",
+                        "description": "Prompt category",
+                        "required": False,
+                    },
+                    {
+                        "name": "variables",
+                        "description": "List of variable names used in template",
+                        "required": False,
+                    },
+                    {
+                        "name": "tags",
+                        "description": "Tags for searching and categorization",
+                        "required": False,
+                    },
                 ],
                 "usage": "Use when agents want to save reusable prompt templates for future tasks.",
-                "example": '{"name": "API Analysis", "description": "Analyze API endpoints", "template": "Analyze this API: {api_spec}", "variables": ["api_spec"]}'
+                "example": '{"name": "API Analysis", "description": "Analyze API endpoints", "template": "Analyze this API: {api_spec}", "variables": ["api_spec"]}',
             },
             {
                 "name": "generate_contextual_prompt",
                 "description": "Generate a prompt based on current documentation context and task type",
                 "parameters": [
-                    {"name": "task", "description": "Task type (code_review, documentation, etc.)", "required": True},
-                    {"name": "docs_query", "description": "Query to find relevant documentation", "required": True}
+                    {
+                        "name": "task",
+                        "description": "Task type (code_review, documentation, etc.)",
+                        "required": True,
+                    },
+                    {
+                        "name": "docs_query",
+                        "description": "Query to find relevant documentation",
+                        "required": True,
+                    },
                 ],
                 "usage": "Use when agents need dynamically generated prompts tailored to specific documentation and tasks.",
-                "example": '{"task": "code_review", "docs_query": "authentication security"}'
+                "example": '{"task": "code_review", "docs_query": "authentication security"}',
             },
             {
                 "name": "apply_prompt_with_context",
                 "description": "Apply a prompt template with documentation context automatically filled",
                 "parameters": [
-                    {"name": "prompt_id", "description": "ID of prompt template to use", "required": True},
-                    {"name": "content", "description": "Content to analyze with the prompt", "required": True},
-                    {"name": "auto_fill_context", "description": "Auto-fill context variables", "required": False}
+                    {
+                        "name": "prompt_id",
+                        "description": "ID of prompt template to use",
+                        "required": True,
+                    },
+                    {
+                        "name": "content",
+                        "description": "Content to analyze with the prompt",
+                        "required": True,
+                    },
+                    {
+                        "name": "auto_fill_context",
+                        "description": "Auto-fill context variables",
+                        "required": False,
+                    },
                 ],
                 "usage": "Use when agents want to apply prompt templates with automatic context filling from documentation.",
-                "example": '{"prompt_id": "security-review-001", "content": "function authenticate(user, pass) { ... }", "auto_fill_context": true}'
-            }
+                "example": '{"prompt_id": "security-review-001", "content": "function authenticate(user, pass) { ... }", "auto_fill_context": true}',
+            },
         ]
 
     def run(self):
@@ -813,14 +901,64 @@ class DocsPromptsGUI:
             logger.error(f"GUI error: {e}")
             messagebox.showerror("Error", f"GUI Error: {e}")
 
+    def clear_all_indexes(self):
+        """Clear all documents and search indexes"""
+        if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear all indexes? This will delete all indexed documents."):
+            try:
+                if self.server:
+                    self.server.clear_index()
+                    messagebox.showinfo("Success", "All indexes cleared successfully!")
+                    self.status_var.set("Indexes cleared")
+                    # Refresh the document list
+                    self.load_all_documents()
+                else:
+                    messagebox.showerror("Error", "Server not available")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear indexes: {e}")
+
+    def index_all_documents(self):
+        """Index all documents in the project"""
+        try:
+            if self.server:
+                # Run indexing in a separate thread to avoid blocking GUI
+                import threading
+                def do_index():
+                    try:
+                        result = asyncio.run(self.server.index_all_documents())
+                        self.root.after(0, lambda: self._show_index_result(result))
+                    except Exception as e:
+                        self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to index documents: {e}"))
+
+                threading.Thread(target=do_index, daemon=True).start()
+                self.status_var.set("Indexing documents...")
+            else:
+                messagebox.showerror("Error", "Server not available")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start indexing: {e}")
+
+    def _show_index_result(self, result):
+        """Show the result of document indexing"""
+        indexed = result.get("indexed_count", 0)
+        errors = result.get("error_count", 0)
+        total = result.get("total_documents", 0)
+
+        message = f"Indexing complete!\nIndexed: {indexed}\nErrors: {errors}\nTotal documents: {total}"
+        messagebox.showinfo("Indexing Complete", message)
+        self.status_var.set(f"Indexed {indexed} documents")
+
+        # Refresh the document list
+        self.load_all_documents()
+
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Documentation & Prompts Database Viewer")
-    parser.add_argument("--db", default=".docs_prompts_index.db",
-                       help="Path to database file")
-    parser.add_argument("--gui", action="store_true",
-                       help="Launch GUI viewer")
+    parser = argparse.ArgumentParser(
+        description="Documentation & Prompts Database Viewer"
+    )
+    parser.add_argument(
+        "--db", default=".docs_prompts_index.db", help="Path to database file"
+    )
+    parser.add_argument("--gui", action="store_true", help="Launch GUI viewer")
 
     args = parser.parse_args()
 

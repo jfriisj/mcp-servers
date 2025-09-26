@@ -1,14 +1,18 @@
 """
 MCP protocol handling for the Coverage MCP Server
 """
+
 import logging
 from typing import Dict, Any, List
 
 from mcp.types import Tool, TextContent
 
 from models import (
-    TestRunConfig, ReportConfig,
-    CoverageAnalysis, CoverageDiff, CoverageSummary
+    TestRunConfig,
+    ReportConfig,
+    CoverageAnalysis,
+    CoverageDiff,
+    CoverageSummary,
 )
 from coverage_runner import CoverageRunner
 from coverage_reporter import CoverageReporter
@@ -24,7 +28,7 @@ class MCPHandler:
         self,
         coverage_runner: CoverageRunner,
         coverage_reporter: CoverageReporter,
-        coverage_analyzer: CoverageAnalyzer
+        coverage_analyzer: CoverageAnalyzer,
     ):
         self.coverage_runner = coverage_runner
         self.coverage_reporter = coverage_reporter
@@ -35,39 +39,34 @@ class MCPHandler:
         return [
             Tool(
                 name="run-tests-with-coverage",
-                description="Run tests with coverage measurement using "
-                           "pytest-cov",
+                description="Run tests with coverage measurement using pytest-cov",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "test_path": {
                             "type": "string",
                             "description": "Path to tests directory or "
-                                           "specific test file",
+                            "specific test file",
                             "default": "tests/",
                         },
                         "source": {
                             "type": "string",
-                            "description": "Source directory to measure "
-                                           "coverage for",
+                            "description": "Source directory to measure coverage for",
                             "default": "src/",
                         },
                         "min_coverage": {
                             "type": "number",
-                            "description": "Minimum coverage percentage "
-                                           "required",
+                            "description": "Minimum coverage percentage required",
                             "default": 80.0,
                         },
                         "parallel": {
                             "type": "boolean",
-                            "description": "Run tests in parallel using "
-                                           "pytest-xdist",
+                            "description": "Run tests in parallel using pytest-xdist",
                             "default": False,
                         },
                         "markers": {
                             "type": "string",
-                            "description": "Pytest markers to select/deselect "
-                                           "tests",
+                            "description": "Pytest markers to select/deselect tests",
                         },
                         "verbose": {
                             "type": "boolean",
@@ -88,13 +87,9 @@ class MCPHandler:
                             "type": "array",
                             "items": {
                                 "type": "string",
-                                "enum": [
-                                    "html", "xml", "json",
-                                    "term", "term-missing"
-                                ],
+                                "enum": ["html", "xml", "json", "term", "term-missing"],
                             },
-                            "description": "Output formats for coverage "
-                                           "report",
+                            "description": "Output formats for coverage report",
                             "default": ["html", "xml", "term-missing"],
                         },
                         "output_dir": {
@@ -104,8 +99,7 @@ class MCPHandler:
                         },
                         "show_missing": {
                             "type": "boolean",
-                            "description": "Show line numbers of missing "
-                                           "coverage",
+                            "description": "Show line numbers of missing coverage",
                             "default": True,
                         },
                         "skip_covered": {
@@ -119,15 +113,13 @@ class MCPHandler:
             ),
             Tool(
                 name="check-coverage-threshold",
-                description="Check if coverage meets minimum threshold "
-                           "requirements",
+                description="Check if coverage meets minimum threshold requirements",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "threshold": {
                             "type": "number",
-                            "description": "Minimum coverage percentage "
-                                           "required",
+                            "description": "Minimum coverage percentage required",
                             "default": 80.0,
                         },
                         "per_file": {
@@ -146,8 +138,7 @@ class MCPHandler:
             ),
             Tool(
                 name="find-missing-coverage",
-                description="Identify specific lines and files with missing "
-                           "coverage",
+                description="Identify specific lines and files with missing coverage",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -157,14 +148,12 @@ class MCPHandler:
                         },
                         "show_contexts": {
                             "type": "boolean",
-                            "description": "Show test contexts that hit each "
-                                           "line",
+                            "description": "Show test contexts that hit each line",
                             "default": False,
                         },
                         "min_coverage": {
                             "type": "number",
-                            "description": "Show only files below this "
-                                           "coverage %",
+                            "description": "Show only files below this coverage %",
                             "default": 100.0,
                         },
                     },
@@ -179,8 +168,7 @@ class MCPHandler:
                     "properties": {
                         "base": {
                             "type": "string",
-                            "description": "Base branch/commit to compare "
-                                           "against",
+                            "description": "Base branch/commit to compare against",
                             "default": "HEAD~1",
                         },
                         "format": {
@@ -201,15 +189,14 @@ class MCPHandler:
                     "properties": {
                         "show_files": {
                             "type": "boolean",
-                            "description": "Include per-file coverage "
-                                           "breakdown",
+                            "description": "Include per-file coverage breakdown",
                             "default": True,
                         },
                         "sort_by": {
                             "type": "string",
                             "enum": ["coverage", "missing", "name"],
                             "description": "Sort files by coverage, missing "
-                                           "lines, or name",
+                            "lines, or name",
                             "default": "coverage",
                         },
                     },
@@ -239,12 +226,9 @@ class MCPHandler:
                 return [TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
             logger.error("Error calling tool %s: %s", name, e)
-            return [TextContent(type="text", text=f"Error executing "
-                                   f"{name}: {str(e)}")]
+            return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
 
-    async def _run_tests_with_coverage(
-        self, args: Dict[str, Any]
-    ) -> List[TextContent]:
+    async def _run_tests_with_coverage(self, args: Dict[str, Any]) -> List[TextContent]:
         """Run tests with coverage measurement"""
         config = TestRunConfig(
             test_path=args.get("test_path", "tests/"),
@@ -255,12 +239,12 @@ class MCPHandler:
             verbose=args.get("verbose", False),
         )
 
-        output, error, returncode = await self.coverage_runner. \
-            run_tests_with_coverage(config)
+        output, error, returncode = await self.coverage_runner.run_tests_with_coverage(
+            config
+        )
 
         # Parse coverage from output
-        total_coverage = self.coverage_analyzer. \
-            parse_coverage_percentage(output)
+        total_coverage = self.coverage_analyzer.parse_coverage_percentage(output)
 
         if returncode == 0:
             response = "✅ Tests passed with coverage requirements met!\n\n"
@@ -269,8 +253,9 @@ class MCPHandler:
                 response += f"🎯 Required: {config.min_coverage:.1f}%\n\n"
             response += f"Test Output:\n{output}"
         else:
-            response = f"❌ Tests failed or coverage below " \
-                       f"{config.min_coverage:.1f}%\n\n"
+            response = (
+                f"❌ Tests failed or coverage below {config.min_coverage:.1f}%\n\n"
+            )
             if total_coverage is not None:
                 response += f"📊 Coverage Summary: {total_coverage:.1f}%\n"
             response += f"Test Output:\n{output}"
@@ -300,13 +285,10 @@ class MCPHandler:
         threshold = args.get("threshold", 80.0)
         per_file = args.get("per_file", False)
 
-        result = await self.coverage_reporter. \
-            check_threshold(threshold, per_file)
+        result = await self.coverage_reporter.check_threshold(threshold, per_file)
         return [TextContent(type="text", text=result)]
 
-    async def _find_missing_coverage(
-        self, args: Dict[str, Any]
-    ) -> List[TextContent]:
+    async def _find_missing_coverage(self, args: Dict[str, Any]) -> List[TextContent]:
         """Find specific lines and files with missing coverage"""
         analysis = CoverageAnalysis(
             file_pattern=args.get("file_pattern"),
@@ -316,8 +298,7 @@ class MCPHandler:
 
         # For now, return a simplified response
         # In a full implementation, this would analyze coverage data
-        response = f"🔍 Missing Coverage Analysis (< " \
-                   f"{analysis.min_coverage:.1f}%):\n\n"
+        response = f"🔍 Missing Coverage Analysis (< {analysis.min_coverage:.1f}%):\n\n"
         response += "⚠️ Full implementation requires coverage data parsing.\n"
         response += "This is a placeholder for the missing coverage analysis."
 
@@ -332,14 +313,14 @@ class MCPHandler:
 
         # Simplified implementation - would need git operations
         response = f"📊 Current Coverage (vs {diff_config.base}):\n\n"
-        response += "⚠️ Note: Full diff comparison requires running tests on " \
-                    "both branches.\n"
+        response += (
+            "⚠️ Note: Full diff comparison requires running tests on both branches.\n"
+        )
         response += "This shows current coverage only.\n\n"
 
         # Get current coverage
         cmd = ["coverage", "report", "--show-missing"]
-        output, error, returncode = await self.coverage_runner. \
-            run_coverage_command(cmd)
+        output, error, returncode = await self.coverage_runner.run_coverage_command(cmd)
 
         if returncode == 0:
             response += output
@@ -350,9 +331,7 @@ class MCPHandler:
 
         return [TextContent(type="text", text=response)]
 
-    async def _coverage_summary(
-        self, args: Dict[str, Any]
-    ) -> List[TextContent]:
+    async def _coverage_summary(self, args: Dict[str, Any]) -> List[TextContent]:
         """Get a quick coverage summary with key metrics"""
         summary_config = CoverageSummary(
             show_files=args.get("show_files", True),
@@ -361,12 +340,10 @@ class MCPHandler:
 
         # Get coverage report
         cmd = ["coverage", "report", "--show-missing"]
-        output, error, returncode = await self.coverage_runner. \
-            run_coverage_command(cmd)
+        output, error, returncode = await self.coverage_runner.run_coverage_command(cmd)
 
         if returncode == 0 or output:
-            total_coverage = self.coverage_analyzer. \
-                parse_coverage_percentage(output)
+            total_coverage = self.coverage_analyzer.parse_coverage_percentage(output)
             file_coverage = self.coverage_analyzer.parse_file_coverage(output)
 
             response = self.coverage_analyzer.format_coverage_summary(

@@ -2,6 +2,7 @@
 """
 Main entry point for the Coverage MCP Server
 """
+
 import asyncio
 import logging
 from pathlib import Path

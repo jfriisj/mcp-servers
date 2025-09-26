@@ -1,6 +1,7 @@
 """
 Main MCP server implementation for the Coverage MCP Server
 """
+
 import asyncio
 import logging
 from pathlib import Path
@@ -26,17 +27,13 @@ class CoverageMCPServer:
         self.project_root = project_root or Path.cwd()
         self.server = Server("coverage-mcp-server")
         self.config_manager = ConfigurationManager()
-        self.coverage_runner = CoverageRunner(
-            self.project_root, self.config_manager
-        )
+        self.coverage_runner = CoverageRunner(self.project_root, self.config_manager)
         self.coverage_reporter = CoverageReporter(
             self.coverage_runner, self.project_root
         )
         self.coverage_analyzer = CoverageAnalyzer()
         self.mcp_handler = MCPHandler(
-            self.coverage_runner,
-            self.coverage_reporter,
-            self.coverage_analyzer
+            self.coverage_runner, self.coverage_reporter, self.coverage_analyzer
         )
 
     async def list_resources(self) -> List[Resource]:
@@ -61,8 +58,7 @@ class CoverageMCPServer:
         if str(uri) == "coverage://current":
             # Get current coverage report
             cmd = ["coverage", "report", "--show-missing"]
-            output, _, returncode = await self.coverage_runner. \
-                run_coverage_command(cmd)
+            output, _, returncode = await self.coverage_runner.run_coverage_command(cmd)
             if returncode == 0:
                 return output
             else:
@@ -70,11 +66,11 @@ class CoverageMCPServer:
         elif str(uri) == "coverage://summary":
             # Get coverage summary
             cmd = ["coverage", "report"]
-            output, _, returncode = await self.coverage_runner. \
-                run_coverage_command(cmd)
+            output, _, returncode = await self.coverage_runner.run_coverage_command(cmd)
             if returncode == 0:
-                total_coverage = self.coverage_analyzer. \
-                    parse_coverage_percentage(output)
+                total_coverage = self.coverage_analyzer.parse_coverage_percentage(
+                    output
+                )
                 if total_coverage:
                     return f"Total Coverage: {total_coverage:.1f}%"
                 else:
@@ -116,11 +112,10 @@ class CoverageMCPServer:
 
         # Run the server
         from mcp.server.stdio import stdio_server
+
         async with stdio_server() as (read_stream, write_stream):
             await self.server.run(
-                read_stream,
-                write_stream,
-                self.server.create_initialization_options()
+                read_stream, write_stream, self.server.create_initialization_options()
             )
 
 

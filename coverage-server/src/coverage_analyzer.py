@@ -1,6 +1,7 @@
 """
 Coverage data parsing and analysis for the Coverage MCP Server
 """
+
 import re
 from typing import Dict, List, Optional, Any
 
@@ -57,16 +58,12 @@ class CoverageAnalyzer:
                         missing_part = " ".join(parts[4:])
                         if missing_part and missing_part != "100%":
                             # Parse line numbers like "5-8, 12"
-                            line_matches = re.findall(
-                                r"(\d+)(?:-(\d+))?", missing_part
-                            )
+                            line_matches = re.findall(r"(\d+)(?:-(\d+))?", missing_part)
                             for start, end in line_matches:
                                 start_num = int(start)
                                 if end:
                                     end_num = int(end)
-                                    missing_lines.extend(
-                                        range(start_num, end_num + 1)
-                                    )
+                                    missing_lines.extend(range(start_num, end_num + 1))
                                 else:
                                     missing_lines.append(start_num)
 
@@ -96,7 +93,7 @@ class CoverageAnalyzer:
 
     @staticmethod
     def calculate_overall_stats(
-        file_coverage: Dict[str, Dict[str, Any]]
+        file_coverage: Dict[str, Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Calculate overall coverage statistics"""
         if not file_coverage:
@@ -130,7 +127,7 @@ class CoverageAnalyzer:
     def format_coverage_summary(
         total_coverage: Optional[float],
         file_coverage: Dict[str, Dict[str, Any]],
-        show_files: bool = True
+        show_files: bool = True,
     ) -> str:
         """Format coverage data into a readable summary"""
         summary = "📊 Coverage Summary\n" + "=" * 50 + "\n\n"

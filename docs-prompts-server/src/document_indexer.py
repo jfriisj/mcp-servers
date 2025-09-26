@@ -1,6 +1,7 @@
 """
 Document indexing coordination for the Documentation and Prompts MCP Server
 """
+
 import asyncio
 import logging
 from pathlib import Path
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 class DocumentIndexer:
     """Coordinates document indexing operations"""
 
-    def __init__(self, config: Dict[str, Any], project_root: Path, db_manager: DatabaseManager):
+    def __init__(
+        self, config: Dict[str, Any], project_root: Path, db_manager: DatabaseManager
+    ):
         self.config = config
         self.project_root = project_root
         self.db_manager = db_manager
@@ -32,8 +35,10 @@ class DocumentIndexer:
         indexed_count = 0
         error_count = 0
 
-        logger.info(f"Starting inclusion-only indexing of "
-                   f"{len(self.config['documentation_paths'])} patterns")
+        logger.info(
+            f"Starting inclusion-only indexing of "
+            f"{len(self.config['documentation_paths'])} patterns"
+        )
 
         # Use ThreadPoolExecutor for CPU-bound file processing
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -50,9 +55,7 @@ class DocumentIndexer:
                     for file_path in matches:
                         if file_path.is_file():
                             task = loop.run_in_executor(
-                                executor,
-                                self._index_single_document,
-                                file_path
+                                executor, self._index_single_document, file_path
                             )
                             tasks.append(task)
 
@@ -72,11 +75,13 @@ class DocumentIndexer:
                     logger.error(f"Error processing pattern '{doc_path}': {e}")
                     error_count += 1
 
-        logger.info(f"Inclusion-only indexing complete: {indexed_count} indexed, {error_count} errors")
+        logger.info(
+            f"Inclusion-only indexing complete: {indexed_count} indexed, {error_count} errors"
+        )
         return {
             "indexed_count": indexed_count,
             "error_count": error_count,
-            "total_documents": self.db_manager.get_document_count()
+            "total_documents": self.db_manager.get_document_count(),
         }
 
     def _index_single_document(self, file_path: Path) -> Optional[DocumentInfo]:
@@ -107,12 +112,15 @@ class DocumentIndexer:
         """Calculate MD5 hash of file content"""
         try:
             import hashlib
-            with open(file_path, 'rb') as f:
+
+            with open(file_path, "rb") as f:
                 return hashlib.md5(f.read()).hexdigest()
         except Exception:
             return None
 
-    def search_documents(self, query: str, doc_type: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_documents(
+        self, query: str, doc_type: Optional[str] = None, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Search documents using text matching"""
         return self.db_manager.search_documents(query, doc_type, limit)
 
@@ -135,7 +143,7 @@ class DocumentIndexer:
 
         return {
             "architecture_documents": unique_results,
-            "total_count": len(unique_results)
+            "total_count": len(unique_results),
         }
 
     def get_document_count(self) -> int:

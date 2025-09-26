@@ -1,6 +1,7 @@
 """
 Main entry point for the Documentation and Prompts MCP Server
 """
+
 import asyncio
 import argparse
 import logging
@@ -31,7 +32,7 @@ async def read_resource(uri: AnyUrl):
     """Read resource data"""
     result = docs_prompts_server.read_resource(str(uri))
     # Return the text content directly as string
-    if result.contents and hasattr(result.contents[0], 'text'):
+    if result.contents and hasattr(result.contents[0], "text"):
         return result.contents[0].text  # type: ignore
     return ""
 
@@ -50,12 +51,9 @@ async def call_tool(name: str, arguments):
 
 async def main():
     """Main entry point for the documentation and prompts MCP server"""
-    parser = argparse.ArgumentParser(
-        description='Documentation and Prompts MCP Server'
-    )
+    parser = argparse.ArgumentParser(description="Documentation and Prompts MCP Server")
     parser.add_argument(
-        '--root-folder', type=str,
-        help='Root folder for documentation indexing'
+        "--root-folder", type=str, help="Root folder for documentation indexing"
     )
     args = parser.parse_args()
 
@@ -64,9 +62,7 @@ async def main():
 
         # Initialize the server with root folder if provided
         global docs_prompts_server
-        docs_prompts_server = DocumentationPromptsServer(
-            project_root=args.root_folder
-        )
+        docs_prompts_server = DocumentationPromptsServer(project_root=args.root_folder)
 
         # Auto-index documentation on startup
         try:
@@ -77,9 +73,7 @@ async def main():
 
         async with stdio_server() as (read_stream, write_stream):
             await app.run(
-                read_stream,
-                write_stream,
-                app.create_initialization_options()
+                read_stream, write_stream, app.create_initialization_options()
             )
 
     except Exception as e:  # noqa: BLE001
@@ -89,6 +83,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-

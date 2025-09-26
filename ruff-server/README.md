@@ -23,12 +23,35 @@ A Model Context Protocol (MCP) server that provides fast Python linting and form
 - **Rule explanation** - Get detailed explanations of specific rules
 - **Project-aware** - Automatically finds and uses pyproject.toml configuration
 
+## Architecture
+
+This server follows SOLID design principles with a modular architecture:
+
+### Core Modules
+
+- **`models.py`** - Data models and configuration classes using dataclasses
+- **`config.py`** - Configuration management and pyproject.toml discovery
+- **`ruff_runner.py`** - Command execution and subprocess management
+- **`mcp_handler.py`** - MCP protocol handling and tool definitions
+- **`server.py`** - Main server orchestration and resource management
+- **`main.py`** - Application entry point
+
+### Design Principles
+
+- **Single Responsibility** - Each module has one clear purpose
+- **Open/Closed** - Components can be extended without modification
+- **Liskov Substitution** - Consistent interfaces across components
+- **Interface Segregation** - Focused interfaces for specific needs
+- **Dependency Inversion** - Loose coupling through dependency injection
+
 ## Available Tools
 
 ### `ruff-check`
+
 Run Ruff linter to identify code issues.
 
 **Parameters:**
+
 - `path` (string, optional): Path to check (file or directory, default: ".")
 - `fix` (boolean, optional): Automatically fix issues where possible (default: false)
 - `format` (string, optional): Output format - text, json, github, gitlab, junit, sarif (default: "text")
@@ -37,6 +60,7 @@ Run Ruff linter to identify code issues.
 - `show_fixes` (boolean, optional): Show available fixes for issues (default: false)
 
 **Example usage:**
+
 ```json
 {
   "path": "src/",
@@ -47,14 +71,17 @@ Run Ruff linter to identify code issues.
 ```
 
 ### `ruff-format`
+
 Format Python code using Ruff (Black-compatible).
 
 **Parameters:**
+
 - `path` (string, optional): Path to format (file or directory, default: ".")
 - `check` (boolean, optional): Only check formatting without making changes (default: false)
 - `diff` (boolean, optional): Show diff of formatting changes (default: false)
 
 **Example usage:**
+
 ```json
 {
   "path": "src/main.py",
@@ -63,13 +90,16 @@ Format Python code using Ruff (Black-compatible).
 ```
 
 ### `ruff-check-diff`
+
 Check Ruff issues on changed files only (git diff).
 
 **Parameters:**
+
 - `base` (string, optional): Base commit/branch to compare against (default: "HEAD~1")
 - `format` (string, optional): Output format - text, json, github (default: "text")
 
 **Example usage:**
+
 ```json
 {
   "base": "main",
@@ -78,18 +108,23 @@ Check Ruff issues on changed files only (git diff).
 ```
 
 ### `ruff-show-settings`
+
 Show active Ruff configuration settings.
 
 **Parameters:**
+
 - `path` (string, optional): Path to show settings for (default: ".")
 
 ### `ruff-explain-rule`
+
 Explain a specific Ruff rule.
 
 **Parameters:**
+
 - `rule` (string, required): Rule code to explain (e.g., 'E501', 'F401')
 
 **Example usage:**
+
 ```json
 {
   "rule": "E501"
@@ -99,17 +134,20 @@ Explain a specific Ruff rule.
 ## Installation
 
 ### Prerequisites
+
 - Python 3.8+
 - Ruff (`pip install ruff`)
 - MCP client or compatible development environment
 
 ### Install Dependencies
+
 ```bash
 cd mcp-servers/ruff-server
 pip install -r requirements.txt
 ```
 
 ### Install Ruff
+
 ```bash
 pip install ruff
 ```
@@ -117,10 +155,13 @@ pip install ruff
 ## Configuration
 
 The server automatically detects and uses `pyproject.toml` configuration files. It searches for configuration in:
+
 1. Current directory
 2. Parent directories (walking up the tree)
 
-### Example pyproject.toml configuration:
+### Example pyproject.toml configuration
+
+```toml
 ```toml
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
@@ -172,6 +213,7 @@ max-complexity = 10
 ## Integration with Project
 
 This server is designed to integrate with the existing afhandling project structure:
+
 - Uses the project's `pyproject.toml` configuration
 - Compatible with existing development workflow
 - Provides faster alternative to Black and Flake8
@@ -179,23 +221,27 @@ This server is designed to integrate with the existing afhandling project struct
 
 ## Usage Examples
 
-### Basic linting:
+### Basic linting
+
 ```python
 # Through MCP client
 await call_tool("ruff-check", {"path": "src/"})
 ```
 
-### Format with diff:
+### Format with diff
+
 ```python
 await call_tool("ruff-format", {"path": ".", "diff": True})
 ```
 
-### Check only changed files:
+### Check only changed files
+
 ```python
 await call_tool("ruff-check-diff", {"base": "main"})
 ```
 
-### Auto-fix issues:
+### Auto-fix issues
+
 ```python
 await call_tool("ruff-check", {"path": "src/", "fix": True})
 ```
@@ -203,6 +249,7 @@ await call_tool("ruff-check", {"path": "src/", "fix": True})
 ## Error Handling
 
 The server includes comprehensive error handling:
+
 - Graceful fallback when Ruff is not installed
 - Clear error messages for configuration issues
 - Proper handling of git operations for diff mode
@@ -211,11 +258,13 @@ The server includes comprehensive error handling:
 ## Development
 
 ### Running the Server
+
 ```bash
-python src/ruff_mcp_server.py [project_root]
+python src/main.py [project_root]
 ```
 
 ### Testing
+
 The server includes fallback mode for development without the MCP package, making it easy to test and develop.
 
 ## Compatibility
@@ -228,6 +277,7 @@ The server includes fallback mode for development without the MCP package, makin
 ## Performance
 
 Ruff provides significant performance improvements:
+
 - **10-100x faster** than traditional linting tools
 - **Faster formatting** than Black
 - **Parallel processing** of multiple files

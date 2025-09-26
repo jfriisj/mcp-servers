@@ -1,6 +1,7 @@
 """
 GUI management for the Documentation and Prompts MCP Server
 """
+
 import logging
 import threading
 from pathlib import Path
@@ -20,9 +21,7 @@ class GUIManager:
     def launch_gui(self):
         """Launch GUI in a separate thread"""
         if not GUIManager._gui_launched:
-            gui_thread = threading.Thread(
-                target=self._launch_gui_thread, daemon=True
-            )
+            gui_thread = threading.Thread(target=self._launch_gui_thread, daemon=True)
             gui_thread.start()
             GUIManager._gui_launched = True
 
@@ -31,6 +30,7 @@ class GUIManager:
         try:
             logger.info("Launching GUI...")
             from docs_db_viewer import DocsPromptsViewer, DocsPromptsGUI
+
             viewer = DocsPromptsViewer(str(self.db_path))
             gui = DocsPromptsGUI(viewer, server=self.server_instance)
             gui.run()
