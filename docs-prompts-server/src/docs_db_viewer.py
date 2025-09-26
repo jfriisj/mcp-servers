@@ -282,6 +282,7 @@ class DocsPromptsGUI:
         self.create_prompts_tab()
         self.create_analytics_tab()
         self.create_search_tab()
+        self.create_tools_tab()
 
         # Status bar
         status_bar = ttk.Label(
@@ -626,6 +627,144 @@ class DocsPromptsGUI:
             self.search_results.insert(tk.END, f"❌ No results found for: '{query}'")
 
         self.status_var.set(f"Found {len(results)} results")
+
+    def create_tools_tab(self):
+        """Create MCP tools information tab"""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="🛠️ Tools")
+
+        # Tools display
+        tools_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, height=30)
+        tools_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Load tools information
+        self.display_tools_info(tools_text)
+
+    def display_tools_info(self, text_widget):
+        """Display MCP tools information with descriptions for agents"""
+        tools_info = self.get_mcp_tools_info()
+        text_widget.delete(1.0, tk.END)
+
+        text_widget.insert(tk.END, "🛠️ MCP Server Tools for AI Agents\n")
+        text_widget.insert(tk.END, "=" * 60 + "\n\n")
+
+        text_widget.insert(tk.END, "This MCP server provides tools that AI agents can use to:\n")
+        text_widget.insert(tk.END, "• Search and access documentation\n")
+        text_widget.insert(tk.END, "• Manage and use prompt templates\n")
+        text_widget.insert(tk.END, "• Extract architecture information\n")
+        text_widget.insert(tk.END, "• Generate contextual prompts\n\n")
+
+        for tool in tools_info:
+            text_widget.insert(tk.END, f"🔧 {tool['name']}\n")
+            text_widget.insert(tk.END, "-" * 40 + "\n")
+            text_widget.insert(tk.END, f"📝 {tool['description']}\n\n")
+
+            if tool['parameters']:
+                text_widget.insert(tk.END, "📋 Parameters:\n")
+                for param in tool['parameters']:
+                    required = " (required)" if param['required'] else " (optional)"
+                    text_widget.insert(tk.END, f"  • {param['name']}: {param['description']}{required}\n")
+                text_widget.insert(tk.END, "\n")
+
+            text_widget.insert(tk.END, f"🎯 Agent Usage:\n{tool['usage']}\n\n")
+            text_widget.insert(tk.END, "💡 Example:\n" + tool['example'] + "\n\n")
+            text_widget.insert(tk.END, "=" * 60 + "\n\n")
+
+    def get_mcp_tools_info(self):
+        """Get formatted information about all MCP tools"""
+        return [
+            {
+                "name": "search_docs",
+                "description": "Search through indexed documentation using keywords or phrases",
+                "parameters": [
+                    {"name": "query", "description": "Search keywords or phrases", "required": True},
+                    {"name": "doc_type", "description": "Filter by document type (.md, .rst, etc.)", "required": False},
+                    {"name": "limit", "description": "Maximum results (1-50)", "required": False}
+                ],
+                "usage": "Use when agents need to find specific information in documentation, research topics, or understand project structure.",
+                "example": '{"query": "authentication flow", "doc_type": ".md", "limit": 10}'
+            },
+            {
+                "name": "get_architecture_info",
+                "description": "Extract architecture patterns and design information from documentation",
+                "parameters": [],
+                "usage": "Use when agents need to understand system architecture, design patterns, or technical decisions.",
+                "example": "{}"
+            },
+            {
+                "name": "index_documentation",
+                "description": "Re-index all documentation files to update the search database",
+                "parameters": [
+                    {"name": "force", "description": "Force complete re-indexing", "required": False}
+                ],
+                "usage": "Use when new documentation has been added or when search results seem outdated.",
+                "example": '{"force": true}'
+            },
+            {
+                "name": "search_prompts",
+                "description": "Search through available prompt templates by keyword, category, or tags",
+                "parameters": [
+                    {"name": "query", "description": "Search terms for prompt name/description/tags", "required": True},
+                    {"name": "category", "description": "Filter by prompt category", "required": False},
+                    {"name": "limit", "description": "Maximum results (1-50)", "required": False}
+                ],
+                "usage": "Use when agents need to find appropriate prompt templates for specific tasks or domains.",
+                "example": '{"query": "code review", "category": "development", "limit": 5}'
+            },
+            {
+                "name": "get_prompt",
+                "description": "Retrieve complete details of a specific prompt template by ID",
+                "parameters": [
+                    {"name": "prompt_id", "description": "Unique identifier of the prompt", "required": True}
+                ],
+                "usage": "Use when agents have a specific prompt ID and need the full template details and variables.",
+                "example": '{"prompt_id": "code-review-template-001"}'
+            },
+            {
+                "name": "suggest_prompts",
+                "description": "Get context-aware prompt suggestions based on current task or content",
+                "parameters": [
+                    {"name": "context", "description": "Description of the current task or context", "required": False}
+                ],
+                "usage": "Use when agents need help selecting appropriate prompts for their current task.",
+                "example": '{"context": "analyzing Python code for security vulnerabilities"}'
+            },
+            {
+                "name": "create_prompt",
+                "description": "Create a new custom prompt template for future use",
+                "parameters": [
+                    {"name": "name", "description": "Name of the prompt", "required": True},
+                    {"name": "description", "description": "What the prompt does", "required": True},
+                    {"name": "template", "description": "Prompt template with {variable} placeholders", "required": True},
+                    {"name": "category", "description": "Prompt category", "required": False},
+                    {"name": "variables", "description": "List of variable names used in template", "required": False},
+                    {"name": "tags", "description": "Tags for searching and categorization", "required": False}
+                ],
+                "usage": "Use when agents want to save reusable prompt templates for future tasks.",
+                "example": '{"name": "API Analysis", "description": "Analyze API endpoints", "template": "Analyze this API: {api_spec}", "variables": ["api_spec"]}'
+            },
+            {
+                "name": "generate_contextual_prompt",
+                "description": "Generate a prompt based on current documentation context and task type",
+                "parameters": [
+                    {"name": "task", "description": "Task type (code_review, documentation, etc.)", "required": True},
+                    {"name": "docs_query", "description": "Query to find relevant documentation", "required": True}
+                ],
+                "usage": "Use when agents need dynamically generated prompts tailored to specific documentation and tasks.",
+                "example": '{"task": "code_review", "docs_query": "authentication security"}'
+            },
+            {
+                "name": "apply_prompt_with_context",
+                "description": "Apply a prompt template with documentation context automatically filled",
+                "parameters": [
+                    {"name": "prompt_id", "description": "ID of prompt template to use", "required": True},
+                    {"name": "content", "description": "Content to analyze with the prompt", "required": True},
+                    {"name": "auto_fill_context", "description": "Auto-fill context variables", "required": False}
+                ],
+                "usage": "Use when agents want to apply prompt templates with automatic context filling from documentation.",
+                "example": '{"prompt_id": "security-review-001", "content": "function authenticate(user, pass) { ... }", "auto_fill_context": true}'
+            }
+        ]
 
     def run(self):
         """Start the GUI application"""
