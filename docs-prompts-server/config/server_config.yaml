@@ -1,0 +1,134 @@
+# Documentation and Prompts MCP Server Configuration
+
+# IMPORTANT: All documentation_paths MUST be relative to the project root directory.
+# The server automatically resolves all paths from the project root, ensuring consistent
+# documentation indexing regardless of where the server is executed from.
+# Absolute paths are NOT allowed unless explicitly configured otherwise.
+
+# Documentation paths to scan (all paths are relative to project root)
+# INCLUSION-ONLY APPROACH: Only files in explicitly listed directories are indexed
+documentation_paths:
+  # Documentation directory - all supported file types
+  - "docs/**/*.md"
+  - "docs/**/*.rst"
+  - "docs/**/*.txt"
+  - "docs/**/*.yaml"
+  - "docs/**/*.yml"
+  - "docs/**/*.json"
+  
+  # Documentation alternative directory
+  - "documentation/**/*.md"
+  - "documentation/**/*.rst"
+  - "documentation/**/*.txt"
+  - "documentation/**/*.yaml"
+  - "documentation/**/*.yml"
+  - "documentation/**/*.json"
+  
+  # MCP spec workflow documentation
+  - ".spec-workflow/**/*.md"
+  - ".spec-workflow/**/*.yaml"
+  - ".spec-workflow/**/*.yml"
+  - ".spec-workflow/**/*.json"
+  
+  # Configuration files
+  - "config/**/*.yaml"
+  - "config/**/*.yml"
+  - "config/**/*.json"
+  
+  # Specific root-level documentation files only
+  - "README.md"
+  - "CHANGELOG.md"
+  - "CONTRIBUTING.md"
+  - "WARP.md"
+  - "language-config.yaml"
+
+# File patterns to include
+file_patterns:
+  - "*.md"
+  - "*.rst"
+  - "*.txt"
+  - "*.yaml"
+  - "*.yml"
+  - "*.json"
+
+# Patterns to exclude from indexing (minimal - inclusion-only approach is primary control)
+exclude_patterns:
+  # Only exclude specific problematic files within allowed directories
+  - "**/.*"  # Hidden files and directories within allowed paths
+  - "**/node_modules/**"  # Node modules within allowed directories (unlikely but safe)
+  - "**/__pycache__/**"  # Python cache within allowed directories (unlikely but safe)
+
+# Maximum file size to index (in MB)
+max_file_size_mb: 10
+
+# Keywords that indicate architecture-related content
+architecture_keywords:
+  - "architecture"
+  - "design"
+  - "pattern"
+  - "microservice"
+  - "api"
+  - "endpoint"
+  - "service"
+  - "component"
+  - "module"
+  - "database"
+  - "schema"
+  - "model"
+  - "workflow"
+  - "deployment"
+  - "infrastructure"
+  - "system"
+  - "integration"
+
+# Prompt categories
+prompt_categories:
+  - "code-quality"
+  - "architecture"
+  - "documentation"
+  - "testing"
+  - "refactoring"
+  - "api"
+  - "security"
+  - "custom"
+
+# Performance settings
+indexing:
+  auto_index_on_startup: true
+  watch_for_changes: true
+  batch_size: 100
+  cache_search_results: true
+  max_cache_size: 1000
+
+# Search settings
+search:
+  default_limit: 10
+  max_limit: 50
+  min_query_length: 2
+  fuzzy_matching: true
+  highlight_terms: true
+
+# Prompt settings
+prompts:
+  auto_load_on_startup: true
+  enable_usage_tracking: true
+  enable_version_control: true
+  template_engine: "jinja2"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  log_indexing_progress: true
+  log_search_queries: false
+  log_prompt_usage: true
+
+# Path resolution configuration
+path_resolution:
+  # Enforce that all documentation_paths must be relative to project root
+  enforce_project_root_relative: true
+
+  # Automatically convert absolute paths to relative paths when possible
+  normalize_absolute_paths: true
+
+  # Allow absolute paths (not recommended - may cause inconsistent behavior)
+  allow_absolute_paths: false

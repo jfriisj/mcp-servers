@@ -1,0 +1,18 @@
+# Coverage MCP Server Requirements
+# Install with: pip install -r requirements.txt
+
+# Core MCP package
+# Note: MCP package may not be publicly available yet
+# The server includes fallback mode for development
+# mcp>=1.0.0
+
+# Testing and coverage tools
+pytest>=7.0.0
+pytest-cov>=4.0.0
+coverage>=7.0.0
+
+# Optional: parallel test execution
+pytest-xdist>=3.0.0
+
+# For development without MCP package, the server works in fallback mode
+# All functionality is preserved through fallback implementations
