@@ -14,7 +14,6 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import argparse
-import asyncio
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -771,14 +770,19 @@ class DocsPromptsGUI:
 
                 def do_index():
                     try:
-                        result = asyncio.run(self.server.index_all_documents())
-                        self.root.after(0, lambda: self._show_index_result(result))
+                        # Use synchronous indexing to avoid nested
+                        # event loop issues
+                        result = self.server.index_all_documents_sync()
+                        self.root.after(
+                            0, lambda: self._show_index_result(result)
+                        )
                     except Exception as e:
                         error_msg = str(e)
                         self.root.after(
                             0,
                             lambda: messagebox.showerror(
-                                "Error", f"Failed to index documents: {error_msg}"
+                                "Error",
+                                f"Failed to index documents: {error_msg}"
                             ),
                         )
 

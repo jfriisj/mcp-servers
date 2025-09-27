@@ -49,6 +49,7 @@ documentation_paths:
   
   # Specific root-level documentation files only
   - "README.md"
+  - "*/README.md"
   - "CHANGELOG.md"
   - "CONTRIBUTING.md"
   - "WARP.md"

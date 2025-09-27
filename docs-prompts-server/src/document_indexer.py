@@ -23,7 +23,6 @@ class DocumentIndexer:
     ):
         self.config = config
         self.project_root = project_root
-        logger.info(f"Project root set to: {self.project_root}")
         self.db_manager = db_manager
         self.processor = DocumentProcessor(config, project_root)
 
@@ -85,7 +84,61 @@ class DocumentIndexer:
             "total_documents": self.db_manager.get_document_count(),
         }
 
-    def _index_single_document(self, file_path: Path) -> Optional[DocumentInfo]:
+    def index_all_documents_sync(self) -> Dict[str, Any]:
+        """Index all documents using inclusion-only approach
+        (synchronous version).
+
+        Uses directory-specific glob patterns from documentation_paths
+        to scan only explicitly allowed directories from project root.
+        This synchronous version processes documents sequentially.
+        """
+        indexed_count = 0
+        error_count = 0
+
+        logger.info(
+            f"Starting synchronous inclusion-only indexing of "
+            f"{len(self.config['documentation_paths'])} patterns"
+        )
+
+        for doc_path in self.config["documentation_paths"]:
+            logger.debug(f"Scanning pattern: {doc_path}")
+            try:
+                matches = list(self.project_root.glob(doc_path))
+                logger.debug(
+                    f"Pattern '{doc_path}' matched {len(matches)} files"
+                )
+
+                # Process files sequentially
+                for file_path in matches:
+                    if file_path.is_file():
+                        try:
+                            result = self._index_single_document(file_path)
+                            if result:  # Successfully indexed
+                                indexed_count += 1
+                                logger.debug(f"Indexed: {file_path}")
+                            # None results are files that were skipped
+                            # (not errors)
+                        except Exception as e:
+                            logger.error(f"Error indexing {file_path}: {e}")
+                            error_count += 1
+
+            except Exception as e:
+                logger.error(f"Error processing pattern '{doc_path}': {e}")
+                error_count += 1
+
+        logger.info(
+            f"Synchronous inclusion-only indexing complete: "
+            f"{indexed_count} indexed, {error_count} errors"
+        )
+        return {
+            "indexed_count": indexed_count,
+            "error_count": error_count,
+            "total_documents": self.db_manager.get_document_count(),
+        }
+
+    def _index_single_document(
+        self, file_path: Path
+    ) -> Optional[DocumentInfo]:
         """Index a single document (synchronous wrapper)"""
         try:
             # Check if already indexed and unchanged

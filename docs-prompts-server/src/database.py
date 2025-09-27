@@ -436,3 +436,25 @@ class DatabaseManager:
                 )
 
             return stats
+
+    def get_all_documents(self) -> List[Dict[str, Any]]:
+        """Get all indexed documents"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT path, title, doc_type, metadata, last_modified,
+                       file_hash
+                FROM documents ORDER BY path
+            """)
+            
+            documents = []
+            for row in cursor.fetchall():
+                documents.append({
+                    "path": row[0],
+                    "title": row[1],
+                    "doc_type": row[2],
+                    "metadata": json.loads(row[3]) if row[3] else {},
+                    "last_modified": row[4],
+                    "file_hash": row[5],
+                })
+            
+            return documents

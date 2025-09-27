@@ -27,6 +27,9 @@ class DocumentationPromptsServer:
             project_root = os.environ.get("DOCS_PROJECT_ROOT", os.getcwd())
 
         self.project_root = Path(project_root)
+        
+        # Auto-detect monorepo root if running from server subdirectory
+        self.project_root = self._detect_project_root(self.project_root)
 
         # Initialize components with dependency injection
         self.config_manager = ConfigurationManager(
@@ -71,6 +74,44 @@ class DocumentationPromptsServer:
         # Launch GUI
         self.gui_manager.launch_gui()
 
+    def _detect_project_root(self, initial_root: Path) -> Path:
+        """Auto-detect the correct project root.
+        
+        If running from a server subdirectory, check if the parent directory
+        appears to be the monorepo root and adjust accordingly.
+        """
+        # Check if parent directory looks like monorepo root
+        parent_dir = initial_root.parent
+        
+        # Indicators that parent is monorepo root
+        monorepo_indicators = [
+            parent_dir / "README.md",
+            parent_dir / ".git",
+        ]
+        
+        # Check if we're in a server subdirectory
+        server_indicators = [
+            initial_root / "src",
+            initial_root / "config",
+            initial_root.name in ["docs-prompts-server", "ruff-server",
+                                 "coverage-server"]
+        ]
+        
+        # If parent has monorepo indicators and we're in server directory,
+        # use parent as project root
+        parent_is_monorepo = all(indicator.exists()
+                                for indicator in monorepo_indicators)
+        in_server_dir = (any(indicator.exists()
+                             for indicator in server_indicators[:-1]) or
+                         server_indicators[-1])
+        
+        if parent_is_monorepo and in_server_dir:
+            logger.info(f"Detected monorepo root at: {parent_dir}")
+            return parent_dir
+        
+        # Otherwise use the initial root
+        return initial_root
+
     def _get_config_path(self) -> Optional[Path]:
         """Get the configuration file path"""
         # Look for config file relative to the server module location
@@ -87,6 +128,10 @@ class DocumentationPromptsServer:
     async def index_all_documents(self):
         """Index all documents"""
         return await self.document_indexer.index_all_documents()
+
+    def index_all_documents_sync(self):
+        """Index all documents (synchronous version)"""
+        return self.document_indexer.index_all_documents_sync()
 
     def search_documents(self, query: str, doc_type=None, limit=10):
         """Search documents"""
@@ -142,3 +187,7 @@ class DocumentationPromptsServer:
     def clear_index(self):
         """Clear all documents and search index"""
         return self.document_indexer.clear_index()
+
+    def get_all_documents(self):
+        """Get all indexed documents"""
+        return self.db_manager.get_all_documents()
