@@ -4,13 +4,14 @@ A comprehensive collection of Model Context Protocol (MCP) servers providing ess
 
 ## 🚀 Overview
 
-This repository contains three specialized MCP servers that work together to provide a complete Python development toolchain:
+This repository contains four specialized MCP servers that work together to provide a complete development toolchain:
 
 - **Coverage Server** - Test coverage analysis and reporting
 - **Docs-Prompts Server** - Documentation indexing and intelligent prompt management
 - **Ruff Server** - Fast Python linting and code formatting
+- **Hadolint Server** - Dockerfile linting and best practices
 
-Together, these servers enable AI assistants to perform comprehensive code quality analysis, testing, documentation management, and code improvement tasks through the MCP protocol.
+Together, these servers enable AI assistants to perform comprehensive code quality analysis, testing, documentation management, code improvement, and container best practices through the MCP protocol.
 
 ## 📦 Servers
 
@@ -78,6 +79,24 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
 - `ruff-show-settings` - Display current configuration
 - `ruff-explain-rule` - Explain specific linting rules
 
+### 🐳 Hadolint Server
+
+**Location:** `hadolint-server/`
+
+Provides comprehensive Dockerfile linting and best practices validation using Hadolint.
+
+**Features:**
+- **Dockerfile analysis** - Checks for security, performance, and maintainability issues
+- **Multiple output formats** - tty, JSON, SARIF
+- **Configurable rules** - Ignore specific rules or use custom configurations
+- **Directory scanning** - Lint all Dockerfiles in a project
+- **Best practice enforcement** - Ensure Dockerfile quality and security
+
+**Key Tools:**
+- `hadolint-check` - Lint a single Dockerfile
+- `hadolint-check-dir` - Lint all Dockerfiles in a directory
+- `hadolint-show-rules` - Show available rules and help
+
 ## 🛠️ Installation
 
 ### Prerequisites
@@ -110,6 +129,11 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
    cd ../ruff-server
    pip install -r requirements.txt
    pip install ruff
+
+   # Hadolint Server
+   cd ../hadolint-server
+   pip install -r requirements.txt
+   # Install hadolint separately: https://github.com/hadolint/hadolint
    ```
 
 3. **Configure MCP client** (example for VS Code `.vscode/mcp.json`):
@@ -130,6 +154,11 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
        "ruff": {
          "command": "python",
          "args": ["${workspaceFolder}/mcp-servers/ruff-server/src/ruff_mcp_server.py"],
+         "cwd": "${workspaceFolder}"
+       },
+       "hadolint": {
+         "command": "python",
+         "args": ["${workspaceFolder}/mcp-servers/hadolint-server/src/main.py"],
          "cwd": "${workspaceFolder}"
        }
      }
@@ -190,6 +219,20 @@ line-length = 88
 known-first-party = ["my_package"]
 ```
 
+### Hadolint Server
+
+Uses `.hadolint.yaml` configuration:
+
+```yaml
+ignored:
+  - DL3006  # Image not pinned to a specific version
+  - DL3018  # Pin versions in apk add
+
+trustedRegistries:
+  - docker.io
+  - gcr.io
+```
+
 ## 📖 Usage Examples
 
 ### Running Tests with Coverage
@@ -219,6 +262,15 @@ await call_tool("search_docs", {
 await call_tool("ruff-check", {
     "path": "src/",
     "fix": true,
+    "format": "json"
+})
+```
+
+### Linting Dockerfiles
+
+```python
+await call_tool("hadolint-check", {
+    "dockerfile_path": "Dockerfile",
     "format": "json"
 })
 ```
@@ -276,6 +328,16 @@ Add to `.vscode/mcp.json`:
       "command": "python",
       "args": [
         "docs-prompts-server/src/docs_prompts_mcp_server.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "hadolint": {
+      "command": "python",
+      "args": [
+        "hadolint-server/src/main.py"
       ],
       "cwd": "${workspaceFolder}",
       "env": {
@@ -344,6 +406,10 @@ python docs_prompts_mcp_server.py
 # Ruff Server
 cd ruff-server/src
 python ruff_mcp_server.py
+
+# Hadolint Server
+cd ../hadolint-server/src
+python main.py
 ```
 
 ### Testing
@@ -403,6 +469,10 @@ python docs-prompts-server/src/docs_prompts_mcp_server.py --test
 ### Ruff Server Dependencies
 
 - ruff>=0.1.6
+
+### Hadolint Server Dependencies
+
+- hadolint (external binary, install separately)
 
 ## 📄 License
 
