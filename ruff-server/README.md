@@ -152,6 +152,27 @@ pip install -r requirements.txt
 pip install ruff
 ```
 
+## VS Code Configuration
+
+### Add to `.vscode/mcp.json`
+
+```json
+{
+  "servers": {
+    "ruff": {
+      "command": "python",
+      "args": [
+        "ruff-server/src/main.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
+
 ## Configuration
 
 The server automatically detects and uses `pyproject.toml` configuration files. It searches for configuration in:

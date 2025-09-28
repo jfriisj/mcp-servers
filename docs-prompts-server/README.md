@@ -117,13 +117,13 @@ architecture_keywords:
 {
   "servers": {
     "docs": {
-      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "command": "python",
       "args": [
-        "mcp-servers/docs-prompts-server/src/main.py",
+        "docs-prompts-server/src/main.py",
         "--root-folder",
-        "${workspaceFolder}"
+        "C:/github/mcp-servers"
       ],
-      "cwd": "${workspaceFolder}",
+      "cwd": "C:/github/mcp-servers",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }

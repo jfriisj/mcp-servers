@@ -195,6 +195,27 @@ pip install -r requirements.txt
 pip install pytest pytest-cov coverage pytest-xdist
 ```
 
+## VS Code Configuration
+
+### Add to `.vscode/mcp.json`
+
+```json
+{
+  "servers": {
+    "coverage": {
+      "command": "python",
+      "args": [
+        "coverage-server/src/main.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
+
 ## Configuration
 
 The server automatically detects and uses configuration files in this order:

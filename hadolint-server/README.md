@@ -116,6 +116,27 @@ pip install -r requirements.txt
 
 The `requirements.txt` includes `hadolint-coatl` which provides the hadolint binary via pip, eliminating the need for manual installation.
 
+## VS Code Configuration
+
+### Add to `.vscode/mcp.json`
+
+```json
+{
+  "servers": {
+    "hadolint": {
+      "command": "python",
+      "args": [
+        "hadolint-server/src/main.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
+
 ## Configuration
 
 Hadolint supports configuration through `.hadolint.yaml` files. The server will automatically detect and use configuration files in:
