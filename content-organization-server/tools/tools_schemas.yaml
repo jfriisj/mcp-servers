@@ -1,0 +1,190 @@
+# Common error responses for all tools
+error_responses:
+  validation_error:
+    description: Input validation failed
+    error_code: VALIDATION_ERROR
+    http_status: 400
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Validation details
+          properties:
+            field:
+              type: string
+              description: Field that failed validation
+            message:
+              type: string
+              description: Validation error message
+
+  not_found_error:
+    description: Requested resource not found
+    error_code: NOT_FOUND
+    http_status: 404
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error details
+          properties:
+            resource_type:
+              type: string
+              description: Type of resource not found
+            resource_id:
+              type: string
+              description: ID of resource not found
+
+  permission_error:
+    description: Permission denied
+    error_code: PERMISSION_DENIED
+    http_status: 403
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Permission details
+          properties:
+            required_permission:
+              type: string
+              description: Required permission level
+            current_permission:
+              type: string
+              description: Current permission level
+
+  server_error:
+    description: Internal server error
+    error_code: INTERNAL_ERROR
+    http_status: 500
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Error details
+          properties:
+            error_id:
+              type: string
+              description: Unique error identifier for tracking
+            error_type:
+              type: string
+              description: Type of error that occurred
+
+tools:
+  organize_course_content:
+    description: Organize and structure course materials with metadata and indexing
+    input_schema:
+      type: object
+      required:
+        - content_dir
+        - output_dir
+      properties:
+        content_dir:
+          type: string
+          description: Directory containing course content to organize
+        output_dir:
+          type: string
+          description: Directory where organized content will be saved
+        structure_template:
+          type: string
+          description: Optional path to structure template YAML file
+        metadata_schema:
+          type: string
+          description: Optional path to metadata schema JSON file
+        content_types:
+          type: array
+          items:
+            type: string
+            enum: [markdown, pdf, code, exercises, examples]
+          default: [markdown]
+        preserve_original:
+          type: boolean
+          default: true
+        generate_index:
+          type: boolean
+          default: true
+
+  reorganize_files:
+    description: Restructure files based on rules and patterns
+    input_schema:
+      type: object
+      required:
+        - source_dir
+        - target_dir
+        - organization_rules
+      properties:
+        source_dir:
+          type: string
+        target_dir:
+          type: string
+        organization_rules:
+          type: array
+          items:
+            type: object
+            required: [pattern, action]
+            properties:
+              pattern:
+                type: string
+              action:
+                type: string
+                enum: [move, copy, categorize, rename]
+              target_subdir:
+                type: string
+              rename_template:
+                type: string
+        recursive:
+          type: boolean
+          default: true
+        dry_run:
+          type: boolean
+          default: false
+
+  generate_cross_references:
+    description: Generate cross-references between content files and output reference graph
+    input_schema:
+      type: object
+      required:
+        - content_dir
+      properties:
+        content_dir:
+          type: string
+        output_file:
+          type: string
+        reference_types:
+          type: array
+          items:
+            type: string
+            enum: [links, citations, dependencies, concepts]
+          default: [links, concepts]
+        depth:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 2
+        formats:
+          type: array
+          items:
+            type: string
+            enum: [md, rst, txt, py, ipynb]
+          default: [md]
+        generate_graph:
+          type: boolean
+          default: false
+        graph_format:
+          type: string
+          enum: [dot, graphml, json]
+          default: json

@@ -1,0 +1,23 @@
+# MCP dependencies
+mcp-base>=1.0.0,<2.0.0  # MCP protocol base package
+pydantic>=1.8.2,<2.0.0  # Data validation
+PyYAML>=6.0,<7.0       # YAML parsing
+typing-extensions>=4.0.0,<5.0.0  # Enhanced typing support
+aiofiles>=23.1.0,<24.0.0  # Async file operations
+watchdog>=3.0.0,<4.0.0   # File system monitoring
+
+# Content processing
+markdown>=3.4.0,<4.0.0   # Markdown processing
+beautifulsoup4>=4.11.0,<5.0.0  # HTML/XML parsing
+python-frontmatter>=1.0.0,<2.0.0  # Frontmatter parsing
+
+# Cross-referencing
+networkx>=3.0.0,<4.0.0   # Graph operations for cross-references
+
+# Logging
+python-json-logger>=2.0.4,<3.0.0  # JSON-formatted logging
+
+# Testing
+pytest>=7.0.0,<8.0.0    # Testing framework
+pytest-asyncio>=0.18.0,<1.0.0  # Async test support
+pytest-cov>=3.0.0,<4.0.0  # Coverage reporting

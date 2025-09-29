@@ -1,0 +1,32 @@
+# Whisper MCP Server Requirements for Docker with CUDA
+# Install with: pip install -r requirements.txt
+
+# Core MCP package
+# Note: MCP package may not be publicly available yet
+# The server includes fallback mode for development
+mcp>=1.0.0
+
+# PyTorch with CUDA support (installed separately in Dockerfile)
+# torch>=2.0.0
+# torchaudio>=2.0.0
+
+# Hugging Face Transformers for local Whisper model
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Async processing for parallel operations
+aiofiles>=23.0.0
+
+# Async HTTP server
+aiohttp>=3.9.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# For development without MCP package, the server works in fallback mode
+# All functionality is preserved through fallback implementations

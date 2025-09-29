@@ -1,0 +1,13 @@
+# Core dependencies
+pydantic>=1.8.2,<2.0.0  # Data validation
+PyYAML>=6.0,<7.0       # YAML parsing
+typing-extensions>=4.0.0,<5.0.0  # Enhanced typing support
+PyMuPDF>=1.20.0,<2.0.0  # PDF processing
+
+# Logging
+python-json-logger>=2.0.4,<3.0.0  # JSON-formatted logging
+
+# Testing
+pytest>=7.0.0,<8.0.0    # Testing framework
+pytest-asyncio>=0.18.0,<1.0.0  # Async test support
+pytest-cov>=3.0.0,<4.0.0  # Coverage reporting

@@ -1,0 +1,34 @@
+# Server configuration
+log_level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+host: "0.0.0.0"  # Server host (for future use)
+port: 8000       # Server port (for future use)
+debug: false     # Enable debug mode
+
+# Tool configuration
+tools_schema_path: "../tools/tools_schemas.yaml"  # Path to tool schemas
+tool_handlers_path: "../mcp_handlers"             # Path to tool handler implementations
+
+# Logging configuration
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    standard:
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: standard
+      level: INFO
+      stream: ext://sys.stdout
+    file:
+      class: logging.FileHandler
+      formatter: standard
+      level: INFO
+      filename: server.log
+      mode: a
+  loggers:
+    "":  # root logger
+      handlers: [console, file]
+      level: INFO
+      propagate: true

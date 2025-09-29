@@ -1,0 +1,22 @@
+sections:
+  basics:
+    required_fields:
+      module: basics
+    description: Basic concepts and introductory material
+    
+  concepts:
+    required_fields:
+      type: concept
+    description: Core concept explanations
+    
+  examples:
+    required_fields:
+      type: example
+    description: Code examples and demonstrations
+
+metadata_fields:
+  - title
+  - type
+  - module
+  - order
+  - tags
