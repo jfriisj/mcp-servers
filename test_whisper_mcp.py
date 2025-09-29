@@ -25,7 +25,7 @@ def test_mcp_tools_list():
         "-e",
         "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
         "-e",
-        "HF_TOKEN=${HUGGINGFACE_TOKEN}",
+        "HF_TOKEN=${HF_TOKEN}",
         "whisper-server-whisper-server",
         "bash",
         "-c",

@@ -8,7 +8,7 @@ services:
     container_name: whisper-mcp-server
     environment:
       - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
-      - HF_TOKEN=${HUGGINGFACE_TOKEN}
+      - HF_TOKEN=${HF_TOKEN}
       - USE_GPU=true
       - ENABLE_PARALLEL_PROCESSING=true
       - MAX_CONCURRENT_TRANSCRIPTIONS=3
