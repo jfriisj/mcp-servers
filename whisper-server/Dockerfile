@@ -34,6 +34,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy source code
 COPY src/ ./src/
 
+# Copy configuration and tools
+COPY config/ ./config/
+COPY tools/ ./tools/
+
 # Create directory for model cache
 RUN mkdir -p /app/models
 

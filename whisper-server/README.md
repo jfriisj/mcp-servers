@@ -1,6 +1,6 @@
 # Whisper MCP Server
 
-An MCP server that provides audio transcription capabilities using the local Hugging Face Whisper Large V3 model with Docker and CUDA support for parallel processing.
+An MCP server that provides audio transcription capabilities using the local Hugging Face Whisper Large V3 model with Docker and CUDA support for parallel processing. Also includes a FastAPI REST API for easy HTTP access.
 
 ## Features
 
@@ -15,6 +15,7 @@ An MCP server that provides audio transcription capabilities using the local Hug
 - **Docker containerization** for easy deployment
 - **Configurable output formats**
 - **Direct file content transcription** - Agents can upload audio files directly as base64 content
+- **REST API** - FastAPI-based HTTP endpoints for easy integration
 
 ## Quick Start with Docker
 
@@ -48,10 +49,13 @@ HUGGINGFACE_TOKEN=your_actual_huggingface_token_here
 ### 3. Build and Run with Docker Compose
 
 ```bash
-# Build and start the container
-docker-compose up --build
+# Build and start the MCP server
+docker-compose up --build whisper-server
 
-# Or run in background
+# Or start the REST API server
+docker-compose up --build whisper-api
+
+# Or run both in background
 docker-compose up -d --build
 ```
 
@@ -65,8 +69,97 @@ Run the test suite:
 # Run comprehensive tests
 python tests/test_whisper.py
 
-# Run Docker-specific tests  
+# Run Docker-specific tests
 python tests/test_docker.py
+```
+
+## REST API Usage
+
+The FastAPI server provides HTTP endpoints for easy integration:
+
+### Start the API Server
+
+```bash
+# Using Docker Compose
+docker-compose up whisper-api
+
+# Using Docker directly
+docker run -p 8000:8000 \
+  -e HUGGINGFACE_TOKEN=your_token \
+  --runtime=nvidia \
+  --gpus all \
+  whisper-server-whisper-server \
+  --mode api --host 0.0.0.0 --port 8000
+```
+
+### API Endpoints
+
+#### GET `/`
+
+Returns API information and available endpoints.
+
+#### GET `/health`
+
+Health check endpoint showing model status and GPU availability.
+
+#### POST `/transcribe`
+
+Transcribe audio from base64-encoded content.
+
+**Request Body:**
+
+```json
+{
+  "audio_file": "base64_encoded_audio_data",
+  "language": "en",
+  "response_format": "json",
+  "temperature": 0.0,
+  "prompt": "optional prompt"
+}
+```
+
+#### POST `/transcribe-file`
+
+Upload and transcribe an audio file directly.
+
+**Form Data:**
+
+- `file`: Audio file upload
+- `language`: Language code (optional)
+- `response_format`: Output format (optional)
+- `temperature`: Sampling temperature (optional)
+- `prompt`: Optional prompt (optional)
+
+#### POST `/detect-language`
+
+Detect the language of audio content.
+
+**Request Body:**
+
+```json
+{
+  "audio_file": "base64_encoded_audio_data"
+}
+```
+
+### Example API Usage
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Transcribe with base64 content
+curl -X POST "http://localhost:8000/transcribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audio_file": "UklGRkZouwBXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAATElTVBoAAABJTkZPSVNGVA0AAABMYXZmN...",
+    "language": "en"
+  }'
+
+# Upload file for transcription
+curl -X POST "http://localhost:8000/transcribe-file" \
+  -F "file=@audio.wav" \
+  -F "language=en"
 ```
 
 ## Docker Configuration
@@ -112,12 +205,22 @@ docker build -t whisper-mcp-server .
 ### Run the Container
 
 ```bash
-# With GPU support
+# MCP mode with GPU support
 docker run --gpus all \
   -e HUGGINGFACE_TOKEN=your_token \
   -v $(pwd)/audio:/app/audio:ro \
   -v whisper_models:/app/models \
-  whisper-mcp-server
+  whisper-mcp-server \
+  --mode mcp
+
+# API mode with GPU support
+docker run --gpus all \
+  -p 8000:8000 \
+  -e HUGGINGFACE_TOKEN=your_token \
+  -v $(pwd)/audio:/app/audio:ro \
+  -v whisper_models:/app/models \
+  whisper-mcp-server \
+  --mode api --host 0.0.0.0 --port 8000
 
 # CPU only
 docker run \
@@ -125,7 +228,8 @@ docker run \
   -e USE_GPU=false \
   -v $(pwd)/audio:/app/audio:ro \
   -v whisper_models:/app/models \
-  whisper-mcp-server
+  whisper-mcp-server \
+  --mode mcp
 ```
 
 ## Installation

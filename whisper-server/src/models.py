@@ -62,6 +62,10 @@ class TranscriptionResult:
     segments: Optional[List[Dict[str, Any]]] = None
     success: bool = True
     error_message: Optional[str] = None
+    # Segmentation metadata
+    was_segmented: bool = False
+    total_segments: int = 0
+    segments_info: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass

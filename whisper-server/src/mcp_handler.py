@@ -33,6 +33,55 @@ class MCPHandler:
 
     def get_tools(self) -> List[types.Tool]:
         """Get list of available Whisper tools."""
+        return self._load_tools_from_yaml()
+
+    def _load_tools_from_yaml(self) -> List[types.Tool]:
+        """Load tool definitions from YAML file"""
+        try:
+            import yaml
+        except ImportError:
+            # Fallback to hardcoded tools if YAML not available
+            return self._get_fallback_tools()
+
+        # Find the tools directory relative to this module
+        try:
+            from pathlib import Path
+
+            module_dir = Path(__file__).parent
+            tools_dir = module_dir.parent / "tools"
+            yaml_file = tools_dir / "tools_schemas.yaml"
+        except Exception:
+            # Fallback if path resolution fails
+            return self._get_fallback_tools()
+
+        if not yaml_file.exists():
+            # Fallback to hardcoded tools if YAML file doesn't exist
+            return self._get_fallback_tools()
+
+        try:
+            with open(yaml_file, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if not isinstance(data, dict):
+                    return self._get_fallback_tools()
+
+                tools = []
+                for tool_data in data.values():
+                    try:
+                        tool = types.Tool(
+                            name=tool_data["name"],
+                            description=tool_data["description"],
+                            inputSchema=tool_data["inputSchema"],
+                        )
+                        tools.append(tool)
+                    except KeyError:
+                        continue
+
+                return tools if tools else self._get_fallback_tools()
+        except Exception:
+            return self._get_fallback_tools()
+
+    def _get_fallback_tools(self) -> List[types.Tool]:
+        """Fallback hardcoded tool definitions"""
         return [
             types.Tool(
                 name="whisper-transcribe",

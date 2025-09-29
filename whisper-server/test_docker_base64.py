@@ -29,15 +29,15 @@ from pathlib import Path
 
 def create_test_audio_base64():
     """Create base64 encoded audio from test1.mp3 file."""
-    audio_path = Path(__file__).parent / "audio" / "test1.mp3"
-    
+    audio_path = Path(__file__).parent / "audio" / "interview_audio.wav"
+
     if not audio_path.exists():
         raise FileNotFoundError(f"Test audio file not found: {audio_path}")
-    
+
     with open(audio_path, "rb") as f:
         audio_data = f.read()
-    
-    return base64.b64encode(audio_data).decode('utf-8')
+
+    return base64.b64encode(audio_data).decode("utf-8")
 
 
 def test_mcp_docker():
@@ -50,9 +50,7 @@ def test_mcp_docker():
     print(f"📄 Created test audio (length: {len(test_audio_b64)} chars)")
 
     # Docker command to run the container using docker-compose
-    docker_cmd = [
-        "docker-compose", "run", "--rm", "-T", "whisper-server"
-    ]
+    docker_cmd = ["docker-compose", "run", "--rm", "-T", "whisper-server"]
 
     try:
         # Start the Docker process
@@ -63,7 +61,7 @@ def test_mcp_docker():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd=Path(__file__).parent
+            cwd=Path(__file__).parent,
         )
 
         if proc is None or proc.stdin is None or proc.stdout is None:
@@ -79,8 +77,8 @@ def test_mcp_docker():
             "params": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "test-client", "version": "1.0.0"}
-            }
+                "clientInfo": {"name": "test-client", "version": "1.0.0"},
+            },
         }
 
         proc.stdin.write(json.dumps(init_request) + "\n")
@@ -93,16 +91,16 @@ def test_mcp_docker():
             print("❌ No response from container")
             return False
         init_response = json.loads(init_line)
-        result = init_response.get('result', {})
-        server_info = result.get('serverInfo', {})
-        server_name = server_info.get('name', 'unknown')
+        result = init_response.get("result", {})
+        server_info = result.get("serverInfo", {})
+        server_name = server_info.get("name", "unknown")
         print(f"✅ Initialize response: {server_name}")
 
         # Send initialized notification
         print("🔧 Sending initialized notification...")
         initialized_notification = {
             "jsonrpc": "2.0",
-            "method": "notifications/initialized"
+            "method": "notifications/initialized",
         }
 
         proc.stdin.write(json.dumps(initialized_notification) + "\n")
@@ -110,18 +108,14 @@ def test_mcp_docker():
 
         # Test 2: List tools
         print("📋 Requesting tools list...")
-        tools_request = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list"
-        }
+        tools_request = {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
 
         proc.stdin.write(json.dumps(tools_request) + "\n")
         proc.stdin.flush()
 
         # Read tools response
         tools_response = json.loads(proc.stdout.readline().strip())
-        tools = tools_response.get('result', {}).get('tools', [])
+        tools = tools_response.get("result", {}).get("tools", [])
         print(f"✅ Found {len(tools)} tools:")
         for tool in tools:
             print(f"  - {tool['name']}: {tool['description'][:60]}...")
@@ -136,10 +130,10 @@ def test_mcp_docker():
                 "name": "whisper-transcribe-file-content",
                 "arguments": {
                     "file_content": test_audio_b64,
-                    "language": "en",
-                    "response_format": "verbose_json"  # Enable timestamps
-                }
-            }
+                    "language": "da",
+                    "response_format": "verbose_json",  # Enable timestamps
+                },
+            },
         }
 
         proc.stdin.write(json.dumps(transcribe_request) + "\n")
@@ -148,9 +142,10 @@ def test_mcp_docker():
         # Read transcription response (with timeout handling)
         print("⏳ Waiting for transcription response...")
         import time
+
         start_time = time.time()
         transcribe_line = None
-        
+
         while time.time() - start_time < 60:  # Wait up to 60 seconds
             if proc.poll() is not None:  # Process finished
                 break
@@ -162,16 +157,16 @@ def test_mcp_docker():
                     break
             except (OSError, IOError):
                 time.sleep(0.1)
-        
+
         if not transcribe_line:
             print("❌ No transcription response received within timeout")
             return False
-            
+
         transcribe_response = json.loads(transcribe_line)
-        result = transcribe_response.get('result', {})
-        content_list = result.get('content', [{}])
+        result = transcribe_response.get("result", {})
+        content_list = result.get("content", [{}])
         content = content_list[0] if content_list else {}
-        text = content.get('text', 'No text found')
+        text = content.get("text", "No text found")
 
         print(f"✅ Transcription result: {text}")
 
@@ -193,6 +188,7 @@ def test_mcp_docker():
     except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

@@ -1,13 +1,11 @@
 """
 Whisper API runner for Whisper MCP Server
-============================================
-Handles local Whisper model inference using Hugging Face transformers
-    async def _transcribe_with_segmentation(
+==========================================
+Handles local Whisper model inference using Hugging Face transformers    async def _transcribe_with_segmentation(
         self,
         config,  # Can be TranscriptionConfig or TranscriptionWithTimestampsConfig
         return_timestamps: bool,
     ) -> TranscriptionResult:"
-=========================================="""
 
 import asyncio
 import os
@@ -55,8 +53,12 @@ class WhisperRunner:
         if not self._segmenter and self.config_manager.enable_segmentation:
             try:
                 self._segmenter = AudioSegmenter(
-                    segment_length_seconds=(self.config_manager.segment_length_seconds),
-                    overlap_seconds=(self.config_manager.segment_overlap_seconds),
+                    segment_length_seconds=(
+                        self.config_manager.segment_length_seconds
+                    ),
+                    overlap_seconds=(
+                        self.config_manager.segment_overlap_seconds
+                    ),
                     max_segments=self.config_manager.max_segments_per_file,
                 )
             except ImportError:
@@ -83,13 +85,13 @@ class WhisperRunner:
 
             # Determine device for pipeline: 0 for CUDA, -1 for CPU
             device = 0 if self.config_manager.device == "cuda" else -1
-            dtype = torch.float16 if device == 0 else torch.float32
+            torch_dtype = torch.float16 if device == 0 else torch.float32
 
             self.pipe = pipeline(
                 "automatic-speech-recognition",
                 model=self.config_manager.model_name,
                 device=device,
-                dtype=dtype,
+                torch_dtype=torch_dtype,
                 model_kwargs={"cache_dir": self.config_manager.cache_dir},
             )
 
@@ -255,8 +257,10 @@ class WhisperRunner:
         # Process in batches to respect concurrency limits
         results = []
         for i in range(0, len(tasks), max_concurrent):
-            batch_tasks = tasks[i : i + max_concurrent]
-            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+            batch_tasks = tasks[i:i + max_concurrent]
+            batch_results = await asyncio.gather(
+                *batch_tasks, return_exceptions=True
+            )
 
             for result in batch_results:
                 if isinstance(result, Exception):
@@ -264,7 +268,9 @@ class WhisperRunner:
                     error_result = TranscriptionResult(
                         text="",
                         success=False,
-                        error_message=(f"Segment processing error: {str(result)}"),
+                        error_message=(
+                            f"Segment processing error: {str(result)}"
+                        ),
                     )
                     results.append(error_result)
                 else:
@@ -334,18 +340,13 @@ class WhisperRunner:
                         # Adjust timestamps by segment offset
                         if "timestamp" in adjusted_chunk:
                             timestamp = adjusted_chunk["timestamp"]
-                            if (
-                                isinstance(timestamp, (list, tuple))
-                                and len(timestamp) == 2
-                            ):
+                            if isinstance(timestamp, (list, tuple)) and len(timestamp) == 2:
                                 adjusted_chunk["timestamp"] = [
                                     timestamp[0] + segment.start_time,
                                     timestamp[1] + segment.start_time,
                                 ]
                             elif isinstance(timestamp, (int, float)):
-                                adjusted_chunk["timestamp"] = (
-                                    timestamp + segment.start_time
-                                )
+                                adjusted_chunk["timestamp"] = timestamp + segment.start_time
                         combined_segments.append(adjusted_chunk)
 
                 total_duration += segment.duration
@@ -386,9 +387,7 @@ class WhisperRunner:
 
         # Check if segmentation should be used
         if self.config_manager.enable_segmentation:
-            return await self._transcribe_with_segmentation(
-                config, return_timestamps=True
-            )
+            return await self._transcribe_with_segmentation(config, return_timestamps=True)
 
         try:
             # Run transcription with timestamps
@@ -572,7 +571,7 @@ class WhisperRunner:
 
         # Process files in chunks
         for i in range(0, len(transcribe_configs), max_concurrent):
-            batch_configs = transcribe_configs[i : i + max_concurrent]
+            batch_configs = transcribe_configs[i:i + max_concurrent]
 
             # Run batch concurrently
             batch_results = await asyncio.gather(
@@ -621,7 +620,8 @@ class WhisperRunner:
 
         try:
             # Validate base64 format
-            if not config.file_content or not isinstance(config.file_content, str):
+            if (not config.file_content or
+                    not isinstance(config.file_content, str)):
                 return TranscriptionResult(
                     text="",
                     success=False,
@@ -630,7 +630,9 @@ class WhisperRunner:
 
             # Decode base64 content
             try:
-                file_data = base64.b64decode(config.file_content, validate=True)
+                file_data = base64.b64decode(
+                    config.file_content, validate=True
+                )
             except Exception as e:
                 return TranscriptionResult(
                     text="",
@@ -712,32 +714,31 @@ class WhisperRunner:
             return None
 
         # Check magic bytes for different audio formats
-        if file_data.startswith(b"RIFF") and file_data[8:12] == b"WAVE":
-            return "wav"
-        elif (
-            file_data.startswith(b"ID3")
-            or file_data.startswith(b"\xff\xfb")
-            or file_data.startswith(b"\xff\xf3")
-            or file_data.startswith(b"\xff\xf2")
-        ):
-            return "mp3"
-        elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
-            return "m4a"
-        elif file_data.startswith(b"fLaC"):
-            return "flac"
-        elif file_data.startswith(b"OggS"):
-            return "ogg"
-        elif file_data.startswith(b"wvpk"):
-            return "wv"
-        elif file_data[4:8] == b"ftyp":
-            return "mp4"
-        elif file_data.startswith(b"WEBM"):
-            return "webm"
+        if file_data.startswith(b'RIFF') and file_data[8:12] == b'WAVE':
+            return 'wav'
+        elif (file_data.startswith(b'ID3') or
+              file_data.startswith(b'\xFF\xFB') or
+              file_data.startswith(b'\xFF\xF3') or
+              file_data.startswith(b'\xFF\xF2')):
+            return 'mp3'
+        elif (file_data.startswith(b'ftypM4A') or
+              file_data.startswith(b'ftypmp4')):
+            return 'm4a'
+        elif file_data.startswith(b'fLaC'):
+            return 'flac'
+        elif file_data.startswith(b'OggS'):
+            return 'ogg'
+        elif file_data.startswith(b'wvpk'):
+            return 'wv'
+        elif file_data[4:8] == b'ftyp':
+            return 'mp4'
+        elif file_data.startswith(b'WEBM'):
+            return 'webm'
 
         # Additional checks for MP3 without ID3 tag
         if len(file_data) >= 2:
             first_two = file_data[:2]
-            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"\xff\xf1"]:
-                return "mp3"
+            if first_two in [b'\xFF\xFB', b'\xFF\xF3', b'\xFF\xF2', b'\xFF\xF1']:
+                return 'mp3'
 
         return None

@@ -25,6 +25,10 @@ aiofiles>=23.0.0
 # Async HTTP server
 aiohttp>=3.9.0
 
+# FastAPI for REST API endpoints
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
 # Environment variables
 python-dotenv>=1.0.0
 

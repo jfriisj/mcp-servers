@@ -1,9 +1,39 @@
 #!/bin/bash
 
-# Docker entrypoint script for Whisper MCP Server
+# Docker entrypoint script for Whisper MCP Server and FastAPI
 set -e
 
-echo "🚀 Starting Whisper MCP Server with CUDA support" >&2
+# Parse command line arguments
+MODE="mcp"  # Default mode
+HOST="0.0.0.0"
+PORT="8000"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mode)
+            MODE="$2"
+            shift 2
+            ;;
+        --host)
+            HOST="$2"
+            shift 2
+            ;;
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        *)
+            # Pass remaining arguments to main.py
+            break
+            ;;
+    esac
+done
+
+if [ "$MODE" = "api" ]; then
+    echo "🚀 Starting Whisper FastAPI server on $HOST:$PORT" >&2
+else
+    echo "🎯 Starting Whisper MCP Server with CUDA support" >&2
+fi
 
 # Activate virtual environment
 source /opt/venv/bin/activate
@@ -33,18 +63,21 @@ fi
 mkdir -p /app/audio
 
 echo "🔧 Configuration:" >&2
+echo "  Mode: $MODE" >&2
 echo "  GPU Enabled: $USE_GPU" >&2
 echo "  Parallel Processing: ${ENABLE_PARALLEL_PROCESSING:-true}" >&2
 echo "  Max Concurrent: ${MAX_CONCURRENT_TRANSCRIPTIONS:-3}" >&2
 echo "  Model Cache: ${HF_HOME:-/app/models}" >&2
 
-# Start the MCP server
-echo "🎯 Starting MCP server..." >&2
+# Start the server
 cd /app/src
 echo "Current directory: $(pwd)" >&2
 echo "Python path: $(which python)" >&2
-echo "Files in /app/src:" >&2
-ls -la >&2
-echo "Running: python main.py" >&2
-echo "Starting python main.py now..." >&2
-exec python main.py
+
+if [ "$MODE" = "api" ]; then
+    echo "Running: python main.py --mode api --host $HOST --port $PORT $*" >&2
+    exec python main.py --mode api --host "$HOST" --port "$PORT" "$@"
+else
+    echo "Running: python main.py --mode mcp $*" >&2
+    exec python main.py --mode mcp "$@"
+fi

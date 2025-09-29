@@ -1,0 +1,184 @@
+# Tools Schemas Configuration
+# This file contains the tool definitions and input schemas for the Documentation and Prompts MCP Server
+
+find_code_reuse:
+  name: "find_code_reuse"
+  description: "Find reusable code patterns across services (use before other searches)"
+  inputSchema:
+    type: "object"
+    properties:
+      functionality:
+        type: "string"
+        description: "Functionality needed (e.g., 'logging', 'validation')"
+      service_context:
+        type: "string"
+        description: "Current service context"
+      limit:
+        type: "integer"
+        description: "Maximum number of results"
+        default: 5
+        minimum: 1
+        maximum: 20
+    required: ["functionality"]
+
+find_documents:
+  name: "find_documents"
+  description: "Find relevant documentation and guides (optimized for document discovery)"
+  inputSchema:
+    type: "object"
+    properties:
+      topic:
+        type: "string"
+        description: "Topic or subject to find documentation for"
+      doc_type:
+        type: "string"
+        description: "Document type filter (e.g., '.md', '.rst')"
+      limit:
+        type: "integer"
+        description: "Maximum number of results"
+        default: 10
+        minimum: 1
+        maximum: 50
+    required: ["topic"]
+
+search_docs:
+  name: "search_docs"
+  description: "General documentation search with flexible querying"
+  inputSchema:
+    type: "object"
+    properties:
+      query:
+        type: "string"
+        description: "Search query for documentation content"
+      doc_type:
+        type: "string"
+        description: "Document type filter"
+      limit:
+        type: "integer"
+        description: "Maximum number of results"
+        default: 10
+        minimum: 1
+        maximum: 50
+    required: ["query"]
+
+get_architecture_info:
+  name: "get_architecture_info"
+  description: "Extract architecture patterns and design information"
+  inputSchema:
+    type: "object"
+    properties: {}
+
+index_documentation:
+  name: "index_documentation"
+  description: "Re-index all documentation files"
+  inputSchema:
+    type: "object"
+    properties:
+      force:
+        type: "boolean"
+        description: "Force re-indexing of all files"
+        default: false
+
+search_prompts:
+  name: "search_prompts"
+  description: "Search prompts by keyword, category, or tags"
+  inputSchema:
+    type: "object"
+    properties:
+      query:
+        type: "string"
+        description: "Search query for prompt name, description, or tags"
+      category:
+        type: "string"
+        description: "Filter by prompt category"
+      limit:
+        type: "integer"
+        description: "Maximum number of results"
+        default: 10
+        minimum: 1
+        maximum: 50
+    required: ["query"]
+
+get_prompt:
+  name: "get_prompt"
+  description: "Retrieve a specific prompt by ID with full details"
+  inputSchema:
+    type: "object"
+    properties:
+      prompt_id:
+        type: "string"
+        description: "ID of the prompt to retrieve"
+    required: ["prompt_id"]
+
+suggest_prompts:
+  name: "suggest_prompts"
+  description: "Get context-aware prompt suggestions"
+  inputSchema:
+    type: "object"
+    properties:
+      context:
+        type: "string"
+        description: "Context description for prompt suggestions (optional)"
+
+create_prompt:
+  name: "create_prompt"
+  description: "Create a new custom prompt"
+  inputSchema:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "Name of the prompt"
+      description:
+        type: "string"
+        description: "Description of what the prompt does"
+      template:
+        type: "string"
+        description: "The prompt template with variables in {variable} format"
+      category:
+        type: "string"
+        description: "Prompt category"
+        default: "custom"
+      variables:
+        type: "array"
+        items:
+          type: "string"
+        description: "List of variable names used in the template"
+      tags:
+        type: "array"
+        items:
+          type: "string"
+        description: "Tags for categorizing and searching"
+    required: ["name", "description", "template"]
+
+generate_contextual_prompt:
+  name: "generate_contextual_prompt"
+  description: "Generate a prompt based on current documentation context"
+  inputSchema:
+    type: "object"
+    properties:
+      task:
+        type: "string"
+        description: "The task type (e.g., 'code_review', 'documentation', 'architecture_analysis')"
+      docs_query:
+        type: "string"
+        description: "Query to find relevant documentation context"
+    required: ["task", "docs_query"]
+
+apply_prompt_with_context:
+  name: "apply_prompt_with_context"
+  description: "Apply a prompt with documentation context automatically filled"
+  inputSchema:
+    type: "object"
+    properties:
+      prompt_id:
+        type: "string"
+        description: "ID of the prompt to apply"
+      content:
+        type: "string"
+        description: "Content to analyze (code, documentation, etc.)"
+      auto_fill_context:
+        type: "boolean"
+        description: "Automatically fill context variables from documentation"
+        default: true
+    required: ["prompt_id", "content"]

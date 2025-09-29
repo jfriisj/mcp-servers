@@ -1,0 +1,40 @@
+categories:
+  code-quality:
+    name: "Code Quality"
+    description: "Code review, linting, and quality assessment prompts"
+    icon: "🔍"
+    
+  architecture:
+    name: "Architecture"
+    description: "System design and architecture validation prompts"
+    icon: "🏗️"
+    
+  documentation:
+    name: "Documentation"
+    description: "Documentation generation and maintenance prompts"
+    icon: "📚"
+    
+  testing:
+    name: "Testing"
+    description: "Test creation, validation, and coverage prompts"
+    icon: "🧪"
+    
+  refactoring:
+    name: "Refactoring"
+    description: "Code improvement and refactoring prompts"
+    icon: "🔧"
+    
+  api:
+    name: "API"
+    description: "API design, validation, and documentation prompts"
+    icon: "🔌"
+    
+  security:
+    name: "Security"
+    description: "Security analysis and vulnerability assessment prompts"
+    icon: "🔒"
+    
+  custom:
+    name: "Custom"
+    description: "Project-specific custom prompts"
+    icon: "⚙️"
