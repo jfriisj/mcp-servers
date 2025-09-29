@@ -32,78 +32,46 @@ class MCPHandler:
         self.ruff_runner = ruff_runner
 
     def get_tools(self) -> List[types.Tool]:
-        """Get list of available MCP tools."""
-        return [
-            types.Tool(
-                name="ruff-check",
-                description="Run Ruff linter to identify code issues",
-                inputSchema=self._get_ruff_check_schema(),
-            ),
-            types.Tool(
-                name="ruff-format",
-                description="Format Python code using Ruff (Black-compatible)",
-                inputSchema=self._get_ruff_format_schema(),
-            ),
-            types.Tool(
-                name="ruff-check-diff",
-                description="Check Ruff issues on changed files only (git diff)",
-                inputSchema=self._get_ruff_check_diff_schema(),
-            ),
-            types.Tool(
-                name="ruff-show-settings",
-                description="Show active Ruff configuration settings",
-                inputSchema=self._get_ruff_show_settings_schema(),
-            ),
-            types.Tool(
-                name="ruff-explain-rule",
-                description="Explain a specific Ruff rule",
-                inputSchema=self._get_ruff_explain_rule_schema(),
-            ),
-            types.Tool(
-                name="ruff-config",
-                description="List or describe Ruff configuration options",
-                inputSchema=self._get_ruff_config_schema(),
-            ),
-            types.Tool(
-                name="ruff-linter",
-                description="List all supported upstream linters",
-                inputSchema=self._get_ruff_linter_schema(),
-            ),
-            types.Tool(
-                name="ruff-clean",
-                description="Clear Ruff caches",
-                inputSchema=self._get_ruff_clean_schema(),
-            ),
-            types.Tool(
-                name="ruff-analyze-graph",
-                description="Generate dependency/dependent maps for Python files",
-                inputSchema=self._get_ruff_analyze_graph_schema(),
-            ),
-        ]
+        """Load tool definitions from YAML file and return as Tool objects."""
+        import yaml
+        import os
+        tools_path = os.path.join(os.path.dirname(__file__), "..", "tools", "tools_schemas.yaml")
+        with open(tools_path, "r", encoding="utf-8") as f:
+            tool_defs = yaml.safe_load(f)
+        tools = []
+        for tool in tool_defs:
+            tools.append(
+                types.Tool(
+                    name=tool["name"],
+                    description=tool["description"],
+                    inputSchema=tool["inputSchema"]
+                )
+            )
+        self._tool_handlers = {tool["name"]: tool.get("handler", tool["name"]) for tool in tool_defs}
+        return tools
 
     async def call_tool(
         self, name: str, arguments: Dict[str, Any]
     ) -> List[types.TextContent]:
-        """Handle tool calls."""
+        """Dispatch tool call to the correct handler based on YAML config."""
         try:
-            if name == "ruff-check":
-                return await self._handle_ruff_check(arguments)
-            elif name == "ruff-format":
-                return await self._handle_ruff_format(arguments)
-            elif name == "ruff-check-diff":
-                return await self._handle_ruff_check_diff(arguments)
-            elif name == "ruff-show-settings":
-                return await self._handle_ruff_show_settings(arguments)
-            elif name == "ruff-explain-rule":
-                return await self._handle_ruff_explain_rule(arguments)
-            elif name == "ruff-config":
-                return await self._handle_ruff_config(arguments)
-            elif name == "ruff-linter":
-                return await self._handle_ruff_linter(arguments)
-            elif name == "ruff-clean":
-                return await self._handle_ruff_clean(arguments)
-            elif name == "ruff-analyze-graph":
-                return await self._handle_ruff_analyze_graph(arguments)
+            handler_map = {
+                "ruff-check": self._handle_ruff_check,
+                "ruff-format": self._handle_ruff_format,
+                "ruff-check-diff": self._handle_ruff_check_diff,
+                "ruff-show-settings": self._handle_ruff_show_settings,
+                "ruff-explain-rule": self._handle_ruff_explain_rule,
+                "ruff-config": self._handle_ruff_config,
+                "ruff-linter": self._handle_ruff_linter,
+                "ruff-clean": self._handle_ruff_clean,
+                "ruff-analyze-graph": self._handle_ruff_analyze_graph,
+            }
+            if not hasattr(self, "_tool_handlers"):
+                self.get_tools()  # ensure _tool_handlers is loaded
+            handler_name = self._tool_handlers.get(name, name)
+            handler = handler_map.get(handler_name)
+            if handler:
+                return await handler(arguments)
             else:
                 return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
