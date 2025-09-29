@@ -14,6 +14,11 @@ from pydantic import BaseModel
 
 from config import ConfigurationManager
 from whisper_runner import WhisperRunner
+from models import (
+    TranscriptionConfig,
+    TranscriptionWithTimestampsConfig,
+    FileContentTranscriptionConfig,
+)
 
 
 class TranscriptionRequest(BaseModel):
@@ -88,24 +93,24 @@ class FastAPIApp:
 
                 # Transcribe using file content
                 result = await self.whisper_runner.transcribe_file_content(
-                    type(
-                        "Config",
-                        (),
-                        {
-                            "file_content": request.audio_file,
-                            "language": request.language,
-                            "response_format": request.response_format,
-                            "temperature": request.temperature,
-                            "prompt": request.prompt,
-                        },
-                    )()
+                    FileContentTranscriptionConfig(
+                        file_content=request.audio_file,
+                        file_name="uploaded_audio.wav",
+                        language=request.language,
+                        response_format=request.response_format,
+                        temperature=request.temperature,
+                        prompt=request.prompt,
+                        model="whisper-1",
+                    )
                 )
 
                 return TranscriptionResponse(
                     text=result.text,
                     language=result.language,
                     success=result.success,
-                    error_message=result.error_message if not result.success else None,
+                    error_message=result.error_message
+                    if not result.success
+                    else None,
                     duration=result.duration,
                     segments=result.segments,
                 )
@@ -115,7 +120,10 @@ class FastAPIApp:
                     status_code=500, detail=f"Transcription failed: {str(e)}"
                 )
 
-        @self.app.post("/transcribe-file", response_model=TranscriptionResponse)
+        @self.app.post(
+            "/transcribe-file",
+            response_model=TranscriptionResponse
+        )
         async def transcribe_file(
             file: UploadFile = File(...),
             language: str = Form("en"),
@@ -125,6 +133,12 @@ class FastAPIApp:
         ):
             """Transcribe uploaded audio file."""
             try:
+                # Validate file object
+                if not file or not file.filename:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid file upload"
+                    )
+
                 # Validate file type
                 if not file.filename.lower().endswith(
                     (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm")
@@ -150,46 +164,41 @@ class FastAPIApp:
                     )
                     if not is_valid:
                         raise HTTPException(
-                            status_code=400, detail=f"Invalid audio file: {error_msg}"
+                            status_code=400,
+                            detail=f"Invalid audio file: {error_msg}"
                         )
 
                     # Determine transcription method based on response format
                     if response_format == "verbose_json":
                         result = await self.whisper_runner.transcribe_with_timestamps(
-                            type(
-                                "Config",
-                                (),
-                                {
-                                    "audio_file": temp_file_path,
-                                    "language": language,
-                                    "response_format": response_format,
-                                    "temperature": temperature,
-                                    "prompt": prompt,
-                                },
-                            )()
+                            TranscriptionWithTimestampsConfig(
+                                audio_file=temp_file_path,
+                                language=language,
+                                response_format=response_format,
+                                temperature=temperature,
+                                prompt=prompt,
+                                model="whisper-1",
+                            )
                         )
                     else:
                         result = await self.whisper_runner.transcribe_audio(
-                            type(
-                                "Config",
-                                (),
-                                {
-                                    "audio_file": temp_file_path,
-                                    "language": language,
-                                    "response_format": response_format,
-                                    "temperature": temperature,
-                                    "prompt": prompt,
-                                },
-                            )()
+                            TranscriptionConfig(
+                                audio_file=temp_file_path,
+                                language=language,
+                                response_format=response_format,
+                                temperature=temperature,
+                                prompt=prompt,
+                                model="whisper-1",
+                            )
                         )
 
                     return TranscriptionResponse(
                         text=result.text,
                         language=result.language,
                         success=result.success,
-                        error_message=result.error_message
-                        if not result.success
-                        else None,
+                        error_message=result.error_message \
+                            if not result.success
+                            else None,
                         duration=result.duration,
                         segments=result.segments,
                     )
