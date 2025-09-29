@@ -21,15 +21,15 @@ services:
       # Mount model cache for persistence
       - whisper_models:/app/models
     # Uncomment to enable GPU support (requires NVIDIA Docker runtime)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     # Uncomment for GPU runtime
-    # runtime: nvidia
+    runtime: nvidia
     ports: []
 
 volumes:

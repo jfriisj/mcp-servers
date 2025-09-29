@@ -3,28 +3,28 @@
 # Docker entrypoint script for Whisper MCP Server
 set -e
 
-echo "🚀 Starting Whisper MCP Server with CUDA support"
+echo "🚀 Starting Whisper MCP Server with CUDA support" >&2
 
 # Activate virtual environment
 source /opt/venv/bin/activate
 
 # Check if CUDA is available
-if python -c "import torch; print('CUDA available:', torch.cuda.is_available())" 2>/dev/null; then
-    echo "✅ CUDA is available and ready"
+if python -c "import torch; print('CUDA available:', torch.cuda.is_available())" >/dev/null 2>&1; then
+    echo "✅ CUDA is available and ready" >&2
 else
-    echo "⚠️  CUDA not available, falling back to CPU"
+    echo "⚠️  CUDA not available, falling back to CPU" >&2
     export USE_GPU=false
 fi
 
 # Check Hugging Face token
 if [ -z "$HUGGINGFACE_TOKEN" ] && [ -z "$HF_TOKEN" ]; then
     if [ "$TEST_MODE" = "true" ] || [ "$RUN_HTTP_API" = "true" ]; then
-        echo "⚠️  Using dummy token for testing - model downloads may fail"
+        echo "⚠️  Using dummy token for testing - model downloads may fail" >&2
         export HUGGINGFACE_TOKEN="dummy_token_for_testing"
     else
-        echo "❌ Error: HUGGINGFACE_TOKEN or HF_TOKEN environment variable must be set"
-        echo "Please set your Hugging Face token:"
-        echo "export HUGGINGFACE_TOKEN=your_token_here"
+        echo "❌ Error: HUGGINGFACE_TOKEN or HF_TOKEN environment variable must be set" >&2
+        echo "Please set your Hugging Face token:" >&2
+        echo "export HUGGINGFACE_TOKEN=your_token_here" >&2
         exit 1
     fi
 fi
@@ -32,19 +32,19 @@ fi
 # Create audio directory if it doesn't exist
 mkdir -p /app/audio
 
-echo "🔧 Configuration:"
-echo "  GPU Enabled: $USE_GPU"
-echo "  Parallel Processing: ${ENABLE_PARALLEL_PROCESSING:-true}"
-echo "  Max Concurrent: ${MAX_CONCURRENT_TRANSCRIPTIONS:-3}"
-echo "  Model Cache: ${HF_HOME:-/app/models}"
+echo "🔧 Configuration:" >&2
+echo "  GPU Enabled: $USE_GPU" >&2
+echo "  Parallel Processing: ${ENABLE_PARALLEL_PROCESSING:-true}" >&2
+echo "  Max Concurrent: ${MAX_CONCURRENT_TRANSCRIPTIONS:-3}" >&2
+echo "  Model Cache: ${HF_HOME:-/app/models}" >&2
 
 # Start the MCP server
-echo "🎯 Starting MCP server..."
+echo "🎯 Starting MCP server..." >&2
 cd /app/src
-echo "Current directory: $(pwd)"
-echo "Python path: $(which python)"
-echo "Files in /app/src:"
-ls -la
-echo "Running: python main.py"
-echo "Starting python main.py now..."
+echo "Current directory: $(pwd)" >&2
+echo "Python path: $(which python)" >&2
+echo "Files in /app/src:" >&2
+ls -la >&2
+echo "Running: python main.py" >&2
+echo "Starting python main.py now..." >&2
 exec python main.py

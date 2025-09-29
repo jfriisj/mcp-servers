@@ -155,3 +155,8 @@ Thumbs.db
 **/start.json
 **/transcribe.json
 ffmpeg.exe
+ffmpeg.zip
+ffmpeg-master-latest-win64-gpl/
+*.wav
+*.mp3
+*.mp4

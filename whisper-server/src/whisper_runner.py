@@ -432,9 +432,10 @@ class WhisperRunner:
                     )
 
                 # Run transcription
+                return_timestamps = config.response_format == "verbose_json"
                 result = self.pipe(
                     temp_file_path,
-                    return_timestamps=False,
+                    return_timestamps=return_timestamps,
                     generate_kwargs={
                         "language": config.language,
                         "task": "transcribe",
