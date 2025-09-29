@@ -47,7 +47,7 @@ ENV USE_GPU=true
 ENV CUDA_VISIBLE_DEVICES=0
 
 # Expose port if needed (though MCP uses stdio)
-EXPOSE 8000
+EXPOSE 8000 9000
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

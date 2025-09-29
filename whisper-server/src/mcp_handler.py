@@ -5,6 +5,7 @@ Manages MCP tool definitions and protocol interactions.
 """
 
 from typing import Any, Dict, List
+import requests
 
 # MCP imports (these would be installed as dependencies)
 try:
@@ -137,21 +138,40 @@ class MCPHandler:
                 ),
             ]
 
-    async def _handle_transcribe(self, args: Dict[str, Any]) -> List[types.TextContent]:
-        """Handle whisper-transcribe tool call."""
-        from models import TranscriptionConfig
-
-        config = TranscriptionConfig(
-            audio_file=args["audio_file"],
-            model=args.get("model", "whisper-1"),
-            language=args.get("language"),
-            response_format=args.get("response_format", "json"),
-            temperature=args.get("temperature", 0.0),
-            prompt=args.get("prompt"),
-        )
-
-        result = await self.whisper_runner.transcribe_audio(config)
-        return [self._format_transcription_result("Transcription", result)]
+    async def _handle_transcribe(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle whisper-transcribe tool call by delegating to FastAPI."""
+        try:
+            response = requests.post(
+                "http://localhost:8000/transcribe",
+                json={
+                    "audio_file": args["audio_file"],
+                    "language": args.get("language"),
+                    "response_format": args.get("response_format", "json"),
+                    "temperature": args.get("temperature", 0.0),
+                    "prompt": args.get("prompt"),
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+            return [
+                types.TextContent(
+                    type="text",
+                    text=(
+                        f"✅ Transcription completed successfully!\n\n"
+                        f"**Text:** {result['text']}\n"
+                        f"**Language:** {result.get('language', 'N/A')}"
+                    ),
+                )
+            ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Transcription failed: {str(e)}",
+                )
+            ]
 
     async def _handle_transcribe_timestamps(
         self,
@@ -171,7 +191,9 @@ class MCPHandler:
 
         result = await self.whisper_runner.transcribe_with_timestamps(config)
         return [
-            self._format_transcription_result("Transcription with timestamps", result)
+            self._format_transcription_result(
+                "Transcription with timestamps", result
+            )
         ]
 
     async def _handle_detect_language(
@@ -224,10 +246,14 @@ class MCPHandler:
 
         result = await self.whisper_runner.transcribe_file_content(config)
         return [
-            self._format_transcription_result("Transcription from file content", result)
+            self._format_transcription_result(
+                "Transcription from file content", result
+            )
         ]
 
-    def _format_transcription_result(self, operation: str, result) -> types.TextContent:
+    def _format_transcription_result(
+        self, operation: str, result
+    ) -> types.TextContent:
         """Format transcription result for MCP response."""
         if result.success:
             response = f"✅ {operation} completed successfully!\n\n"
@@ -240,7 +266,9 @@ class MCPHandler:
                 response += f"**Duration:** {result.duration:.2f} seconds\n"
 
             if hasattr(result, "segments") and result.segments:
-                response += f"**Segments:** {len(result.segments)} segments available\n"
+                response += (
+                    f"**Segments:** {len(result.segments)} segments available\n"
+                )
 
             return types.TextContent(type="text", text=response)
         else:
@@ -249,7 +277,9 @@ class MCPHandler:
                 text=f"❌ {operation} failed: {result.error_message}",
             )
 
-    def _format_language_detection_result(self, result) -> types.TextContent:
+    def _format_language_detection_result(
+        self, result: Any
+    ) -> types.TextContent:
         """Format language detection result for MCP response."""
         if result.success:
             response = "✅ Language detection completed successfully!\n\n"
@@ -263,7 +293,9 @@ class MCPHandler:
                 text=f"❌ Language detection failed: {result.error_message}",
             )
 
-    def _format_batch_result(self, result) -> types.TextContent:
+    def _format_batch_result(
+        self, result: Any
+    ) -> Any:
         """Format batch transcription result for MCP response."""
         if result.success:
             response = "✅ Batch transcription completed successfully!\n\n"
@@ -390,7 +422,9 @@ class MCPHandler:
                 "audio_files": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of paths to audio files to transcribe",
+                    "description": (
+                        "List of paths to audio files to transcribe"
+                    ),
                 },
                 "model": {
                     "type": "string",
@@ -430,7 +464,9 @@ class MCPHandler:
                 },
                 "file_name": {
                     "type": "string",
-                    "description": "Original file name (optional, for context)",
+                    "description": (
+                        "Original file name (optional, for context)"
+                    ),
                     "default": "uploaded_audio.wav",
                 },
                 "model": {

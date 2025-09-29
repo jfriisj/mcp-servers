@@ -31,6 +31,9 @@ done
 
 if [ "$MODE" = "api" ]; then
     echo "🚀 Starting Whisper FastAPI server on $HOST:$PORT" >&2
+elif [ "$MODE" = "both" ]; then
+    echo "🚀 Starting Whisper FastAPI server on $HOST:$PORT" >&2
+    echo "🎯 Starting Whisper MCP Server with CUDA support" >&2
 else
     echo "🎯 Starting Whisper MCP Server with CUDA support" >&2
 fi
@@ -74,10 +77,18 @@ cd /app/src
 echo "Current directory: $(pwd)" >&2
 echo "Python path: $(which python)" >&2
 
-if [ "$MODE" = "api" ]; then
-    echo "Running: python main.py --mode api --host $HOST --port $PORT $*" >&2
-    exec python main.py --mode api --host "$HOST" --port "$PORT" "$@"
+# Start both MCP server and FastAPI app
+if [ "$MODE" = "both" ]; then
+    echo "Starting both MCP server and FastAPI app" >&2
+    python main.py --mode mcp &
+    python main.py --mode api --host "$HOST" --port "$PORT" &
+    wait
 else
-    echo "Running: python main.py --mode mcp $*" >&2
-    exec python main.py --mode mcp "$@"
+    if [ "$MODE" = "api" ]; then
+        echo "Running: python main.py --mode api --host $HOST --port $PORT $*" >&2
+        exec python main.py --mode api --host "$HOST" --port "$PORT" "$@"
+    else
+        echo "Running: python main.py --mode mcp $*" >&2
+        exec python main.py --mode mcp "$@"
+    fi
 fi
