@@ -11,10 +11,14 @@ from typing import List
 from config import ConfigurationManager
 from models import (
     CommandResult,
+    RuffAnalyzeGraphConfig,
     RuffCheckConfig,
     RuffCheckDiffConfig,
+    RuffCleanConfig,
+    RuffConfigConfig,
     RuffExplainRuleConfig,
     RuffFormatConfig,
+    RuffLinterConfig,
     RuffShowSettingsConfig,
 )
 
@@ -114,6 +118,58 @@ class RuffRunner:
     async def run_explain_rule(self, config: RuffExplainRuleConfig) -> CommandResult:
         """Run ruff rule explanation command."""
         cmd = ["ruff", "rule", config.rule]
+
+        return await self._run_command(cmd)
+
+    async def run_config(self, config: RuffConfigConfig) -> CommandResult:
+        """Run ruff config command."""
+        cmd = ["ruff", "config"]
+
+        if config.option:
+            cmd.append(config.option)
+
+        if config.output_format != "text":
+            cmd.extend(["--output-format", config.output_format])
+
+        return await self._run_command(cmd)
+
+    async def run_linter(self, config: RuffLinterConfig) -> CommandResult:
+        """Run ruff linter command."""
+        cmd = ["ruff", "linter"]
+
+        if config.output_format != "text":
+            cmd.extend(["--output-format", config.output_format])
+
+        return await self._run_command(cmd)
+
+    async def run_clean(self, config: RuffCleanConfig) -> CommandResult:
+        """Run ruff clean command."""
+        cmd = ["ruff", "clean"]
+
+        return await self._run_command(cmd)
+
+    async def run_analyze_graph(self, config: RuffAnalyzeGraphConfig) -> CommandResult:
+        """Run ruff analyze graph command."""
+        cmd = ["ruff", "analyze", "graph"]
+        if config.files:
+            cmd.extend(config.files)
+
+        cmd.extend(["--direction", config.direction])
+
+        if config.detect_string_imports:
+            cmd.append("--detect-string-imports")
+
+        if config.min_dots is not None:
+            cmd.extend(["--min-dots", str(config.min_dots)])
+
+        if config.preview:
+            cmd.append("--preview")
+
+        if config.target_version:
+            cmd.extend(["--target-version", config.target_version])
+
+        if config.python:
+            cmd.extend(["--python", config.python])
 
         return await self._run_command(cmd)
 

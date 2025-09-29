@@ -59,6 +59,26 @@ class MCPHandler:
                 description="Explain a specific Ruff rule",
                 inputSchema=self._get_ruff_explain_rule_schema(),
             ),
+            types.Tool(
+                name="ruff-config",
+                description="List or describe Ruff configuration options",
+                inputSchema=self._get_ruff_config_schema(),
+            ),
+            types.Tool(
+                name="ruff-linter",
+                description="List all supported upstream linters",
+                inputSchema=self._get_ruff_linter_schema(),
+            ),
+            types.Tool(
+                name="ruff-clean",
+                description="Clear Ruff caches",
+                inputSchema=self._get_ruff_clean_schema(),
+            ),
+            types.Tool(
+                name="ruff-analyze-graph",
+                description="Generate dependency/dependent maps for Python files",
+                inputSchema=self._get_ruff_analyze_graph_schema(),
+            ),
         ]
 
     async def call_tool(
@@ -76,6 +96,14 @@ class MCPHandler:
                 return await self._handle_ruff_show_settings(arguments)
             elif name == "ruff-explain-rule":
                 return await self._handle_ruff_explain_rule(arguments)
+            elif name == "ruff-config":
+                return await self._handle_ruff_config(arguments)
+            elif name == "ruff-linter":
+                return await self._handle_ruff_linter(arguments)
+            elif name == "ruff-clean":
+                return await self._handle_ruff_clean(arguments)
+            elif name == "ruff-analyze-graph":
+                return await self._handle_ruff_analyze_graph(arguments)
             else:
                 return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
@@ -160,6 +188,63 @@ class MCPHandler:
         config = RuffExplainRuleConfig(rule=rule)
         result = await self.ruff_runner.run_explain_rule(config)
         return [self._format_command_result(f"Ruff rule {rule}", result)]
+
+    async def _handle_ruff_config(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle ruff-config tool call."""
+        from models import RuffConfigConfig
+
+        config = RuffConfigConfig(
+            option=args.get("option"),
+            output_format=args.get("output_format", "text"),
+        )
+
+        result = await self.ruff_runner.run_config(config)
+        command_name = f"Ruff config{' ' + config.option if config.option else ''}"
+        return [self._format_command_result(command_name, result)]
+
+    async def _handle_ruff_linter(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle ruff-linter tool call."""
+        from models import RuffLinterConfig
+
+        config = RuffLinterConfig(
+            output_format=args.get("output_format", "text"),
+        )
+
+        result = await self.ruff_runner.run_linter(config)
+        return [self._format_command_result("Ruff linter", result)]
+
+    async def _handle_ruff_clean(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle ruff-clean tool call."""
+        from models import RuffCleanConfig
+
+        config = RuffCleanConfig()
+        result = await self.ruff_runner.run_clean(config)
+        return [self._format_command_result("Ruff clean", result)]
+
+    async def _handle_ruff_analyze_graph(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle ruff-analyze-graph tool call."""
+        from models import RuffAnalyzeGraphConfig
+
+        config = RuffAnalyzeGraphConfig(
+            files=args.get("files"),
+            direction=args.get("direction", "dependencies"),
+            detect_string_imports=args.get("detect_string_imports", False),
+            min_dots=args.get("min_dots"),
+            preview=args.get("preview", False),
+            target_version=args.get("target_version"),
+            python=args.get("python"),
+        )
+
+        result = await self.ruff_runner.run_analyze_graph(config)
+        return [self._format_command_result("Ruff analyze graph", result)]
 
     def _format_command_result(self, command_name: str, result) -> types.TextContent:
         """Format command result for MCP response."""
@@ -291,4 +376,90 @@ class MCPHandler:
                 }
             },
             "required": ["rule"],
+        }
+
+    def _get_ruff_config_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for ruff-config tool."""
+        return {
+            "type": "object",
+            "properties": {
+                "option": {
+                    "type": "string",
+                    "description": "Specific config option to show (optional)",
+                },
+                "output_format": {
+                    "type": "string",
+                    "enum": ["text", "json"],
+                    "description": "Output format",
+                    "default": "text",
+                },
+            },
+            "required": [],
+        }
+
+    def _get_ruff_linter_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for ruff-linter tool."""
+        return {
+            "type": "object",
+            "properties": {
+                "output_format": {
+                    "type": "string",
+                    "enum": ["text", "json"],
+                    "description": "Output format",
+                    "default": "text",
+                },
+            },
+            "required": [],
+        }
+
+    def _get_ruff_clean_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for ruff-clean tool."""
+        return {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+    def _get_ruff_analyze_graph_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for ruff-analyze-graph tool."""
+        return {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of files or directories to include",
+                    "default": ["."],
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["dependencies", "dependents"],
+                    "description": "Direction of the import map",
+                    "default": "dependencies",
+                },
+                "detect_string_imports": {
+                    "type": "boolean",
+                    "description": "Attempt to detect imports from string literals",
+                    "default": False,
+                },
+                "min_dots": {
+                    "type": "integer",
+                    "description": "Minimum number of dots in a string import",
+                },
+                "preview": {
+                    "type": "boolean",
+                    "description": "Enable preview mode",
+                    "default": False,
+                },
+                "target_version": {
+                    "type": "string",
+                    "enum": ["py37", "py38", "py39", "py310", "py311", "py312", "py313", "py314"],
+                    "description": "Minimum Python version that should be supported",
+                },
+                "python": {
+                    "type": "string",
+                    "description": "Path to a virtual environment",
+                },
+            },
+            "required": [],
         }
