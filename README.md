@@ -72,6 +72,8 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
 - **Selective rule checking** and auto-fixing
 - **Git integration** for checking only changed files
 - **Rule explanations** and configuration display
+- **Configuration management** and linter information
+- **Cache management** and dependency analysis
 
 **Key Tools:**
 - `ruff-check` - Lint Python code
@@ -79,6 +81,10 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
 - `ruff-check-diff` - Check only changed files
 - `ruff-show-settings` - Display current configuration
 - `ruff-explain-rule` - Explain specific linting rules
+- `ruff-config` - List configuration options
+- `ruff-linter` - Show supported upstream linters
+- `ruff-clean` - Clear Ruff caches
+- `ruff-analyze-graph` - Generate dependency graphs
 
 ### 🐳 Hadolint Server
 
