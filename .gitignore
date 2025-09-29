@@ -142,3 +142,21 @@ Thumbs.db
 
 #spec-workflow
 .spec-workflow/
+
+# MCP Server specific
+.env
+*.log
+**/audio/
+*base64.txt
+**/test_*.json
+**/*_test.json
+**/init.json
+**/initialized.json
+**/start.json
+**/transcribe.json
+ffmpeg.exe
+ffmpeg.zip
+ffmpeg-master-latest-win64-gpl/
+*.wav
+*.mp3
+*.mp4

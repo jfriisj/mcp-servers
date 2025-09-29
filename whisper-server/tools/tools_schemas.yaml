@@ -1,0 +1,148 @@
+# Tools Schemas Configuration for Whisper MCP Server
+# This file contains the tool definitions and input schemas
+
+whisper-transcribe:
+  name: "whisper-transcribe"
+  description: "Transcribe audio file to text using OpenAI Whisper"
+  inputSchema:
+    type: "object"
+    properties:
+      audio_file:
+        type: "string"
+        description: "Path to the audio file to transcribe"
+      model:
+        type: "string"
+        description: "Whisper model to use"
+        default: "whisper-1"
+        enum: ["whisper-1"]
+      language:
+        type: "string"
+        description: "Language of the audio (ISO-639-1 format)"
+      response_format:
+        type: "string"
+        description: "Format of the response"
+        default: "json"
+        enum: ["json", "text", "srt", "verbose_json", "vtt"]
+      temperature:
+        type: "number"
+        description: "Sampling temperature between 0 and 1"
+        default: 0.0
+        minimum: 0.0
+        maximum: 1.0
+      prompt:
+        type: "string"
+        description: "Optional text to guide the model's style"
+    required: ["audio_file"]
+
+whisper-transcribe-timestamps:
+  name: "whisper-transcribe-timestamps"
+  description: "Transcribe audio with timestamps and segments"
+  inputSchema:
+    type: "object"
+    properties:
+      audio_file:
+        type: "string"
+        description: "Path to the audio file to transcribe"
+      model:
+        type: "string"
+        description: "Whisper model to use"
+        default: "whisper-1"
+        enum: ["whisper-1"]
+      language:
+        type: "string"
+        description: "Language of the audio (ISO-639-1 format)"
+      temperature:
+        type: "number"
+        description: "Sampling temperature between 0 and 1"
+        default: 0.0
+        minimum: 0.0
+        maximum: 1.0
+      prompt:
+        type: "string"
+        description: "Optional text to guide the model's style"
+    required: ["audio_file"]
+
+whisper-detect-language:
+  name: "whisper-detect-language"
+  description: "Detect the language of an audio file"
+  inputSchema:
+    type: "object"
+    properties:
+      audio_file:
+        type: "string"
+        description: "Path to the audio file to analyze"
+      model:
+        type: "string"
+        description: "Whisper model to use"
+        default: "whisper-1"
+        enum: ["whisper-1"]
+    required: ["audio_file"]
+
+whisper-batch-transcribe:
+  name: "whisper-batch-transcribe"
+  description: "Transcribe multiple audio files in batch"
+  inputSchema:
+    type: "object"
+    properties:
+      audio_files:
+        type: "array"
+        items:
+          type: "string"
+        description: "List of paths to audio files to transcribe"
+      model:
+        type: "string"
+        description: "Whisper model to use"
+        default: "whisper-1"
+        enum: ["whisper-1"]
+      language:
+        type: "string"
+        description: "Language of the audio (ISO-639-1 format)"
+      response_format:
+        type: "string"
+        description: "Format of the response"
+        default: "json"
+        enum: ["json", "text", "srt", "verbose_json", "vtt"]
+      temperature:
+        type: "number"
+        description: "Sampling temperature between 0 and 1"
+        default: 0.0
+        minimum: 0.0
+        maximum: 1.0
+    required: ["audio_files"]
+
+whisper-transcribe-file-content:
+  name: "whisper-transcribe-file-content"
+  description: "Transcribe uploaded audio file content (base64) to text"
+  inputSchema:
+    type: "object"
+    properties:
+      file_content:
+        type: "string"
+        description: "Base64 encoded audio file content"
+      file_name:
+        type: "string"
+        description: "Original file name (optional, for context)"
+        default: "uploaded_audio.wav"
+      model:
+        type: "string"
+        description: "Whisper model to use"
+        default: "whisper-1"
+        enum: ["whisper-1"]
+      language:
+        type: "string"
+        description: "Language of the audio (ISO-639-1 format)"
+      response_format:
+        type: "string"
+        description: "Format of the response"
+        default: "json"
+        enum: ["json", "text", "srt", "verbose_json", "vtt"]
+      temperature:
+        type: "number"
+        description: "Sampling temperature between 0 and 1"
+        default: 0.0
+        minimum: 0.0
+        maximum: 1.0
+      prompt:
+        type: "string"
+        description: "Optional text to guide the model's style"
+    required: ["file_content"]

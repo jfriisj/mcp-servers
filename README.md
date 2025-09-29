@@ -4,12 +4,13 @@ A comprehensive collection of Model Context Protocol (MCP) servers providing ess
 
 ## 🚀 Overview
 
-This repository contains four specialized MCP servers that work together to provide a complete development toolchain:
+This repository contains five specialized MCP servers that work together to provide a complete development toolchain:
 
 - **Coverage Server** - Test coverage analysis and reporting
 - **Docs-Prompts Server** - Documentation indexing and intelligent prompt management
 - **Ruff Server** - Fast Python linting and code formatting
 - **Hadolint Server** - Dockerfile linting and best practices
+- **Whisper Server** - Audio transcription using local Hugging Face Whisper Large V3
 
 Together, these servers enable AI assistants to perform comprehensive code quality analysis, testing, documentation management, code improvement, and container best practices through the MCP protocol.
 
@@ -71,6 +72,8 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
 - **Selective rule checking** and auto-fixing
 - **Git integration** for checking only changed files
 - **Rule explanations** and configuration display
+- **Configuration management** and linter information
+- **Cache management** and dependency analysis
 
 **Key Tools:**
 - `ruff-check` - Lint Python code
@@ -78,6 +81,10 @@ Provides fast Python linting and formatting capabilities using Ruff, the modern 
 - `ruff-check-diff` - Check only changed files
 - `ruff-show-settings` - Display current configuration
 - `ruff-explain-rule` - Explain specific linting rules
+- `ruff-config` - List configuration options
+- `ruff-linter` - Show supported upstream linters
+- `ruff-clean` - Clear Ruff caches
+- `ruff-analyze-graph` - Generate dependency graphs
 
 ### 🐳 Hadolint Server
 
@@ -96,6 +103,30 @@ Provides comprehensive Dockerfile linting and best practices validation using Ha
 - `hadolint-check` - Lint a single Dockerfile
 - `hadolint-check-dir` - Lint all Dockerfiles in a directory
 - `hadolint-show-rules` - Show available rules and help
+
+### 🎙️ Whisper Server
+
+**Location:** `whisper-server/`
+
+Provides audio transcription capabilities using the local Hugging Face Whisper Large V3 model for converting speech to text.
+
+**Features:**
+
+- **Local Whisper Large V3 Model**: Run transcription locally without API calls
+- **High-accuracy transcription** using OpenAI's Whisper Large V3 model
+- **Multiple audio formats** support (MP3, WAV, M4A, FLAC, etc.)
+- **Timestamp extraction** with detailed segment information
+- **Language detection** and multi-language support
+- **Batch processing** for multiple audio files
+- **GPU acceleration** support (optional)
+- **Configurable output formats** (text, JSON, SRT, VTT)
+
+**Key Tools:**
+
+- `whisper-transcribe` - Transcribe audio file to text
+- `whisper-transcribe-timestamps` - Transcribe with timestamps
+- `whisper-detect-language` - Detect audio language
+- `whisper-batch-transcribe` - Batch transcribe multiple files
 
 ## 🛠️ Installation
 
@@ -134,6 +165,11 @@ Provides comprehensive Dockerfile linting and best practices validation using Ha
    cd ../hadolint-server
    pip install -r requirements.txt
    # Install hadolint separately: https://github.com/hadolint/hadolint
+
+   # Whisper Server
+   cd ../whisper-server
+   pip install -r requirements.txt
+   # Set HUGGINGFACE_TOKEN environment variable or update .env file
    ```
 
 3. **Configure MCP client** (example for VS Code `.vscode/mcp.json`):
@@ -160,6 +196,14 @@ Provides comprehensive Dockerfile linting and best practices validation using Ha
          "command": "python",
          "args": ["${workspaceFolder}/mcp-servers/hadolint-server/src/main.py"],
          "cwd": "${workspaceFolder}"
+       },
+       "whisper": {
+         "command": "python",
+         "args": ["${workspaceFolder}/mcp-servers/whisper-server/src/main.py"],
+         "cwd": "${workspaceFolder}",
+         "env": {
+           "HUGGINGFACE_TOKEN": "your-huggingface-token-here"
+         }
        }
      }
    }
@@ -233,6 +277,24 @@ trustedRegistries:
   - gcr.io
 ```
 
+### Whisper Server
+
+Requires Hugging Face authentication token set as environment variable:
+
+```bash
+export HUGGINGFACE_TOKEN="your-huggingface-token-here"
+```
+
+Or create a `.env` file in the whisper-server directory:
+
+```bash
+HUGGINGFACE_TOKEN=your_actual_huggingface_token_here
+USE_GPU=true  # Optional: enable GPU acceleration
+```
+
+Supported audio formats: MP3, WAV, M4A, FLAC, OGG, WEBM
+Maximum file size: 100MB (local processing allows larger files than API limits)
+
 ## 📖 Usage Examples
 
 ### Running Tests with Coverage
@@ -280,6 +342,16 @@ await call_tool("hadolint-check", {
 ```python
 await call_tool("suggest_prompts", {
     "context": "code review for security"
+})
+```
+
+### Audio Transcription
+
+```python
+await call_tool("whisper-transcribe", {
+    "audio_file": "recording.mp3",
+    "language": "en",
+    "response_format": "json"
 })
 ```
 
@@ -342,6 +414,17 @@ Add to `.vscode/mcp.json`:
       "cwd": "${workspaceFolder}",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "whisper": {
+      "command": "python",
+      "args": [
+        "whisper-server/src/main.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "HUGGINGFACE_TOKEN": "your-huggingface-token-here"
       }
     }
   }
@@ -410,6 +493,10 @@ python ruff_mcp_server.py
 # Hadolint Server
 cd ../hadolint-server/src
 python main.py
+
+# Whisper Server
+cd ../whisper-server/src
+python main.py
 ```
 
 ### Testing
@@ -473,6 +560,15 @@ python docs-prompts-server/src/docs_prompts_mcp_server.py --test
 ### Hadolint Server Dependencies
 
 - hadolint (external binary, install separately)
+
+### Whisper Server Dependencies
+
+- transformers>=4.35.0
+- torch>=2.0.0
+- torchaudio>=2.0.0
+- datasets>=2.14.0
+- accelerate>=0.24.0
+- python-dotenv>=1.0.0
 
 ## 📄 License
 

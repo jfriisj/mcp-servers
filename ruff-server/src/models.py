@@ -5,7 +5,7 @@ Dataclasses defining configuration and result structures for Ruff operations.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 
 @dataclass
@@ -64,3 +64,42 @@ class CommandResult:
     def output(self) -> str:
         """Get combined output."""
         return self.stdout + (f"\n{self.stderr}" if self.stderr else "")
+
+
+@dataclass
+class RuffConfigConfig:
+    """Configuration for ruff config command."""
+
+    option: Optional[str] = None
+    output_format: str = "text"
+
+
+@dataclass
+class RuffLinterConfig:
+    """Configuration for ruff linter command."""
+
+    output_format: str = "text"
+
+
+@dataclass
+class RuffCleanConfig:
+    """Configuration for ruff clean command."""
+
+    pass
+
+
+@dataclass
+class RuffAnalyzeGraphConfig:
+    """Configuration for ruff analyze graph command."""
+
+    files: Optional[List[str]] = None
+    direction: str = "dependencies"
+    detect_string_imports: bool = False
+    min_dots: Optional[int] = None
+    preview: bool = False
+    target_version: Optional[str] = None
+    python: Optional[str] = None
+
+    def __post_init__(self):
+        if self.files is None:
+            self.files = ["."]

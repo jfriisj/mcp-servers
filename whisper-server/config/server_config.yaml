@@ -1,0 +1,39 @@
+# Whisper MCP Server Configuration
+
+# Model configuration
+model:
+  name: "openai/whisper-large-v3"
+  device: "cuda" # Will be auto-detected if GPU available
+
+# Audio processing settings
+audio:
+  supported_formats:
+    - "mp3"
+    - "mp4"
+    - "mpeg"
+    - "mpga"
+    - "m4a"
+    - "wav"
+    - "webm"
+    - "flac"
+    - "ogg"
+  max_file_size_mb: 200
+  segment_length_seconds: 30
+  segment_overlap_seconds: 2
+  max_segments_per_file: 50
+  enable_segmentation: true
+
+# Processing settings
+processing:
+  max_concurrent_transcriptions: 3
+  parallel_processing_enabled: true
+  use_gpu: true
+
+# Hugging Face settings
+huggingface:
+  token_env_vars: ["HUGGINGFACE_TOKEN", "HF_TOKEN"]
+  cache_dir: null # Uses HF_HOME environment variable
+
+# Environment settings
+environment:
+  test_mode: false

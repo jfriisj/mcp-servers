@@ -8,22 +8,51 @@
 # Documentation paths to scan (all paths are relative to project root)
 # INCLUSION-ONLY APPROACH: Only files in explicitly listed directories are indexed
 documentation_paths:
-  # Course content and materials
-  - "course-content/**/*.md"
-  - "course-content/**/*.txt"
-  - "course-materials/**/*.md"
-  - "course-materials/**/*.txt"
+  # Documentation directory - all supported file types
+  - "docs/**/*.md"
+  - "docs/**/*.rst"
+  - "docs/**/*.txt"
+  - "docs/**/*.yaml"
+  - "docs/**/*.yml"
+  - "docs/**/*.json"
   
-  # Spec workflow documentation
+  # Documentation alternative directory
+  - "documentation/**/*.md"
+  - "documentation/**/*.rst"
+  - "documentation/**/*.txt"
+  - "documentation/**/*.yaml"
+  - "documentation/**/*.yml"
+  - "documentation/**/*.json"
+  
+  # MCP spec workflow documentation
   - ".spec-workflow/**/*.md"
   - ".spec-workflow/**/*.yaml"
   - ".spec-workflow/**/*.yml"
   - ".spec-workflow/**/*.json"
   
-  # Common docs & specific files
-  - ".github/*.md"
+  # Configuration files
+  - "config/**/*.yaml"
+  - "config/**/*.yml"
+  - "config/**/*.json"
+  
+  # Shared Python utility files across services
+  - "services/*/src/utils/*.py"
+  - "services/*/src/models/*.py"
+  - "services/*/src/exceptions*.py"
+  - "services/*/src/interfaces/*.py"
+  - "services/*/src/core/*.py"
+  - "scripts/*.py"
+  - "quality/**/*.py"
+  
+  # Specific shared/common files
+  - "language-config.yaml"
+  
+  # Specific root-level documentation files only
   - "README.md"
   - "*/README.md"
+  - "CHANGELOG.md"
+  - "CONTRIBUTING.md"
+  - "WARP.md"
 
 # File patterns to include
 file_patterns:
@@ -87,17 +116,6 @@ architecture_keywords:
   - "audio_processor"
   - "unicode"
   - "performance"
-  # Game AI and education specific keywords
-  - "game_ai"
-  - "machine_learning"
-  - "neural_network"
-  - "genetic_algorithm"
-  - "evolutionary_computation"
-  - "course_material"
-  - "lesson"
-  - "tutorial"
-  - "education"
-  - "learning_objective"
 
 # Prompt categories
 prompt_categories:
@@ -109,11 +127,6 @@ prompt_categories:
   - "api"
   - "security"
   - "custom"
-  # Game AI and education specific categories
-  - "game-ai"
-  - "machine-learning"
-  - "education"
-  - "course-material"
 
 # Performance settings
 indexing:
