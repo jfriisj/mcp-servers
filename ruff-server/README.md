@@ -21,6 +21,10 @@ A Model Context Protocol (MCP) server that provides fast Python linting and form
 - **Git integration** - Check only changed files (git diff)
 - **Configuration display** - Show active Ruff settings
 - **Rule explanation** - Get detailed explanations of specific rules
+- **Configuration management** - List and describe configuration options
+- **Linter information** - Show all supported upstream linters
+- **Cache management** - Clear Ruff caches when needed
+- **Dependency analysis** - Generate import dependency graphs
 - **Project-aware** - Automatically finds and uses pyproject.toml configuration
 
 ## Architecture
@@ -128,6 +132,60 @@ Explain a specific Ruff rule.
 ```json
 {
   "rule": "E501"
+}
+```
+
+### `ruff-config`
+
+List or describe Ruff configuration options.
+
+**Parameters:**
+
+- `option` (string, optional): Specific config option to show
+- `output_format` (string, optional): Output format - text, json (default: "text")
+
+**Example usage:**
+
+```json
+{
+  "output_format": "json"
+}
+```
+
+### `ruff-linter`
+
+List all supported upstream linters.
+
+**Parameters:**
+
+- `output_format` (string, optional): Output format - text, json (default: "text")
+
+### `ruff-clean`
+
+Clear Ruff caches.
+
+**Parameters:** None
+
+### `ruff-analyze-graph`
+
+Generate dependency/dependent maps for Python files.
+
+**Parameters:**
+
+- `files` (array, optional): List of files or directories to include (default: ["."])
+- `direction` (string, optional): Direction of the import map - dependencies, dependents (default: "dependencies")
+- `detect_string_imports` (boolean, optional): Attempt to detect imports from string literals (default: false)
+- `min_dots` (integer, optional): Minimum number of dots in a string import
+- `preview` (boolean, optional): Enable preview mode (default: false)
+- `target_version` (string, optional): Minimum Python version that should be supported
+- `python` (string, optional): Path to a virtual environment
+
+**Example usage:**
+
+```json
+{
+  "files": ["src/"],
+  "direction": "dependencies"
 }
 ```
 
