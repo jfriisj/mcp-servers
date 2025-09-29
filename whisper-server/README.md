@@ -33,7 +33,13 @@ cd whisper-server
 
 ### 2. Configure Environment
 
-Create a `.env` file with your Hugging Face token:
+Copy the example environment file and add your Hugging Face token:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` with your actual Hugging Face token:
 
 ```bash
 HUGGINGFACE_TOKEN=your_actual_huggingface_token_here
@@ -49,13 +55,18 @@ docker-compose up --build
 docker-compose up -d --build
 ```
 
-### 4. Place Audio Files
+### 4. Test the Server
 
-Put your audio files in the `audio/` directory (mounted as volume):
+The server supports direct file content transcription - agents can upload audio files as base64 strings without needing volume mounts.
+
+Run the test suite:
 
 ```bash
-mkdir audio
-cp your_audio_file.mp3 audio/
+# Run comprehensive tests
+python tests/test_whisper.py
+
+# Run Docker-specific tests  
+python tests/test_docker.py
 ```
 
 ## Docker Configuration
@@ -217,9 +228,8 @@ The Docker MCP server can be accessed by VS Code through the MCP extension. Upda
         "run",
         "--rm",
         "-i",
-        "-e", "HUGGINGFACE_TOKEN=your_token_here",
-        "-e", "HF_TOKEN=your_token_here",
-        "-v", "${workspaceFolder}/whisper-server/audio:/app/audio",
+        "-e", "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
+        "-e", "HF_TOKEN=${HF_TOKEN}",
         "whisper-server-whisper-server"
       ],
       "cwd": "${workspaceFolder}"
@@ -241,9 +251,8 @@ For Claude Desktop, add to your `claude_desktop_config.json`:
         "run",
         "--rm",
         "-i",
-        "-e", "HUGGINGFACE_TOKEN=your_token_here",
-        "-e", "HF_TOKEN=your_token_here",
-        "-v", "/path/to/audio/files:/app/audio",
+        "-e", "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
+        "-e", "HF_TOKEN=${HF_TOKEN}",
         "whisper-server-whisper-server"
       ]
     }
@@ -260,7 +269,6 @@ For custom MCP clients or testing:
 docker run --rm -i \
   -e HUGGINGFACE_TOKEN=your_token \
   -e HF_TOKEN=your_token \
-  -v $(pwd)/audio:/app/audio \
   whisper-server-whisper-server
 
 # In another terminal, connect your MCP client to the container's stdin/stdout
