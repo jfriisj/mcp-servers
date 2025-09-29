@@ -62,7 +62,9 @@ class MCPHandler:
         ]
 
     async def call_tool(
-        self, name: str, arguments: Dict[str, Any],
+        self,
+        name: str,
+        arguments: Dict[str, Any],
     ) -> List[types.TextContent]:
         """Handle tool calls."""
         try:
@@ -81,7 +83,8 @@ class MCPHandler:
         except Exception as e:
             return [
                 types.TextContent(
-                    type="text", text=f"Error executing tool {name}: {str(e)}",
+                    type="text",
+                    text=f"Error executing tool {name}: {str(e)}",
                 ),
             ]
 
@@ -102,7 +105,8 @@ class MCPHandler:
         return [self._format_transcription_result("Transcription", result)]
 
     async def _handle_transcribe_timestamps(
-        self, args: Dict[str, Any],
+        self,
+        args: Dict[str, Any],
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-timestamps tool call."""
         from models import TranscriptionWithTimestampsConfig
@@ -117,9 +121,13 @@ class MCPHandler:
         )
 
         result = await self.whisper_runner.transcribe_with_timestamps(config)
-        return [self._format_transcription_result("Transcription with timestamps", result)]
+        return [
+            self._format_transcription_result("Transcription with timestamps", result)
+        ]
 
-    async def _handle_detect_language(self, args: Dict[str, Any]) -> List[types.TextContent]:
+    async def _handle_detect_language(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
         """Handle whisper-detect-language tool call."""
         from models import LanguageDetectionConfig
 
@@ -131,7 +139,9 @@ class MCPHandler:
         result = await self.whisper_runner.detect_language(config)
         return [self._format_language_detection_result(result)]
 
-    async def _handle_batch_transcribe(self, args: Dict[str, Any]) -> List[types.TextContent]:
+    async def _handle_batch_transcribe(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
         """Handle whisper-batch-transcribe tool call."""
         from models import BatchTranscriptionConfig
 
@@ -147,7 +157,8 @@ class MCPHandler:
         return [self._format_batch_result(result)]
 
     async def _handle_transcribe_file_content(
-        self, args: Dict[str, Any],
+        self,
+        args: Dict[str, Any],
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-file-content tool call."""
         from models import FileContentTranscriptionConfig
@@ -163,7 +174,9 @@ class MCPHandler:
         )
 
         result = await self.whisper_runner.transcribe_file_content(config)
-        return [self._format_transcription_result("Transcription from file content", result)]
+        return [
+            self._format_transcription_result("Transcription from file content", result)
+        ]
 
     def _format_transcription_result(self, operation: str, result) -> types.TextContent:
         """Format transcription result for MCP response."""
@@ -174,10 +187,10 @@ class MCPHandler:
             if result.language:
                 response += f"**Language:** {result.language}\n"
 
-            if hasattr(result, 'duration') and result.duration:
+            if hasattr(result, "duration") and result.duration:
                 response += f"**Duration:** {result.duration:.2f} seconds\n"
 
-            if hasattr(result, 'segments') and result.segments:
+            if hasattr(result, "segments") and result.segments:
                 response += f"**Segments:** {len(result.segments)} segments available\n"
 
             return types.TextContent(type="text", text=response)
@@ -210,7 +223,7 @@ class MCPHandler:
             response += f"**Failed:** {result.failed_transcriptions}\n\n"
 
             for i, transcription_result in enumerate(result.results):
-                response += f"**File {i+1}:**\n"
+                response += f"**File {i + 1}:**\n"
                 if transcription_result.success:
                     response += f"  ✅ {transcription_result.text[:100]}"
                     if len(transcription_result.text) > 100:

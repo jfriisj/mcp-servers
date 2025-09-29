@@ -4,11 +4,12 @@ import asyncio
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from config import ConfigurationManager
 from whisper_runner import WhisperRunner
 from models import TranscriptionConfig
+
 
 async def main():
     try:
@@ -22,10 +23,10 @@ async def main():
 
         # Configure transcription
         trans_config = TranscriptionConfig(
-            audio_file=str(Path('/app/audio/test_short.wav')),
-            language='en',
-            response_format='json',
-            temperature=0.0
+            audio_file=str(Path("/app/audio/test_short.wav")),
+            language="en",
+            response_format="json",
+            temperature=0.0,
         )
 
         print(f"📝 Transcribing: {trans_config.audio_file}")
@@ -44,13 +45,15 @@ async def main():
     except Exception as e:
         print("❌ Error:", str(e))
         import traceback
+
         traceback.print_exc()
         return None
+
 
 if __name__ == "__main__":
     result = asyncio.run(main())
     if result:
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("FINAL TRANSCRIPTION RESULT:")
         print(result)
-        print("="*50)
+        print("=" * 50)

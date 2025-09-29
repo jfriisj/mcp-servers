@@ -8,11 +8,13 @@ import asyncio
 import os
 import base64
 import tempfile
+from typing import Optional
 
 # Hugging Face imports (with fallback for development)
 try:
     import torch
     from transformers import pipeline
+
     HAS_TRANSFORMERS = True
 except ImportError:
     HAS_TRANSFORMERS = False
@@ -78,14 +80,15 @@ class WhisperRunner:
             return False
 
     async def transcribe_audio(
-        self, config: TranscriptionConfig,
+        self,
+        config: TranscriptionConfig,
     ) -> TranscriptionResult:
         """Transcribe audio file to text."""
         if not self._ensure_model_loaded():
             return TranscriptionResult(
                 text="",
                 success=False,
-                error_message="Whisper model not loaded. Check Hugging Face token.",
+                error_message="Whisper model not loaded. Check HF token.",
             )
 
         # Validate audio file
@@ -129,14 +132,15 @@ class WhisperRunner:
             )
 
     async def transcribe_with_timestamps(
-        self, config: TranscriptionWithTimestampsConfig,
+        self,
+        config: TranscriptionWithTimestampsConfig,
     ) -> TranscriptionResult:
         """Transcribe audio file with timestamps."""
         if not self._ensure_model_loaded():
             return TranscriptionResult(
                 text="",
                 success=False,
-                error_message="Whisper model not loaded. Check Hugging Face token.",
+                error_message="Whisper model not loaded. Check HF token.",
             )
 
         # Validate audio file
@@ -191,7 +195,8 @@ class WhisperRunner:
             )
 
     async def detect_language(
-        self, config: LanguageDetectionConfig,
+        self,
+        config: LanguageDetectionConfig,
     ) -> LanguageDetectionResult:
         """Detect the language of an audio file."""
         if not self._ensure_model_loaded():
@@ -199,7 +204,7 @@ class WhisperRunner:
                 detected_language="",
                 confidence=0.0,
                 success=False,
-                error_message="Whisper model not loaded. Check Hugging Face token.",
+                error_message="Whisper model not loaded. Check HF token.",
             )
 
         # Validate audio file
@@ -248,7 +253,8 @@ class WhisperRunner:
             )
 
     async def batch_transcribe(
-        self, config: BatchTranscriptionConfig,
+        self,
+        config: BatchTranscriptionConfig,
     ) -> BatchTranscriptionResult:
         """Transcribe multiple audio files with parallel processing support."""
         if not self._ensure_model_loaded():
@@ -258,18 +264,21 @@ class WhisperRunner:
                 successful_transcriptions=0,
                 failed_transcriptions=len(config.audio_files),
                 success=False,
-                error_message="Whisper model not loaded. Check Hugging Face token.",
+                error_message="Whisper model not loaded. Check HF token.",
             )
 
         # Use parallel processing if enabled
-        if (self.config_manager.parallel_processing_enabled and
-                len(config.audio_files) > 1):
+        if (
+            self.config_manager.parallel_processing_enabled
+            and len(config.audio_files) > 1
+        ):
             return await self._batch_transcribe_parallel(config)
         else:
             return await self._batch_transcribe_sequential(config)
 
     async def _batch_transcribe_sequential(
-        self, config: BatchTranscriptionConfig,
+        self,
+        config: BatchTranscriptionConfig,
     ) -> BatchTranscriptionResult:
         """Transcribe multiple audio files sequentially."""
         results = []
@@ -302,7 +311,8 @@ class WhisperRunner:
         )
 
     async def _batch_transcribe_parallel(
-        self, config: BatchTranscriptionConfig,
+        self,
+        config: BatchTranscriptionConfig,
     ) -> BatchTranscriptionResult:
         """Transcribe multiple audio files in parallel."""
 
@@ -326,7 +336,7 @@ class WhisperRunner:
 
         # Process files in chunks
         for i in range(0, len(transcribe_configs), max_concurrent):
-            batch_configs = transcribe_configs[i:i + max_concurrent]
+            batch_configs = transcribe_configs[i : i + max_concurrent]
 
             # Run batch concurrently
             batch_results = await asyncio.gather(
@@ -362,28 +372,58 @@ class WhisperRunner:
         )
 
     async def transcribe_file_content(
-        self, config: 'FileContentTranscriptionConfig',
+        self,
+        config: "FileContentTranscriptionConfig",
     ) -> TranscriptionResult:
         """Transcribe audio file content (base64) to text."""
         if not self._ensure_model_loaded():
             return TranscriptionResult(
                 text="",
                 success=False,
-                error_message="Whisper model not loaded. Check Hugging Face token.",
+                error_message="Whisper model not loaded. Check HF token.",
             )
 
         try:
-            # Decode base64 content
-            file_data = base64.b64decode(config.file_content)
+            # Validate base64 format
+            if not config.file_content or not isinstance(config.file_content, str):
+                return TranscriptionResult(
+                    text="",
+                    success=False,
+                    error_message="Invalid base64: must be non-empty string",
+                )
 
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            # Decode base64 content
+            try:
+                file_data = base64.b64decode(config.file_content, validate=True)
+            except Exception as e:
+                return TranscriptionResult(
+                    text="",
+                    success=False,
+                    error_message=f"Invalid base64 content: {str(e)}",
+                )
+
+            # Detect file format from binary data
+            detected_format = self._detect_audio_format(file_data)
+            if not detected_format:
+                return TranscriptionResult(
+                    text="",
+                    success=False,
+                    error_message="Unsupported or unrecognized audio format",
+                )
+
+            # Create temporary file with correct extension
+            temp_suffix = f".{detected_format}"
+            with tempfile.NamedTemporaryFile(
+                suffix=temp_suffix, delete=False
+            ) as temp_file:
                 temp_file.write(file_data)
                 temp_file_path = temp_file.name
 
             try:
                 # Validate the temporary file
-                is_valid, error_msg = self.config_manager.validate_audio_file(temp_file_path)
+                is_valid, error_msg = self.config_manager.validate_audio_file(
+                    temp_file_path
+                )
                 if not is_valid:
                     return TranscriptionResult(
                         text="",
@@ -428,3 +468,48 @@ class WhisperRunner:
                 success=False,
                 error_message=f"File content transcription failed: {str(e)}",
             )
+
+    def _detect_audio_format(self, file_data: bytes) -> Optional[str]:
+        """
+        Detect audio file format from binary data using magic bytes.
+
+        Returns the file extension (without dot) or None if not recognized.
+        """
+        if len(file_data) < 12:
+            return None
+
+        # Check magic bytes for different audio formats
+        if file_data.startswith(b'RIFF') and file_data[8:12] == b'WAVE':
+            return 'wav'
+        elif (
+            file_data.startswith(b'ID3')
+            or file_data.startswith(b'\xFF\xFB')
+            or file_data.startswith(b'\xFF\xF3')
+            or file_data.startswith(b'\xFF\xF2')
+        ):
+            return 'mp3'
+        elif (
+            file_data.startswith(b'ftypM4A')
+            or file_data.startswith(b'ftypmp4')
+        ):
+            return 'm4a'
+        elif file_data.startswith(b'fLaC'):
+            return 'flac'
+        elif file_data.startswith(b'OggS'):
+            return 'ogg'
+        elif file_data.startswith(b'wvpk'):
+            return 'wv'
+        elif file_data[4:8] == b'ftyp':
+            return 'mp4'
+        elif file_data.startswith(b'WEBM'):
+            return 'webm'
+
+        # Additional checks for MP3 without ID3 tag
+        if len(file_data) >= 2:
+            first_two = file_data[:2]
+            if first_two in [
+                b'\xFF\xFB', b'\xFF\xF3', b'\xFF\xF2', b'\xFF\xF1'
+            ]:
+                return 'mp3'
+
+        return None

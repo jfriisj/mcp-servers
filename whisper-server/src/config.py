@@ -11,6 +11,7 @@ from typing import Optional
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv not installed, use environment variables directly
@@ -53,6 +54,7 @@ class ConfigurationManager:
         if self.use_gpu:
             try:
                 import torch
+
                 return "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 return "cpu"
@@ -67,7 +69,15 @@ class ConfigurationManager:
     def supported_audio_formats(self) -> list:
         """Get list of supported audio formats."""
         return [
-            "mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm", "flac", "ogg",
+            "mp3",
+            "mp4",
+            "mpeg",
+            "mpga",
+            "m4a",
+            "wav",
+            "webm",
+            "flac",
+            "ogg",
         ]
 
     @property
@@ -88,11 +98,12 @@ class ConfigurationManager:
 
     def is_supported_format(self, file_path: str) -> bool:
         """Check if audio file format is supported."""
-        file_ext = Path(file_path).suffix.lower().lstrip('.')
+        file_ext = Path(file_path).suffix.lower().lstrip(".")
         return file_ext in self.supported_audio_formats
 
     def validate_audio_file(
-        self, file_path: str,
+        self,
+        file_path: str,
     ) -> tuple[bool, Optional[str]]:
         """
         Validate audio file for transcription.

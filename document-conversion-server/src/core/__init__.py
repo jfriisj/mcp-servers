@@ -1,3 +1,0 @@
-"""
-Core document conversion functionality.
-"""

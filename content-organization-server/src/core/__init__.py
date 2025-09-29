@@ -1,3 +1,0 @@
-"""
-Core content organization functionality.
-"""

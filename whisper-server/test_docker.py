@@ -13,6 +13,7 @@ async def test_parallel_processing():
 
     # Add the src directory to Python path
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent / "src"))
 
     from config import ConfigurationManager  # noqa: E402
@@ -46,8 +47,7 @@ async def test_parallel_processing():
         print("📁 Created audio/ directory. Place your test audio files there.")
         return
 
-    audio_files = (list(audio_dir.glob("*.wav")) +
-                   list(audio_dir.glob("*.mp3")))
+    audio_files = list(audio_dir.glob("*.wav")) + list(audio_dir.glob("*.mp3"))
     if not audio_files:
         print("⚠️  No audio files found in audio/ directory.")
         print("💡 Place some .wav or .mp3 files in the audio/ directory")
@@ -66,7 +66,7 @@ async def test_parallel_processing():
         audio_files=test_files,
         language=None,
         response_format="verbose_json",  # Use verbose_json for timestamps
-        temperature=0.0
+        temperature=0.0,
     )
 
     start_time = time.time()
@@ -85,14 +85,14 @@ async def test_parallel_processing():
         print("\n📝 Sample results:")
         for i, transcription_result in enumerate(result.results[:3]):
             status = "✅" if transcription_result.success else "❌"
-            print(f"  File {i+1}: {status}")
+            print(f"  File {i + 1}: {status}")
             if transcription_result.success:
                 text_len = len(transcription_result.text)
                 if text_len > 100:
                     text_preview = transcription_result.text[:97] + "..."
                 else:
                     text_preview = transcription_result.text
-                print(f"    Text: \"{text_preview}\"")
+                print(f'    Text: "{text_preview}"')
             else:
                 print(f"    Error: {transcription_result.error_message}")
 

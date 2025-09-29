@@ -202,21 +202,27 @@ Transcribe multiple audio files in a single operation.
 - `response_format`: Output format (default: "json")
 - `temperature`: Sampling temperature (default: 0.0)
 
-## Usage
+## Agent Access to Docker MCP Server
 
 ### VS Code Integration
 
-Add to your `.vscode/mcp.json`:
+The Docker MCP server can be accessed by VS Code through the MCP extension. Update your `.vscode/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "whisper": {
-      "command": "python",
-      "args": ["-m", "whisper-server.src.main"],
-      "env": {
-        "HUGGINGFACE_TOKEN": "your-huggingface-token-here"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e", "HUGGINGFACE_TOKEN=your_token_here",
+        "-e", "HF_TOKEN=your_token_here",
+        "-v", "${workspaceFolder}/whisper-server/audio:/app/audio",
+        "whisper-server-whisper-server"
+      ],
+      "cwd": "${workspaceFolder}"
     }
   }
 }
@@ -224,21 +230,75 @@ Add to your `.vscode/mcp.json`:
 
 ### Claude Desktop Integration
 
-Add to your `claude_desktop_config.json`:
+For Claude Desktop, add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "whisper": {
-      "command": "python",
-      "args": ["-m", "whisper-server.src.main"],
-      "env": {
-        "HUGGINGFACE_TOKEN": "your-huggingface-token-here"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e", "HUGGINGFACE_TOKEN=your_token_here",
+        "-e", "HF_TOKEN=your_token_here",
+        "-v", "/path/to/audio/files:/app/audio",
+        "whisper-server-whisper-server"
+      ]
     }
   }
 }
 ```
+
+### Direct MCP Client Access
+
+For custom MCP clients or testing:
+
+```bash
+# Start the Docker container
+docker run --rm -i \
+  -e HUGGINGFACE_TOKEN=your_token \
+  -e HF_TOKEN=your_token \
+  -v $(pwd)/audio:/app/audio \
+  whisper-server-whisper-server
+
+# In another terminal, connect your MCP client to the container's stdin/stdout
+```
+
+### MCP Protocol Testing
+
+Test the server directly:
+
+```bash
+# Initialize connection
+echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0.0"}}}' | \
+docker run --rm -i -e HUGGINGFACE_TOKEN=your_token whisper-server-whisper-server
+
+# List available tools
+echo '{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}' | \
+docker run --rm -i -e HUGGINGFACE_TOKEN=your_token whisper-server-whisper-server
+```
+
+### File Upload for Agents
+
+Agents can upload audio files directly using the `whisper-transcribe-file-content` tool:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "whisper-transcribe-file-content",
+    "arguments": {
+      "file_content": "base64_encoded_audio_data_here",
+      "file_name": "recording.wav",
+      "language": "en"
+    }
+  }
+}
+```
+
+This allows agents to process audio without needing file system access.
 
 ## Development
 

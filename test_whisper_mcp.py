@@ -14,20 +14,22 @@ def test_mcp_tools_list():
     print("Testing MCP tools/list...")
 
     # MCP tools/list request
-    request = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/list",
-        "params": {}
-    }
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
 
     # Run the server with the request
     cmd = [
-        "docker", "run", "--rm", "-i",
-        "-e", "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
-        "-e", "HF_TOKEN=${HUGGINGFACE_TOKEN}",
+        "docker",
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
+        "-e",
+        "HF_TOKEN=${HUGGINGFACE_TOKEN}",
         "whisper-server-whisper-server",
-        "bash", "-c", "cd /app/src && python main.py"
+        "bash",
+        "-c",
+        "cd /app/src && python main.py",
     ]
 
     proc = None
@@ -39,7 +41,7 @@ def test_mcp_tools_list():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd=Path(__file__).parent / "whisper-server"
+            cwd=Path(__file__).parent / "whisper-server",
         )
 
         # Send the request

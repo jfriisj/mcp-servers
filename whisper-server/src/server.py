@@ -69,8 +69,7 @@ class WhisperMCPServer:
     async def serve(self):
         """Start the MCP server."""
         if not HAS_MCP:
-            print("[ERROR] MCP package not available. Install with: "
-                  "pip install mcp")
+            print("[ERROR] MCP package not available. Install with: pip install mcp")
             return
 
         # Import the stdio transport
