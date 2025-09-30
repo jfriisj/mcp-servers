@@ -168,3 +168,24 @@ path_resolution:
 
   # Allow absolute paths (not recommended - may cause inconsistent behavior)
   allow_absolute_paths: false
+
+# Remote collection configuration
+remote_collection:
+  # Timeout for repository download and processing operations (in seconds)
+  timeout_seconds: 300
+
+  # Maximum repository size to download and process (in MB)
+  max_repo_size_mb: 100
+
+  # Allowed domains for repository collection (security measure)
+  allowed_domains:
+    - "github.com"
+
+  # Default branch to try when no specific ref is provided
+  default_branch: "main"
+
+  # Use shallow clones for faster downloads (recommended)
+  shallow_clone: true
+
+  # Clean up temporary files after processing (recommended)
+  cleanup_temp_files: true

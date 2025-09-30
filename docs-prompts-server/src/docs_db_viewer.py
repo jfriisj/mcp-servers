@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import argparse
 import yaml
+import threading
+import asyncio
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -213,64 +216,88 @@ class DocsPromptsViewer:
             logger.error(f"Database error: {e}")
             return []
 
-    def search_content(self, query: str) -> List[Dict[str, Any]]:
-        """Search across documents and prompts"""
+    def get_remote_documents(self) -> List[Dict[str, Any]]:
+        """Get all remote documents"""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Search documents
-                doc_results = []
-                doc_cursor = conn.execute(
-                    """
-                    SELECT DISTINCT d.path, d.title, d.doc_type,
-                           s.section_title, s.content_chunk
-                    FROM documents d
-                    JOIN search_index s ON d.path = s.doc_path
-                    WHERE s.content_chunk LIKE ? OR d.title LIKE ?
-                    LIMIT 20
-                """,
-                    (f"%{query}%", f"%{query}%"),
-                )
+                cursor = conn.execute("""
+                    SELECT path, title, doc_type, metadata, last_modified,
+                           file_hash, source_url, repo_name, repo_ref,
+                           download_timestamp
+                    FROM documents
+                    WHERE is_remote = 1
+                    ORDER BY download_timestamp DESC
+                """)
 
-                for row in doc_cursor.fetchall():
-                    snippet_text = row[4][:200] + "..." if len(row[4]) > 200 else row[4]
-                    doc_results.append(
-                        {
-                            "type": "document",
-                            "path": row[0],
-                            "title": row[1],
-                            "doc_type": row[2],
-                            "section": row[3],
-                            "snippet": snippet_text,
-                        }
-                    )
-
-                # Search prompts
-                prompt_results = []
-                prompt_cursor = conn.execute(
-                    """
-                    SELECT id, name, description, category
-                    FROM prompts
-                    WHERE name LIKE ? OR description LIKE ?
-                    LIMIT 10
-                """,
-                    (f"%{query}%", f"%{query}%"),
-                )
-
-                for row in prompt_cursor.fetchall():
-                    prompt_results.append(
-                        {
-                            "type": "prompt",
-                            "id": row[0],
-                            "name": row[1],
-                            "description": row[2],
-                            "category": row[3],
-                        }
-                    )
-
-                return doc_results + prompt_results
+                documents = []
+                for row in cursor.fetchall():
+                    documents.append({
+                        "path": row[0],
+                        "title": row[1],
+                        "doc_type": row[2],
+                        "metadata": json.loads(row[3]) if row[3] else {},
+                        "last_modified": row[4],
+                        "file_hash": row[5],
+                        "source_url": row[6],
+                        "repo_name": row[7],
+                        "repo_ref": row[8],
+                        "download_timestamp": row[9],
+                    })
+                return documents
         except sqlite3.Error as e:
             logger.error(f"Database error: {e}")
             return []
+
+    def get_collection_history(self) -> List[Dict[str, Any]]:
+        """Get collection history grouped by repository"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("""
+                    SELECT source_url, repo_name, repo_ref,
+                           COUNT(*) as doc_count,
+                           MAX(download_timestamp) as last_collected,
+                           GROUP_CONCAT(DISTINCT doc_type) as doc_types
+                    FROM documents
+                    WHERE is_remote = 1 AND source_url IS NOT NULL
+                    GROUP BY source_url, repo_name, repo_ref
+                    ORDER BY last_collected DESC
+                """)
+
+                history = []
+                for row in cursor.fetchall():
+                    history.append({
+                        "url": row[0],
+                        "repo_name": row[1],
+                        "repo_ref": row[2],
+                        "documents": row[3],
+                        "timestamp": row[4],
+                        "doc_types": row[5].split(',') if row[5] else [],
+                        "status": "Completed"  # Assume completed if in history
+                    })
+                return history
+        except sqlite3.Error as e:
+            logger.error(f"Database error: {e}")
+            return []
+
+    def is_github_url(self, url: str) -> bool:
+        """Check if the given URL is a valid GitHub repository URL."""
+        if not url or not isinstance(url, str):
+            return False
+
+        url = url.strip().lower()
+        if not url.startswith(('http://', 'https://')):
+            return False
+
+        # Remove protocol and www
+        url = url.replace('http://', '').replace('https://', '').replace('www.', '')
+
+        # Check if it's github.com followed by owner/repo pattern
+        if url.startswith('github.com/'):
+            parts = url[len('github.com/'):].split('/')
+            # Should have at least owner/repo
+            return len(parts) >= 2 and parts[0] and parts[1] and not parts[1].endswith(('.git', '.zip', '.tar.gz'))
+
+        return False
 
 
 class DocsPromptsGUI:
@@ -296,6 +323,7 @@ class DocsPromptsGUI:
         # Create tabs
         self.create_stats_tab()
         self.create_documents_tab()
+        self.create_remote_collection_tab()
         self.create_prompts_tab()
         self.create_analytics_tab()
         self.create_tools_tab()
@@ -733,6 +761,253 @@ class DocsPromptsGUI:
         except Exception as e:
             logger.error("Unexpected error loading MCP tools config: %s", e)
             return []
+
+    def create_remote_collection_tab(self):
+        """Create the remote collection tab for URL-based document collection."""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Remote Collection")
+
+        # URL input section
+        url_frame = ttk.LabelFrame(frame, text="GitHub Repository URL", padding=10)
+        url_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        ttk.Label(url_frame, text="Repository URL:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        self.url_entry = ttk.Entry(url_frame, width=60)
+        self.url_entry.grid(row=0, column=1, padx=(10, 0), pady=2, sticky=tk.EW)
+
+        # Example URLs
+        example_frame = ttk.Frame(url_frame)
+        example_frame.grid(row=1, column=0, columnspan=2, pady=(5, 0))
+        ttk.Label(example_frame, text="Examples:").pack(anchor=tk.W)
+        examples = [
+            "https://github.com/microsoft/vscode",
+            "https://github.com/python/cpython",
+            "https://github.com/torvalds/linux"
+        ]
+        for example in examples:
+            ttk.Label(example_frame, text=f"• {example}", foreground="blue").pack(anchor=tk.W)
+
+        # Collection controls
+        control_frame = ttk.Frame(frame)
+        control_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.collect_button = ttk.Button(
+            control_frame,
+            text="Collect from URL",
+            command=self.start_collection
+        )
+        self.collect_button.pack(side=tk.LEFT, padx=(0, 10))
+
+        self.cancel_button = ttk.Button(
+            control_frame,
+            text="Cancel",
+            command=self.cancel_collection,
+            state=tk.DISABLED
+        )
+        self.cancel_button.pack(side=tk.LEFT)
+
+        # Progress section
+        progress_frame = ttk.LabelFrame(frame, text="Collection Progress", padding=10)
+        progress_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.progress_var = tk.StringVar(value="Ready to collect documents...")
+        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_var)
+        self.progress_label.pack(anchor=tk.W)
+
+        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate')
+        self.progress_bar.pack(fill=tk.X, pady=(5, 0))
+
+        # Collection history section
+        history_frame = ttk.LabelFrame(frame, text="Collection History", padding=10)
+        history_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # History treeview
+        columns = ("timestamp", "url", "status", "documents")
+        self.history_tree = ttk.Treeview(history_frame, columns=columns, show="headings", height=8)
+
+        self.history_tree.heading("timestamp", text="Timestamp")
+        self.history_tree.heading("url", text="Repository URL")
+        self.history_tree.heading("status", text="Status")
+        self.history_tree.heading("documents", text="Documents")
+
+        self.history_tree.column("timestamp", width=150)
+        self.history_tree.column("url", width=300)
+        self.history_tree.column("status", width=100)
+        self.history_tree.column("documents", width=100)
+
+        scrollbar = ttk.Scrollbar(history_frame, orient=tk.VERTICAL, command=self.history_tree.yview)
+        self.history_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.history_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # History controls
+        history_control_frame = ttk.Frame(history_frame)
+        history_control_frame.pack(fill=tk.X, pady=(5, 0))
+
+        ttk.Button(
+            history_control_frame,
+            text="Refresh History",
+            command=self.refresh_collection_history
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            history_control_frame,
+            text="View Remote Documents",
+            command=self.view_remote_documents
+        ).pack(side=tk.LEFT)
+
+        # Bind double-click to view details
+        self.history_tree.bind("<Double-1>", self.show_collection_details)
+
+        # Initialize collection state
+        self.collection_thread = None
+        self.collection_cancelled = False
+
+        # Load initial history
+        self.refresh_collection_history()
+
+    def start_collection(self):
+        """Start collecting documents from the entered URL."""
+        url = self.url_entry.get().strip()
+        if not url:
+            messagebox.showerror("Error", "Please enter a GitHub repository URL")
+            return
+
+        # Validate URL format
+        if not self.viewer.is_github_url(url):
+            messagebox.showerror("Error", "Please enter a valid GitHub repository URL")
+            return
+
+        # Disable controls and start collection
+        self.collect_button.config(state=tk.DISABLED)
+        self.cancel_button.config(state=tk.NORMAL)
+        self.url_entry.config(state=tk.DISABLED)
+        self.progress_var.set("Starting collection...")
+        self.progress_bar.start()
+        self.collection_cancelled = False
+
+        # Start collection in background thread
+        self.collection_thread = threading.Thread(target=self._collect_documents, args=(url,))
+        self.collection_thread.daemon = True
+        self.collection_thread.start()
+
+    def cancel_collection(self):
+        """Cancel the current collection operation."""
+        self.collection_cancelled = True
+        self.progress_var.set("Cancelling collection...")
+        self.cancel_button.config(state=tk.DISABLED)
+
+    def _collect_documents(self, url):
+        """Background thread for document collection."""
+        try:
+            self.root.after(0, lambda: self.progress_var.set("Collecting documents from repository..."))
+
+            # Use the server's document indexer to collect from URL
+            if self.server and hasattr(self.server, 'document_indexer'):
+                result = asyncio.run(self.server.document_indexer.index_remote_repository(url))
+
+                if self.collection_cancelled:
+                    self.root.after(0, lambda: self.progress_var.set("Collection cancelled"))
+                else:
+                    success_count = result.get("success_count", 0)
+                    error_count = result.get("error_count", 0)
+                    self.root.after(0, lambda: self.progress_var.set(
+                        f"Collection complete! {success_count} documents collected, {error_count} errors"
+                    ))
+
+                    # Refresh history
+                    self.root.after(0, self.refresh_collection_history)
+
+                    # Show success message
+                    if success_count > 0:
+                        self.root.after(0, lambda: messagebox.showinfo(
+                            "Success",
+                            f"Successfully collected {success_count} documents from {url}"
+                        ))
+                    elif error_count > 0:
+                        self.root.after(0, lambda: messagebox.showwarning(
+                            "Partial Success",
+                            f"Collection completed with {error_count} errors. Check logs for details."
+                        ))
+                    else:
+                        self.root.after(0, lambda: messagebox.showwarning(
+                            "No Documents",
+                            "No documents were found in the repository"
+                        ))
+            else:
+                self.root.after(0, lambda: self.progress_var.set("Server not available for collection"))
+
+        except Exception as e:
+            error_msg = str(e)
+            self.root.after(0, lambda: self.progress_var.set(f"Collection failed: {error_msg}"))
+            self.root.after(0, lambda: messagebox.showerror("Collection Error", f"Failed to collect documents: {error_msg}"))
+
+        finally:
+            # Re-enable controls
+            self.root.after(0, lambda: self._reset_collection_controls())
+
+    def _reset_collection_controls(self):
+        """Reset collection control states."""
+        self.collect_button.config(state=tk.NORMAL)
+        self.cancel_button.config(state=tk.DISABLED)
+        self.url_entry.config(state=tk.NORMAL)
+        self.progress_bar.stop()
+
+    def refresh_collection_history(self):
+        """Refresh the collection history display."""
+        # Clear existing items
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+
+        try:
+            # Get collection history from viewer
+            history = self.viewer.get_collection_history()
+
+            for entry in history:
+                timestamp = entry.get("timestamp", "")
+                url = entry.get("url", "")
+                status = entry.get("status", "Unknown")
+                documents = entry.get("documents", 0)
+
+                # Format timestamp
+                if timestamp:
+                    try:
+                        # Assume timestamp is ISO format
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        timestamp = dt.strftime("%Y-%m-%d %H:%M")
+                    except:
+                        pass  # Keep original format if parsing fails
+
+                self.history_tree.insert("", tk.END, values=(timestamp, url, status, documents))
+
+        except Exception as e:
+            logger.error(f"Failed to load collection history: {e}")
+            messagebox.showerror("Error", f"Failed to load collection history: {e}")
+
+    def view_remote_documents(self):
+        """Switch to documents tab and filter for remote documents."""
+        # Switch to documents tab
+        self.notebook.select(1)  # Documents tab is index 1
+
+        # Set filter to show only remote documents
+        # This would need to be implemented in the documents tab
+        # For now, just show a message
+        messagebox.showinfo("Remote Documents", "Switched to Documents tab. Use the search to filter for remote documents.")
+
+    def show_collection_details(self, event):
+        """Show details of the selected collection."""
+        selection = self.history_tree.selection()
+        if not selection:
+            return
+
+        item = self.history_tree.item(selection[0])
+        values = item['values']
+        url = values[1]  # URL is in second column
+
+        # Show basic details in a message box
+        details = f"Repository: {url}\nTimestamp: {values[0]}\nStatus: {values[2]}\nDocuments: {values[3]}"
+        messagebox.showinfo("Collection Details", details)
 
     def run(self):
         """Start the GUI application"""

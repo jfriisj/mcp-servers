@@ -268,6 +268,92 @@ class FastAPIApp:
                     status_code=500, detail=f"Language detection failed: {str(e)}"
                 )
 
+        @self.app.post("/batch-transcribe")
+        async def batch_transcribe(request: dict):
+            """Batch transcribe multiple audio files."""
+            try:
+                audio_files = request.get("audio_files", [])
+                if not audio_files:
+                    raise HTTPException(
+                        status_code=400, detail="audio_files is required"
+                    )
+
+                results = []
+                total_files = len(audio_files)
+                successful = 0
+                failed = 0
+
+                for audio_file in audio_files:
+                    try:
+                        # Read file content
+                        if not os.path.exists(audio_file):
+                            results.append({
+                                "success": False,
+                                "error_message": f"File not found: {audio_file}",
+                                "text": ""
+                            })
+                            failed += 1
+                            continue
+
+                        with open(audio_file, "rb") as f:
+                            file_content = base64.b64encode(f.read()).decode()
+
+                        # Transcribe using file content
+                        transcription_result = await self.whisper_runner.\
+                            transcribe_file_content(
+                                FileContentTranscriptionConfig(
+                                    file_content=file_content,
+                                    file_name=os.path.basename(audio_file),
+                                    language=request.get("language"),
+                                    response_format=request.get(
+                                        "response_format", "json"
+                                    ),
+                                    temperature=request.get("temperature", 0.0),
+                                    prompt=None,
+                                    model="whisper-1",
+                                )
+                            )
+
+                        if transcription_result.success:
+                            successful += 1
+                            results.append({
+                                "success": True,
+                                "text": transcription_result.text,
+                                "language": transcription_result.language,
+                                "duration": transcription_result.duration,
+                                "segments": transcription_result.segments,
+                            })
+                        else:
+                            failed += 1
+                            results.append({
+                                "success": False,
+                                "error_message":
+                                    transcription_result.error_message,
+                                "text": ""
+                            })
+
+                    except Exception as e:
+                        failed += 1
+                        results.append({
+                            "success": False,
+                            "error_message": str(e),
+                            "text": ""
+                        })
+
+                return {
+                    "total_files": total_files,
+                    "successful_transcriptions": successful,
+                    "failed_transcriptions": failed,
+                    "results": results,
+                    "success": successful > 0
+                }
+
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Batch transcription failed: {str(e)}"
+                )
+
     def _detect_audio_format(self, file_data: bytes) -> Optional[str]:
         """Detect audio file format from binary data."""
         if len(file_data) < 12:
@@ -283,7 +369,8 @@ class FastAPIApp:
             or file_data.startswith(b"\xff\xf2")
         ):
             return "mp3"
-        elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
+        elif file_data.startswith(b"ftypM4A") or \
+                file_data.startswith(b"ftypmp4"):
             return "m4a"
         elif file_data.startswith(b"fLaC"):
             return "flac"
@@ -297,7 +384,8 @@ class FastAPIApp:
         # Additional checks for MP3 without ID3 tag
         if len(file_data) >= 2:
             first_two = file_data[:2]
-            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"\xff\xf1"]:
+            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2",
+                             b"\xff\xf1"]:
                 return "mp3"
 
         return None

@@ -182,3 +182,17 @@ apply_prompt_with_context:
         description: "Automatically fill context variables from documentation"
         default: true
     required: ["prompt_id", "content"]
+
+collect_from_url:
+  name: "collect_from_url"
+  description: "Collect and index documentation from a GitHub repository URL"
+  inputSchema:
+    type: "object"
+    properties:
+      url:
+        type: "string"
+        description: "GitHub repository URL to collect from"
+      target_ref:
+        type: "string"
+        description: "Optional branch/tag/commit to checkout (defaults to main)"
+    required: ["url"]

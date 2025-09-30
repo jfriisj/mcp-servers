@@ -5,6 +5,7 @@ Manages MCP tool definitions and protocol interactions.
 """
 
 from typing import Any, Dict, List
+import base64
 import requests
 
 # MCP imports (these would be installed as dependencies)
@@ -152,6 +153,7 @@ class MCPHandler:
                     "temperature": args.get("temperature", 0.0),
                     "prompt": args.get("prompt"),
                 },
+                timeout=30
             )
             response.raise_for_status()
             result = response.json()
@@ -178,78 +180,152 @@ class MCPHandler:
         args: Dict[str, Any],
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-timestamps tool call."""
-        from models import TranscriptionWithTimestampsConfig
-
-        config = TranscriptionWithTimestampsConfig(
-            audio_file=args["audio_file"],
-            model=args.get("model", "whisper-1"),
-            language=args.get("language"),
-            response_format="verbose_json",
-            temperature=args.get("temperature", 0.0),
-            prompt=args.get("prompt"),
-        )
-
-        result = await self.whisper_runner.transcribe_with_timestamps(config)
-        return [
-            self._format_transcription_result(
-                "Transcription with timestamps", result
+        try:
+            response = requests.post(
+                "http://localhost:8000/transcribe-file",
+                files={
+                    "file": (args["audio_file"].split("/")[-1],
+                             open(args["audio_file"], "rb")),
+                },
+                data={
+                    "language": args.get("language"),
+                    "response_format": "verbose_json",
+                    "temperature": args.get("temperature", 0.0),
+                    "prompt": args.get("prompt"),
+                },
+                timeout=30
             )
-        ]
+            response.raise_for_status()
+            result = response.json()
+            return [
+                types.TextContent(
+                    type="text",
+                    text=(
+                        "✅ Transcription with timestamps completed!\n\n"
+                        f"**Text:** {result['text']}\n"
+                        f"**Language:** {result.get('language', 'N/A')}\n"
+                        f"**Duration:** {result.get('duration', 'N/A')}s\n"
+                        f"**Segments:** {len(result.get('segments', []))}"
+                    ),
+                )
+            ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Transcription with timestamps failed: {str(e)}",
+                )
+            ]
 
     async def _handle_detect_language(
         self, args: Dict[str, Any]
     ) -> List[types.TextContent]:
         """Handle whisper-detect-language tool call."""
-        from models import LanguageDetectionConfig
+        try:
+            # Read the audio file and encode as base64
+            with open(args["audio_file"], "rb") as f:
+                audio_content = base64.b64encode(f.read()).decode()
 
-        config = LanguageDetectionConfig(
-            audio_file=args["audio_file"],
-            model=args.get("model", "whisper-1"),
-        )
-
-        result = await self.whisper_runner.detect_language(config)
-        return [self._format_language_detection_result(result)]
+            response = requests.post(
+                "http://localhost:8000/detect-language",
+                json={
+                    "audio_file": audio_content,
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return [
+                types.TextContent(
+                    type="text",
+                    text=(
+                        "✅ Language detection completed successfully!\n\n"
+                        f"**Detected Language:** {result['detected_language']}\n"
+                        f"**Confidence:** {result['confidence']:.2f}"
+                    ),
+                )
+            ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Language detection failed: {str(e)}",
+                )
+            ]
 
     async def _handle_batch_transcribe(
         self, args: Dict[str, Any]
     ) -> List[types.TextContent]:
         """Handle whisper-batch-transcribe tool call."""
-        from models import BatchTranscriptionConfig
+        try:
+            response = requests.post(
+                "http://localhost:8000/batch-transcribe",
+                json={
+                    "audio_files": args["audio_files"],
+                    "language": args.get("language"),
+                    "response_format": args.get("response_format", "json"),
+                    "temperature": args.get("temperature", 0.0),
+                },
+                timeout=300,  # 5 minutes timeout for batch processing
+            )
+            response.raise_for_status()
+            result = response.json()
 
-        config = BatchTranscriptionConfig(
-            audio_files=args["audio_files"],
-            model=args.get("model", "whisper-1"),
-            language=args.get("language"),
-            response_format=args.get("response_format", "json"),
-            temperature=args.get("temperature", 0.0),
-        )
-
-        result = await self.whisper_runner.batch_transcribe(config)
-        return [self._format_batch_result(result)]
+            return [
+                self._format_batch_result(
+                    type("BatchResult", (), result)()
+                )
+            ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Batch transcription failed: {str(e)}",
+                )
+            ]
 
     async def _handle_transcribe_file_content(
         self,
         args: Dict[str, Any],
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-file-content tool call."""
-        from models import FileContentTranscriptionConfig
-
-        config = FileContentTranscriptionConfig(
-            file_content=args["file_content"],
-            file_name=args.get("file_name", "uploaded_audio.wav"),
-            model=args.get("model", "whisper-1"),
-            language=args.get("language"),
-            response_format=args.get("response_format", "json"),
-            temperature=args.get("temperature", 0.0),
-            prompt=args.get("prompt"),
-        )
-
-        result = await self.whisper_runner.transcribe_file_content(config)
-        return [
-            self._format_transcription_result(
-                "Transcription from file content", result
+        try:
+            response = requests.post(
+                "http://localhost:8000/transcribe",
+                json={
+                    "audio_file": args["file_content"],
+                    "language": args.get("language"),
+                    "response_format": args.get("response_format", "json"),
+                    "temperature": args.get("temperature", 0.0),
+                    "prompt": args.get("prompt"),
+                },
+                timeout=120,  # 2 minutes timeout
             )
-        ]
+            response.raise_for_status()
+            result = response.json()
+
+            # Convert API response to expected format
+            formatted_result = type("TranscriptionResult", (), {
+                "text": result["text"],
+                "language": result.get("language"),
+                "success": result["success"],
+                "error_message": result.get("error_message"),
+                "duration": result.get("duration"),
+                "segments": result.get("segments"),
+            })()
+
+            return [
+                self._format_transcription_result(
+                    "Transcription from file content", formatted_result
+                )
+            ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Transcription from file content failed: {str(e)}",
+                )
+            ]
 
     def _format_transcription_result(
         self, operation: str, result
@@ -267,7 +343,8 @@ class MCPHandler:
 
             if hasattr(result, "segments") and result.segments:
                 response += (
-                    f"**Segments:** {len(result.segments)} segments available\n"
+                    f"**Segments:** {len(result.segments)} "
+                    "segments available\n"
                 )
 
             return types.TextContent(type="text", text=response)

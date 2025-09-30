@@ -406,11 +406,267 @@ class MCPHandler:
                 # result = await self.document_indexer.index_all_documents()
                 return [TextContent(type="text", text="Indexing started...")]
 
-            # ... other tool implementations would go here
+            elif name == "collect_from_url":
+                url = arguments.get("url")
+                if not url:
+                    return [
+                        TextContent(
+                            type="text",
+                            text="❌ Error: 'url' parameter is required",
+                        )
+                    ]
+
+                target_ref = arguments.get("target_ref")
+
+                try:
+                    # Call the index_remote_repository method to handle the URL
+                    result = await self.document_indexer.index_remote_repository(
+                        url, target_ref
+                    )
+
+                    response_text = (
+                        f"✅ Successfully indexed repository: {url}\n"
+                        f"Documents stored: "
+                        f"{result.get('documents_stored', 0)}\n"
+                        f"Storage errors: "
+                        f"{result.get('storage_errors', 0)}\n"
+                    )
+
+                    return [TextContent(type="text", text=response_text)]
+
+                except ValueError as ve:
+                    logger.error(
+                        "ValueError in collect_from_url for %s: %s", url, ve
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"❌ ValueError: {str(ve)}",
+                        )
+                    ]
+                except TypeError as te:
+                    logger.error(
+                        "TypeError in collect_from_url for %s: %s", url, te
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"❌ TypeError: {str(te)}",
+                        )
+                    ]
+                except Exception as e:
+                    logger.error(
+                        "Unexpected error in collect_from_url for %s: %s",
+                        url,
+                        e,
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=(
+                                f"❌ Unexpected error: {str(e)}"
+                            ),
+                        )
+                    ]
 
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
-        except Exception as e:
-            logger.error(f"Error calling tool {name}: {e}")
-            return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
+        except (ValueError, TypeError) as specific_error:
+            logger.error(
+                "Error calling tool %s: %s", name, specific_error
+            )
+            return [
+                TextContent(
+                    type="text",
+                    text=(
+                        f"Error executing {name}: {str(specific_error)}"
+                    ),
+                )
+            ]
+
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+        """Handle tool calls for documentation and prompts"""
+        try:
+            if name == "find_code_reuse":
+                functionality = arguments["functionality"]
+                service_context = arguments.get("service_context", "")
+                limit = arguments.get("limit", 5)
+
+                # Search Python files specifically for reusable code
+                results = self._find_reusable_code(
+                    functionality, service_context, limit
+                )
+
+                response_text = f"🔍 Code Reuse Search for '{functionality}':\n\n"
+
+                if results:
+                    for i, result in enumerate(results, 1):
+                        response_text += f"{i}. **{result['title']}**\n"
+                        response_text += f"   📁 Service: {result['service']}\n"
+                        response_text += f"   📄 File: {result['file']}\n"
+                        response_text += f"   🔧 Type: {result['code_type']}\n"
+                        if result.get("docstring"):
+                            response_text += (
+                                f"   📝 Docs: {result['docstring'][:100]}...\n"
+                            )
+                        response_text += (
+                            f"   💡 Reuse: {result['reuse_suggestion']}\n\n"
+                        )
+                else:
+                    response_text += f"❌ No reusable {functionality} code found.\n"
+                    response_text += (
+                        "💡 Try searching documentation or creating new implementation."
+                    )
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "find_documents":
+                topic = arguments["topic"]
+                doc_type = arguments.get("doc_type")
+                limit = arguments.get("limit", 10)
+
+                # Search documentation files (exclude Python files)
+                results = self.document_indexer.search_documents(topic, doc_type, limit)
+
+                # Filter out Python files for document-focused search
+                doc_results = [r for r in results if not r["path"].endswith(".py")]
+
+                response_text = f"📚 Document Search for '{topic}':\n\n"
+
+                if doc_results:
+                    for i, result in enumerate(doc_results[:limit], 1):
+                        response_text += (
+                            f"{i}. **{result['title']}** ({result['doc_type']})\n"
+                        )
+                        response_text += f"   📁 Path: {result['path']}\n"
+                        response_text += f"   📄 Section: {result['section_title']}\n"
+                        response_text += (
+                            f"   📝 Content: {result['content_snippet'][:200]}...\n\n"
+                        )
+                else:
+                    response_text += f"❌ No documentation found for '{topic}'.\n"
+                    response_text += "💡 Try broader search terms or check spelling."
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "search_docs":
+                query = arguments["query"]
+                doc_type = arguments.get("doc_type")
+                limit = arguments.get("limit", 10)
+
+                results = self.document_indexer.search_documents(query, doc_type, limit)
+
+                response_text = f"Documentation Search Results for '{query}':\n\n"
+
+                if results:
+                    for i, result in enumerate(results, 1):
+                        response_text += (
+                            f"{i}. **{result['title']}** ({result['doc_type']})\n"
+                        )
+                        response_text += f"   Path: {result['path']}\n"
+                        response_text += f"   Section: {result['section_title']}\n"
+                        response_text += f"   Content: {result['content_snippet']}\n\n"
+                else:
+                    response_text += f"No results found for '{query}'"
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "get_architecture_info":
+                arch_info = self.document_indexer.get_architecture_info()
+
+                response_text = "Architecture Documentation Summary:\n\n"
+
+                if arch_info["architecture_documents"]:
+                    for doc in arch_info["architecture_documents"]:
+                        response_text += f"📋 **{doc['title']}**\n"
+                        response_text += f"   Section: {doc['section_title']}\n"
+                        response_text += f"   Content: {doc['content_snippet']}\n\n"
+                else:
+                    response_text += "No architecture documentation found."
+
+                return [TextContent(type="text", text=response_text)]
+
+            elif name == "index_documentation":
+                # This would need to be async
+                # result = await self.document_indexer.index_all_documents()
+                return [TextContent(type="text", text="Indexing started...")]
+
+            elif name == "collect_from_url":
+                url = arguments.get("url")
+                if not url:
+                    return [
+                        TextContent(
+                            type="text",
+                            text="❌ Error: 'url' parameter is required",
+                        )
+                    ]
+
+                target_ref = arguments.get("target_ref")
+
+                try:
+                    # Call the index_remote_repository method to handle the URL
+                    result = await self.document_indexer.index_remote_repository(
+                        url, target_ref
+                    )
+
+                    response_text = (
+                        f"✅ Successfully indexed repository: {url}\n"
+                        f"Documents stored: "
+                        f"{result.get('documents_stored', 0)}\n"
+                        f"Storage errors: "
+                        f"{result.get('storage_errors', 0)}\n"
+                    )
+
+                    return [TextContent(type="text", text=response_text)]
+
+                except ValueError as ve:
+                    logger.error(
+                        "ValueError in collect_from_url for %s: %s", url, ve
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"❌ ValueError: {str(ve)}",
+                        )
+                    ]
+                except TypeError as te:
+                    logger.error(
+                        "TypeError in collect_from_url for %s: %s", url, te
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"❌ TypeError: {str(te)}",
+                        )
+                    ]
+                except Exception as e:
+                    logger.error(
+                        "Unexpected error in collect_from_url for %s: %s",
+                        url,
+                        e,
+                    )
+                    return [
+                        TextContent(
+                            type="text",
+                            text=(
+                                f"❌ Unexpected error: {str(e)}"
+                            ),
+                        )
+                    ]
+
+            else:
+                raise ValueError(f"Unknown tool: {name}")
+
+        except (ValueError, TypeError) as specific_error:
+            logger.error(
+                "Error calling tool %s: %s", name, specific_error
+            )
+            return [
+                TextContent(
+                    type="text",
+                    text=(
+                        f"Error executing {name}: {str(specific_error)}"
+                    ),
+                )
+            ]
