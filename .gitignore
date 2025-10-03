@@ -137,8 +137,6 @@ Thumbs.db
 *.tmp
 *.temp
 
-#vscode
-.github/
 
 #spec-workflow
 .spec-workflow/

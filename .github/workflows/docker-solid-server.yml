@@ -1,0 +1,246 @@
+name: Build and Publish SOLID MCP Server Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'solid-server/**'
+    tags:
+      - 'solid-v*.*.*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'solid-server/**'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: jfriisj/solid-mcp-server
+
+jobs:
+  test:
+    name: Test SOLID Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: ./solid-server
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: ./solid-server
+        run: |
+          python src/main.py --test --project-root ./src
+
+      - name: Test with violation examples
+        working-directory: ./solid-server
+        run: |
+          python src/main.py --test --project-root .
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./solid-server
+          file: ./solid-server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+  verify:
+    name: Verify Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test Docker image - Help
+        run: |
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help
+
+      - name: Test Docker image - Health check
+        run: |
+          # Create a temporary directory with Python files for testing
+          mkdir -p test-code
+          cat > test-code/example.py << 'EOF'
+          # Simple Python file for testing
+          class TestClass:
+              def method1(self):
+                  pass
+              
+              def method2(self):
+                  pass
+          EOF
+          
+          # Test the Docker image
+          docker run --rm \
+            -v $PWD/test-code:/workspace:ro \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --test
+
+      - name: Test Docker image - Report generation
+        run: |
+          # Create output directory
+          mkdir -p test-output
+          
+          # Generate report
+          docker run --rm \
+            -v $PWD/test-code:/workspace:ro \
+            -v $PWD/test-output:/output \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --generate-report
+          
+          # Verify report was created
+          ls -la test-output/
+          
+          # Show report content
+          if [ -f test-output/summary.txt ]; then
+            echo "=== Report Summary ==="
+            cat test-output/summary.txt
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [build, verify]
+    if: startsWith(github.ref, 'refs/tags/solid-v')
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: SOLID MCP Server ${{ github.ref_name }}
+          body: |
+            ## SOLID Principles MCP Server Release ${{ github.ref_name }}
+            
+            ### Docker Image
+            ```bash
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ```
+            
+            ### Usage
+            ```bash
+            # Test mode
+            docker run -v /path/to/code:/workspace ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} --test
+            
+            # Generate report
+            docker run -v /path/to/code:/workspace -v /path/to/output:/output \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} --generate-report
+            ```
+            
+            ### What's Changed
+            - SOLID principles analysis for Python code
+            - Docker container with multi-platform support (amd64, arm64)
+            - MCP protocol compatibility
+            - Multiple output formats (text, JSON, markdown)
+            - Educational content with detailed explanations
+            
+            See the [README](https://github.com/jfriisj/mcp-servers/blob/main/solid-server/README.md) for full documentation.
+          draft: false
+          prerelease: false
