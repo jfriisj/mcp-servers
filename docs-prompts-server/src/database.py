@@ -39,9 +39,19 @@ class DatabaseManager:
                     doc_type TEXT,
                     links TEXT,
                     code_blocks TEXT,
-                    indexed_at REAL
+                    indexed_at REAL,
+                    source_url TEXT,
+                    repo_name TEXT,
+                    repo_ref TEXT,
+                    download_timestamp REAL,
+                    is_remote INTEGER DEFAULT 0
                 )
             """)
+
+            # Migrate existing databases by adding new columns
+            self._migrate_database_schema(conn)
+
+            # Create indexes
 
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS search_index
@@ -97,6 +107,27 @@ class DatabaseManager:
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_prompt_tags ON prompts(tags)")
 
+    def _migrate_database_schema(self, conn):
+        """Migrate database schema for backward compatibility"""
+        try:
+            # Check if new columns exist, add them if they don't
+            cursor = conn.execute("PRAGMA table_info(documents)")
+            columns = {row[1] for row in cursor.fetchall()}
+
+            if 'source_url' not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN source_url TEXT")
+            if 'repo_name' not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN repo_name TEXT")
+            if 'repo_ref' not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN repo_ref TEXT")
+            if 'download_timestamp' not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN download_timestamp REAL")
+            if 'is_remote' not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN is_remote INTEGER DEFAULT 0")
+
+        except Exception as e:
+            logger.warning(f"Schema migration failed: {e}")
+
     # Document operations
     def store_document(self, doc_info: DocumentInfo):
         """Store a document in the database"""
@@ -104,8 +135,8 @@ class DatabaseManager:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO documents
-                (path, title, content, sections, metadata, last_modified, file_hash, doc_type, links, code_blocks, indexed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (path, title, content, sections, metadata, last_modified, file_hash, doc_type, links, code_blocks, indexed_at, source_url, repo_name, repo_ref, download_timestamp, is_remote)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     doc_info.path,
@@ -119,6 +150,11 @@ class DatabaseManager:
                     json.dumps(doc_info.links),
                     json.dumps(doc_info.code_blocks),
                     time.time(),
+                    getattr(doc_info, 'source_url', None),
+                    getattr(doc_info, 'repo_name', None),
+                    getattr(doc_info, 'repo_ref', None),
+                    getattr(doc_info, 'download_timestamp', None),
+                    1 if getattr(doc_info, 'is_remote', False) else 0,
                 ),
             )
 
@@ -167,7 +203,8 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             sql = """
                 SELECT DISTINCT d.path, d.title, d.doc_type, d.metadata,
-                                s.section_title, s.content_chunk, s.chunk_type
+                                s.section_title, s.content_chunk, s.chunk_type,
+                                d.is_remote
                 FROM documents d
                 JOIN search_index s ON d.path = s.doc_path
                 WHERE (s.content_chunk LIKE ? OR d.title LIKE ?)
@@ -179,7 +216,7 @@ class DatabaseManager:
                 params.append(doc_type)
 
             sql += " ORDER BY (CASE WHEN d.title LIKE ? THEN 1 ELSE 2 END), d.title LIMIT ?"
-            params.extend([f"%{query}%", limit])
+            params.extend([f"%{query}%", str(limit)])
 
             cursor = conn.execute(sql, params)
             results = []
@@ -196,6 +233,7 @@ class DatabaseManager:
                             row[5][:200] + "..." if len(row[5]) > 200 else row[5]
                         ),
                         "chunk_type": row[6],
+                        "is_remote": bool(row[7]),
                     }
                 )
 
@@ -284,7 +322,7 @@ class DatabaseManager:
                 params.append(category)
 
             sql += " ORDER BY usage_count DESC, effectiveness_score DESC LIMIT ?"
-            params.append(limit)
+            params.append(str(limit))
 
             cursor = conn.execute(sql, params)
             results = []
@@ -442,7 +480,8 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
                 SELECT path, title, doc_type, metadata, last_modified,
-                       file_hash
+                       file_hash, source_url, repo_name, repo_ref,
+                       download_timestamp, is_remote
                 FROM documents ORDER BY path
             """)
             
@@ -455,6 +494,11 @@ class DatabaseManager:
                     "metadata": json.loads(row[3]) if row[3] else {},
                     "last_modified": row[4],
                     "file_hash": row[5],
+                    "source_url": row[6],
+                    "repo_name": row[7],
+                    "repo_ref": row[8],
+                    "download_timestamp": row[9],
+                    "is_remote": bool(row[10]) if row[10] is not None else False,
                 })
             
             return documents

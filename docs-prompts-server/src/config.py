@@ -96,6 +96,14 @@ class ConfigurationManager:
                 "normalize_absolute_paths": True,
                 "allow_absolute_paths": False,
             },
+            "remote_collection": {
+                "timeout_seconds": 300,  # 5 minutes default timeout
+                "max_repo_size_mb": 100,  # 100MB default size limit
+                "allowed_domains": ["github.com"],  # Only GitHub for now
+                "default_branch": "main",  # Default branch to try
+                "shallow_clone": True,  # Use shallow clones for speed
+                "cleanup_temp_files": True,  # Clean up temporary files after processing
+            },
         }
 
         if self.config_path and self.config_path.exists():

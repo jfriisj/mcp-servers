@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from models import DocumentInfo
 from database import DatabaseManager
 from document_processor import DocumentProcessor
+from repository_collector import RepositoryCollector
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,9 @@ class DocumentIndexer:
         self.project_root = project_root
         self.db_manager = db_manager
         self.processor = DocumentProcessor(config, project_root)
+        self.repository_collector = RepositoryCollector(
+            config, self.processor, **self._get_repo_collector_config()
+        )
 
     async def index_all_documents(self) -> Dict[str, Any]:
         """Index all documents using inclusion-only approach.
@@ -207,3 +211,66 @@ class DocumentIndexer:
     def clear_index(self):
         """Clear all documents and search index"""
         self.db_manager.clear_documents()
+
+    def _get_repo_collector_config(self) -> Dict[str, Any]:
+        """Get configuration for RepositoryCollector"""
+        remote_config = self.config.get("remote_collection", {})
+        return {
+            "timeout_seconds": remote_config.get("timeout_seconds", 300),
+            "max_repo_size_mb": remote_config.get("max_repo_size_mb", 100),
+        }
+
+    async def index_remote_repository(
+        self, url: str, target_ref: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Index documents from a remote GitHub repository.
+
+        Args:
+            url: GitHub repository URL
+            target_ref: Optional branch/tag/commit to checkout
+
+        Returns:
+            Dictionary with indexing results and metadata
+        """
+        try:
+            # Use RepositoryCollector to download and process the repository
+            result = await self.repository_collector.collect_from_github_url(
+                url, target_ref
+            )
+
+            # Store the indexed documents in the database
+            stored_count = 0
+            for doc_info in result.get("documents", []):
+                try:
+                    self.db_manager.store_document(doc_info)
+                    stored_count += 1
+                    logger.info(f"Stored remote document: {doc_info.path}")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to store document {doc_info.path}: {e}"
+                    )
+
+            # Update result with storage information
+            result["documents_stored"] = stored_count
+            result["storage_errors"] = (
+                len(result.get("documents", [])) - stored_count
+            )
+
+            logger.info(
+                f"Remote repository indexing complete: "
+                f"{stored_count} documents stored, "
+                f"{result.get('storage_errors', 0)} storage errors"
+            )
+
+            return result
+
+        except Exception as e:
+            error_msg = f"Failed to index remote repository {url}: {e}"
+            logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "url": url,
+                "target_ref": target_ref,
+            }

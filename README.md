@@ -4,12 +4,13 @@ A comprehensive collection of Model Context Protocol (MCP) servers providing ess
 
 ## 🚀 Overview
 
-This repository contains five specialized MCP servers that work together to provide a complete development toolchain:
+This repository contains six specialized MCP servers that work together to provide a complete development toolchain:
 
 - **Coverage Server** - Test coverage analysis and reporting
 - **Docs-Prompts Server** - Documentation indexing and intelligent prompt management
 - **Ruff Server** - Fast Python linting and code formatting
 - **Hadolint Server** - Dockerfile linting and best practices
+- **SOLID Server** - SOLID principles analysis and code quality assessment
 - **Whisper Server** - Audio transcription using local Hugging Face Whisper Large V3
 
 Together, these servers enable AI assistants to perform comprehensive code quality analysis, testing, documentation management, code improvement, and container best practices through the MCP protocol.
@@ -104,6 +105,29 @@ Provides comprehensive Dockerfile linting and best practices validation using Ha
 - `hadolint-check-dir` - Lint all Dockerfiles in a directory
 - `hadolint-show-rules` - Show available rules and help
 
+### ⚖️ SOLID Server
+
+**Location:** `solid-server/`
+
+Provides comprehensive SOLID principles analysis for Python code, helping developers write more maintainable, testable, and flexible software.
+
+**Features:**
+- **Complete SOLID Analysis** - Checks all five principles: SRP, OCP, LSP, ISP, DIP
+- **AST-based Analysis** - Uses Python's Abstract Syntax Tree for accurate parsing
+- **Severity Classification** - High, medium, and low priority violations
+- **Educational Content** - Detailed explanations with examples and best practices
+- **Batch Processing** - Analyze entire directories and generate reports
+- **Multiple Output Formats** - Text, JSON, and Markdown reports
+- **Code Quality Scoring** - 0-100 compliance scores with improvement tracking
+
+**Key Tools:**
+- `solid-check-file` - Analyze single Python file for SOLID violations
+- `solid-check-directory` - Batch analyze directory of Python files  
+- `solid-generate-report` - Create comprehensive SOLID compliance reports
+- `solid-explain-principle` - Get detailed explanations of SOLID principles
+- `solid-check-score` - Get compliance scores for files or directories
+- `solid-list-violations` - List violations with filtering options
+
 ### 🎙️ Whisper Server
 
 **Location:** `whisper-server/`
@@ -166,6 +190,10 @@ Provides audio transcription capabilities using the local Hugging Face Whisper L
    pip install -r requirements.txt
    # Install hadolint separately: https://github.com/hadolint/hadolint
 
+   # SOLID Server
+   cd ../solid-server
+   pip install -r requirements.txt
+
    # Whisper Server
    cd ../whisper-server
    pip install -r requirements.txt
@@ -195,6 +223,11 @@ Provides audio transcription capabilities using the local Hugging Face Whisper L
        "hadolint": {
          "command": "python",
          "args": ["${workspaceFolder}/mcp-servers/hadolint-server/src/main.py"],
+         "cwd": "${workspaceFolder}"
+       },
+       "solid": {
+         "command": "python",
+         "args": ["${workspaceFolder}/mcp-servers/solid-server/src/main.py", "--project-root", "${workspaceFolder}"],
          "cwd": "${workspaceFolder}"
        },
        "whisper": {

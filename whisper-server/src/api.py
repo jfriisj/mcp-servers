@@ -14,10 +14,16 @@ from pydantic import BaseModel
 
 from config import ConfigurationManager
 from whisper_runner import WhisperRunner
+from models import (
+    TranscriptionConfig,
+    TranscriptionWithTimestampsConfig,
+    FileContentTranscriptionConfig,
+)
 
 
 class TranscriptionRequest(BaseModel):
     """Request model for transcription."""
+
     audio_file: Optional[str] = None  # Base64 encoded audio
     language: Optional[str] = "en"
     response_format: str = "json"
@@ -27,6 +33,7 @@ class TranscriptionRequest(BaseModel):
 
 class TranscriptionResponse(BaseModel):
     """Response model for transcription."""
+
     text: str
     language: Optional[str] = None
     success: bool
@@ -45,7 +52,7 @@ class FastAPIApp:
         self.app = FastAPI(
             title="Whisper Transcription API",
             description="REST API for audio transcription using Whisper",
-            version="1.0.0"
+            version="1.0.0",
         )
         self._setup_routes()
 
@@ -61,8 +68,8 @@ class FastAPIApp:
                 "endpoints": {
                     "/transcribe": "POST - Transcribe audio file",
                     "/transcribe-file": "POST - Transcribe uploaded file",
-                    "/health": "GET - Health check"
-                }
+                    "/health": "GET - Health check",
+                },
             }
 
         @self.app.get("/health")
@@ -72,7 +79,7 @@ class FastAPIApp:
             return {
                 "status": "healthy" if model_loaded else "unhealthy",
                 "model_loaded": model_loaded,
-                "cuda_available": self.config_manager.device == "cuda"
+                "cuda_available": self.config_manager.device == "cuda",
             }
 
         @self.app.post("/transcribe", response_model=TranscriptionResponse)
@@ -80,91 +87,120 @@ class FastAPIApp:
             """Transcribe audio from base64 content."""
             try:
                 if not request.audio_file:
-                    raise HTTPException(status_code=400, detail="audio_file is required")
+                    raise HTTPException(
+                        status_code=400, detail="audio_file is required"
+                    )
 
                 # Transcribe using file content
                 result = await self.whisper_runner.transcribe_file_content(
-                    type('Config', (), {
-                        'file_content': request.audio_file,
-                        'language': request.language,
-                        'response_format': request.response_format,
-                        'temperature': request.temperature,
-                        'prompt': request.prompt
-                    })()
+                    FileContentTranscriptionConfig(
+                        file_content=request.audio_file,
+                        file_name="uploaded_audio.wav",
+                        language=request.language,
+                        response_format=request.response_format,
+                        temperature=request.temperature,
+                        prompt=request.prompt,
+                        model="whisper-1",
+                    )
                 )
 
                 return TranscriptionResponse(
                     text=result.text,
                     language=result.language,
                     success=result.success,
-                    error_message=result.error_message if not result.success else None,
+                    error_message=result.error_message
+                    if not result.success
+                    else None,
                     duration=result.duration,
-                    segments=result.segments
+                    segments=result.segments,
                 )
 
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Transcription failed: {str(e)}"
+                )
 
-        @self.app.post("/transcribe-file", response_model=TranscriptionResponse)
+        @self.app.post(
+            "/transcribe-file",
+            response_model=TranscriptionResponse
+        )
         async def transcribe_file(
             file: UploadFile = File(...),
             language: str = Form("en"),
             response_format: str = Form("json"),
             temperature: float = Form(0.0),
-            prompt: Optional[str] = Form(None)
+            prompt: Optional[str] = Form(None),
         ):
             """Transcribe uploaded audio file."""
             try:
+                # Validate file object
+                if not file or not file.filename:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid file upload"
+                    )
+
                 # Validate file type
-                if not file.filename.lower().endswith(('.wav', '.mp3', '.m4a', '.flac', '.ogg', '.webm')):
-                    raise HTTPException(status_code=400, detail="Unsupported file format")
+                if not file.filename.lower().endswith(
+                    (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm")
+                ):
+                    raise HTTPException(
+                        status_code=400, detail="Unsupported file format"
+                    )
 
                 # Read file content
                 content = await file.read()
 
                 # Create temporary file
                 with tempfile.NamedTemporaryFile(
-                    suffix=f".{file.filename.split('.')[-1]}",
-                    delete=False
+                    suffix=f".{file.filename.split('.')[-1]}", delete=False
                 ) as temp_file:
                     temp_file.write(content)
                     temp_file_path = temp_file.name
 
                 try:
                     # Validate the temporary file
-                    is_valid, error_msg = self.config_manager.validate_audio_file(temp_file_path)
+                    is_valid, error_msg = self.config_manager.validate_audio_file(
+                        temp_file_path
+                    )
                     if not is_valid:
-                        raise HTTPException(status_code=400, detail=f"Invalid audio file: {error_msg}")
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid audio file: {error_msg}"
+                        )
 
                     # Determine transcription method based on response format
                     if response_format == "verbose_json":
                         result = await self.whisper_runner.transcribe_with_timestamps(
-                            type('Config', (), {
-                                'audio_file': temp_file_path,
-                                'language': language,
-                                'response_format': response_format,
-                                'temperature': temperature,
-                                'prompt': prompt
-                            })()
+                            TranscriptionWithTimestampsConfig(
+                                audio_file=temp_file_path,
+                                language=language,
+                                response_format=response_format,
+                                temperature=temperature,
+                                prompt=prompt,
+                                model="whisper-1",
+                            )
                         )
                     else:
                         result = await self.whisper_runner.transcribe_audio(
-                            type('Config', (), {
-                                'audio_file': temp_file_path,
-                                'language': language,
-                                'response_format': response_format,
-                                'temperature': temperature,
-                                'prompt': prompt
-                            })()
+                            TranscriptionConfig(
+                                audio_file=temp_file_path,
+                                language=language,
+                                response_format=response_format,
+                                temperature=temperature,
+                                prompt=prompt,
+                                model="whisper-1",
+                            )
                         )
 
                     return TranscriptionResponse(
                         text=result.text,
                         language=result.language,
                         success=result.success,
-                        error_message=result.error_message if not result.success else None,
+                        error_message=result.error_message \
+                            if not result.success
+                            else None,
                         duration=result.duration,
-                        segments=result.segments
+                        segments=result.segments,
                     )
 
                 finally:
@@ -177,21 +213,27 @@ class FastAPIApp:
             except HTTPException:
                 raise
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Transcription failed: {str(e)}"
+                )
 
         @self.app.post("/detect-language")
         async def detect_language(request: TranscriptionRequest):
             """Detect language of audio content."""
             try:
                 if not request.audio_file:
-                    raise HTTPException(status_code=400, detail="audio_file is required")
+                    raise HTTPException(
+                        status_code=400, detail="audio_file is required"
+                    )
 
                 # Create temporary file from base64
                 file_data = base64.b64decode(request.audio_file, validate=True)
                 detected_format = self._detect_audio_format(file_data)
 
                 if not detected_format:
-                    raise HTTPException(status_code=400, detail="Unsupported audio format")
+                    raise HTTPException(
+                        status_code=400, detail="Unsupported audio format"
+                    )
 
                 with tempfile.NamedTemporaryFile(
                     suffix=f".{detected_format}", delete=False
@@ -201,16 +243,16 @@ class FastAPIApp:
 
                 try:
                     result = await self.whisper_runner.detect_language(
-                        type('Config', (), {
-                            'audio_file': temp_file_path
-                        })()
+                        type("Config", (), {"audio_file": temp_file_path})()
                     )
 
                     return {
                         "detected_language": result.detected_language,
                         "confidence": result.confidence,
                         "success": result.success,
-                        "error_message": result.error_message if not result.success else None
+                        "error_message": result.error_message
+                        if not result.success
+                        else None,
                     }
 
                 finally:
@@ -222,7 +264,95 @@ class FastAPIApp:
             except HTTPException:
                 raise
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Language detection failed: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Language detection failed: {str(e)}"
+                )
+
+        @self.app.post("/batch-transcribe")
+        async def batch_transcribe(request: dict):
+            """Batch transcribe multiple audio files."""
+            try:
+                audio_files = request.get("audio_files", [])
+                if not audio_files:
+                    raise HTTPException(
+                        status_code=400, detail="audio_files is required"
+                    )
+
+                results = []
+                total_files = len(audio_files)
+                successful = 0
+                failed = 0
+
+                for audio_file in audio_files:
+                    try:
+                        # Read file content
+                        if not os.path.exists(audio_file):
+                            results.append({
+                                "success": False,
+                                "error_message": f"File not found: {audio_file}",
+                                "text": ""
+                            })
+                            failed += 1
+                            continue
+
+                        with open(audio_file, "rb") as f:
+                            file_content = base64.b64encode(f.read()).decode()
+
+                        # Transcribe using file content
+                        transcription_result = await self.whisper_runner.\
+                            transcribe_file_content(
+                                FileContentTranscriptionConfig(
+                                    file_content=file_content,
+                                    file_name=os.path.basename(audio_file),
+                                    language=request.get("language"),
+                                    response_format=request.get(
+                                        "response_format", "json"
+                                    ),
+                                    temperature=request.get("temperature", 0.0),
+                                    prompt=None,
+                                    model="whisper-1",
+                                )
+                            )
+
+                        if transcription_result.success:
+                            successful += 1
+                            results.append({
+                                "success": True,
+                                "text": transcription_result.text,
+                                "language": transcription_result.language,
+                                "duration": transcription_result.duration,
+                                "segments": transcription_result.segments,
+                            })
+                        else:
+                            failed += 1
+                            results.append({
+                                "success": False,
+                                "error_message":
+                                    transcription_result.error_message,
+                                "text": ""
+                            })
+
+                    except Exception as e:
+                        failed += 1
+                        results.append({
+                            "success": False,
+                            "error_message": str(e),
+                            "text": ""
+                        })
+
+                return {
+                    "total_files": total_files,
+                    "successful_transcriptions": successful,
+                    "failed_transcriptions": failed,
+                    "results": results,
+                    "success": successful > 0
+                }
+
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Batch transcription failed: {str(e)}"
+                )
 
     def _detect_audio_format(self, file_data: bytes) -> Optional[str]:
         """Detect audio file format from binary data."""
@@ -239,7 +369,8 @@ class FastAPIApp:
             or file_data.startswith(b"\xff\xf2")
         ):
             return "mp3"
-        elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
+        elif file_data.startswith(b"ftypM4A") or \
+                file_data.startswith(b"ftypmp4"):
             return "m4a"
         elif file_data.startswith(b"fLaC"):
             return "flac"
@@ -253,7 +384,8 @@ class FastAPIApp:
         # Additional checks for MP3 without ID3 tag
         if len(file_data) >= 2:
             first_two = file_data[:2]
-            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"\xff\xf1"]:
+            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2",
+                             b"\xff\xf1"]:
                 return "mp3"
 
         return None

@@ -3,7 +3,7 @@ Data models for the Documentation and Prompts MCP Server
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 @dataclass
@@ -20,6 +20,11 @@ class DocumentInfo:
     doc_type: str
     links: List[str]
     code_blocks: List[Dict[str, str]]
+    source_url: Optional[str] = None
+    repo_name: Optional[str] = None
+    repo_ref: Optional[str] = None
+    download_timestamp: Optional[float] = None
+    is_remote: bool = False
 
 
 @dataclass
