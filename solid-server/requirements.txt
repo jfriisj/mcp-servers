@@ -1,0 +1,15 @@
+# SOLID Principles MCP Server Dependencies
+
+# MCP Protocol
+mcp>=0.1.0
+
+# Core dependencies
+pydantic>=2.0.0
+
+# No additional external dependencies needed - uses Python standard library:
+# - ast (for Python AST parsing)
+# - pathlib (for path operations)  
+# - dataclasses (for data structures)
+# - enum (for enums)
+# - json (for JSON formatting)
+# - typing (for type hints)

@@ -1,0 +1,132 @@
+# Docker Compose for SOLID Principles MCP Server
+# Provides different service configurations for various use cases
+
+version: '3.8'
+
+services:
+  # Development/Test service
+  solid-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: solid-mcp-server:dev
+    container_name: solid-mcp-dev
+    volumes:
+      # Mount your code for analysis
+      - ./test_violations.py:/workspace/test_violations.py:ro
+      - ./src:/workspace/src:ro
+      # Mount output directory
+      - ./docker-output:/output
+    environment:
+      - SOLID_PROJECT_ROOT=/workspace
+      - SOLID_OUTPUT_DIR=/output
+      - SOLID_FORMAT=markdown
+      - SOLID_SEVERITY=all
+    command: ["--test"]
+    networks:
+      - solid-network
+
+  # Production MCP Server
+  solid-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: solid-mcp-server:latest
+    container_name: solid-mcp-server
+    volumes:
+      # Mount your project directory - CHANGE THIS PATH
+      - ${PROJECT_PATH:-./src}:/workspace:ro
+      # Optional: Mount output directory for reports
+      - ${OUTPUT_PATH:-./docker-output}:/output
+    environment:
+      - SOLID_PROJECT_ROOT=/workspace
+      - SOLID_OUTPUT_DIR=/output
+    stdin_open: true
+    tty: true
+    networks:
+      - solid-network
+
+  # Report generator service
+  solid-report:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: solid-mcp-server:latest
+    container_name: solid-report-generator
+    volumes:
+      # Mount your project directory - CHANGE THIS PATH
+      - ${PROJECT_PATH:-./src}:/workspace:ro
+      # Mount output directory for reports
+      - ${OUTPUT_PATH:-./docker-output}:/output
+    environment:
+      - SOLID_PROJECT_ROOT=/workspace
+      - SOLID_OUTPUT_DIR=/output
+      - SOLID_FORMAT=${REPORT_FORMAT:-markdown}
+      - SOLID_SEVERITY=${SEVERITY_FILTER:-all}
+    command: ["--generate-report"]
+    networks:
+      - solid-network
+
+  # Interactive analysis service
+  solid-interactive:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: solid-mcp-server:latest
+    container_name: solid-interactive
+    volumes:
+      # Mount your project directory - CHANGE THIS PATH
+      - ${PROJECT_PATH:-./src}:/workspace
+      # Mount output directory
+      - ${OUTPUT_PATH:-./docker-output}:/output
+    environment:
+      - SOLID_PROJECT_ROOT=/workspace
+      - SOLID_OUTPUT_DIR=/output
+    stdin_open: true
+    tty: true
+    command: ["bash"]
+    networks:
+      - solid-network
+
+  # GitHub Container Registry version
+  solid-ghcr:
+    image: ghcr.io/jfriisj/solid-mcp-server:latest
+    container_name: solid-ghcr
+    volumes:
+      # Mount your project directory - CHANGE THIS PATH
+      - ${PROJECT_PATH:-./src}:/workspace:ro
+      # Mount output directory
+      - ${OUTPUT_PATH:-./docker-output}:/output
+    environment:
+      - SOLID_PROJECT_ROOT=/workspace
+      - SOLID_OUTPUT_DIR=/output
+    command: ["--test"]
+    networks:
+      - solid-network
+    profiles:
+      - ghcr
+
+networks:
+  solid-network:
+    driver: bridge
+
+# Example usage:
+# 
+# 1. Test with sample code:
+#    docker-compose up solid-dev
+# 
+# 2. Run MCP server:
+#    PROJECT_PATH=/path/to/your/code docker-compose up solid-mcp
+# 
+# 3. Generate report:
+#    PROJECT_PATH=/path/to/your/code docker-compose up solid-report
+# 
+# 4. Interactive analysis:
+#    PROJECT_PATH=/path/to/your/code docker-compose run solid-interactive
+# 
+# 5. Use GitHub Container Registry image:
+#    PROJECT_PATH=/path/to/your/code docker-compose --profile ghcr up solid-ghcr
