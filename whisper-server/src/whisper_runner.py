@@ -13,7 +13,8 @@ import asyncio
 import os
 import base64
 import tempfile
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 # Hugging Face imports (with fallback for development)
 try:
@@ -30,6 +31,8 @@ from config import ConfigurationManager
 from models import (
     BatchTranscriptionConfig,
     BatchTranscriptionResult,
+    ConversionConfig,
+    ConversionResult,
     FileContentTranscriptionConfig,
     LanguageDetectionConfig,
     LanguageDetectionResult,
@@ -38,6 +41,7 @@ from models import (
     TranscriptionWithTimestampsConfig,
 )
 from audio_segmenter import AudioSegmenter, TempDirectoryManager
+from audio_converter import AudioConverter, TempFileManager
 
 
 class WhisperRunner:
@@ -49,6 +53,8 @@ class WhisperRunner:
         self._model_loaded = False
         self._segmenter = None
         self._temp_manager = TempDirectoryManager()
+        self._converter = None
+        self._conversion_temp_manager = TempFileManager()
 
     def _get_segmenter(self) -> Optional[AudioSegmenter]:
         """Get or create audio segmenter."""
@@ -63,6 +69,68 @@ class WhisperRunner:
                 # Audio libraries not available
                 pass
         return self._segmenter
+
+    def _get_converter(self) -> Optional[AudioConverter]:
+        """Get or create audio converter."""
+        if not self._converter and self.config_manager.enable_conversion:
+            try:
+                self._converter = AudioConverter(
+                    temp_dir=self.config_manager.conversion_temp_dir
+                )
+            except ImportError:
+                # Conversion libraries not available
+                pass
+        return self._converter
+
+    async def _ensure_file_compatible(self, file_path: str) -> Tuple[str, bool]:
+        """Ensure audio file is compatible with Whisper, converting if necessary.
+        
+        Args:
+            file_path: Path to the input audio file
+            
+        Returns:
+            Tuple of (compatible_file_path, was_converted)
+        """
+        converter = self._get_converter()
+        if not converter:
+            # No converter available, assume file is compatible
+            return file_path, False
+        
+        # Check if conversion is needed
+        if not converter.needs_conversion(file_path):
+            return file_path, False
+        
+        # File needs conversion
+        try:
+            # Get recommended output format based on input
+            input_format = Path(file_path).suffix.lower().lstrip(".")
+            output_format = converter.get_recommended_output_format(input_format)
+            
+            # Configure conversion
+            conversion_config = ConversionConfig(
+                input_file=file_path,
+                output_format=output_format,
+                quality=self.config_manager.conversion_quality,
+                remove_input=False  # Don't remove original file
+            )
+            
+            # Perform conversion
+            result = await converter.convert_file(conversion_config)
+            
+            if result.success and result.output_file:
+                # Track temp file for cleanup
+                if result.temp_file:
+                    self._conversion_temp_manager.add_temp_file(result.output_file)
+                
+                print(f"✅ Converted {input_format} to {output_format} using {result.conversion_method}")
+                return result.output_file, True
+            else:
+                print(f"❌ Conversion failed: {result.error_message}")
+                return file_path, False
+                
+        except Exception as e:
+            print(f"❌ Conversion error: {str(e)}")
+            return file_path, False
 
     def _ensure_model_loaded(self) -> bool:
         """Ensure the Whisper model is loaded."""
@@ -111,6 +179,26 @@ class WhisperRunner:
                 text="",
                 success=False,
                 error_message="Whisper model not loaded. Check HF token.",
+            )
+
+        # Ensure file is compatible with Whisper (convert if necessary)
+        try:
+            compatible_file, was_converted = await self._ensure_file_compatible(config.audio_file)
+            # Update config to use the compatible file
+            if was_converted:
+                config = TranscriptionConfig(
+                    audio_file=compatible_file,
+                    model=config.model,
+                    language=config.language,
+                    response_format=config.response_format,
+                    temperature=config.temperature,
+                    prompt=config.prompt,
+                )
+        except Exception as e:
+            return TranscriptionResult(
+                text="",
+                success=False,
+                error_message=f"File conversion error: {str(e)}",
             )
 
         # Validate audio file
@@ -371,6 +459,26 @@ class WhisperRunner:
                 text="",
                 success=False,
                 error_message="Whisper model not loaded. Check HF token.",
+            )
+
+        # Ensure file is compatible with Whisper (convert if necessary)
+        try:
+            compatible_file, was_converted = await self._ensure_file_compatible(config.audio_file)
+            # Update config to use the compatible file
+            if was_converted:
+                config = TranscriptionWithTimestampsConfig(
+                    audio_file=compatible_file,
+                    model=config.model,
+                    language=config.language,
+                    response_format=config.response_format,
+                    temperature=config.temperature,
+                    prompt=config.prompt,
+                )
+        except Exception as e:
+            return TranscriptionResult(
+                text="",
+                success=False,
+                error_message=f"File conversion error: {str(e)}",
             )
 
         # Validate audio file
@@ -741,3 +849,21 @@ class WhisperRunner:
                 return "mp3"
 
         return None
+
+    async def convert_audio_file(self, config: ConversionConfig) -> ConversionResult:
+        """Convert an audio file using the configured converter.
+        
+        Args:
+            config: Conversion configuration
+            
+        Returns:
+            ConversionResult with conversion status and output file info
+        """
+        converter = self._get_converter()
+        if not converter:
+            return ConversionResult(
+                success=False,
+                error_message="Audio converter not available. Check configuration and dependencies."
+            )
+        
+        return await converter.convert_file(config)

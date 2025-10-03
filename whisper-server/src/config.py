@@ -62,6 +62,22 @@ class ConfigurationManager:
                 "parallel_processing_enabled": True,
                 "use_gpu": True,
             },
+            "conversion": {
+                "enable_conversion": True,
+                "quality": "high",  # high, medium, low
+                "temp_dir": None,  # If None, uses system temp
+                "cleanup_temp_files": True,
+                "supported_input_formats": [
+                    # Video formats (extract audio)
+                    "mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "3gp", "m4v",
+                    # Audio formats that may need conversion
+                    "aac", "ac3", "aiff", "amr", "ape", "au", "dts", "mka", "mpc",
+                    "ra", "wma", "opus", "spx", "tta", "voc", "wv", "xa",
+                    # Less common formats
+                    "caf", "dss", "dvf", "gsm", "iff", "m4r", "mmf", "mxf", "nist",
+                    "pvf", "raw", "sln", "vms", "vox", "w64"
+                ],
+            },
             "huggingface": {
                 "token_env_vars": ["HUGGINGFACE_TOKEN", "HF_TOKEN"],
                 "cache_dir": None,
@@ -194,6 +210,32 @@ class ConfigurationManager:
         file_ext = Path(file_path).suffix.lower().lstrip(".")
         return file_ext in self.supported_audio_formats
 
+    @property
+    def enable_conversion(self) -> bool:
+        """Check if audio conversion is enabled."""
+        return self.config["conversion"]["enable_conversion"]
+
+    @property
+    def conversion_quality(self) -> str:
+        """Get conversion quality setting."""
+        return self.config["conversion"]["quality"]
+
+    @property
+    def conversion_temp_dir(self) -> Optional[str]:
+        """Get conversion temporary directory."""
+        temp_dir = self.config["conversion"]["temp_dir"]
+        return temp_dir if temp_dir else None
+
+    @property
+    def conversion_cleanup_temp_files(self) -> bool:
+        """Check if temporary files should be cleaned up after conversion."""
+        return self.config["conversion"]["cleanup_temp_files"]
+
+    @property
+    def conversion_supported_formats(self) -> list:
+        """Get list of formats that can be converted."""
+        return self.config["conversion"]["supported_input_formats"]
+
     def validate_audio_file(
         self,
         file_path: str,
@@ -208,8 +250,18 @@ class ConfigurationManager:
             return False, f"Audio file does not exist: {file_path}"
 
         if not self.is_supported_format(file_path):
+            # Check if it's a convertible format
+            file_ext = Path(file_path).suffix.lower().lstrip(".")
+            if self.enable_conversion and file_ext in self.conversion_supported_formats:
+                # File can be converted, so it's acceptable
+                return True, None
+            
             supported = ", ".join(self.supported_audio_formats)
-            return False, f"Unsupported format. Supported: {supported}"
+            convertible = ", ".join(self.conversion_supported_formats) if self.enable_conversion else ""
+            error_msg = f"Unsupported format. Supported: {supported}"
+            if convertible:
+                error_msg += f". Convertible: {convertible}"
+            return False, error_msg
 
         file_size_mb = Path(file_path).stat().st_size / (1024 * 1024)
         if file_size_mb > self.max_file_size_mb:

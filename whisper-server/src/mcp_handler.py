@@ -110,6 +110,11 @@ class MCPHandler:
                 description="Transcribe uploaded audio file content (base64) to text",
                 inputSchema=self._get_transcribe_file_content_schema(),
             ),
+            types.Tool(
+                name="whisper-convert-audio",
+                description="Convert audio/video file to Whisper-compatible format",
+                inputSchema=self._get_convert_audio_schema(),
+            ),
         ]
 
     async def call_tool(
@@ -129,6 +134,8 @@ class MCPHandler:
                 return await self._handle_batch_transcribe(arguments)
             elif name == "whisper-transcribe-file-content":
                 return await self._handle_transcribe_file_content(arguments)
+            elif name == "whisper-convert-audio":
+                return await self._handle_convert_audio(arguments)
             else:
                 return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
@@ -324,6 +331,55 @@ class MCPHandler:
                 types.TextContent(
                     type="text",
                     text=f"❌ Transcription from file content failed: {str(e)}",
+                )
+            ]
+
+    async def _handle_convert_audio(
+        self,
+        args: Dict[str, Any],
+    ) -> List[types.TextContent]:
+        """Handle whisper-convert-audio tool call."""
+        try:
+            response = requests.post(
+                "http://localhost:8000/convert-audio",
+                json={
+                    "input_file": args["input_file"],
+                    "output_format": args.get("output_format", "wav"),
+                    "quality": args.get("quality", "high"),
+                    "output_file": args.get("output_file"),
+                },
+                timeout=300,  # 5 minutes timeout for conversion
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("success"):
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=(
+                            "✅ Audio conversion completed successfully!\n\n"
+                            f"**Input:** {result.get('original_format', 'unknown')} format\n"
+                            f"**Output:** {result.get('converted_format', 'unknown')} format\n"
+                            f"**File:** {result.get('output_file', 'N/A')}\n"
+                            f"**Method:** {result.get('conversion_method', 'N/A')}\n"
+                            f"**Duration:** {result.get('duration', 'N/A')}s\n"
+                            f"**Size:** {result.get('file_size_mb', 'N/A'):.2f}MB"
+                        ),
+                    )
+                ]
+            else:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"❌ Audio conversion failed: {result.get('error_message', 'Unknown error')}",
+                    )
+                ]
+        except requests.RequestException as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Audio conversion failed: {str(e)}",
                 )
             ]
 
@@ -575,4 +631,33 @@ class MCPHandler:
                 },
             },
             "required": ["file_content"],
+        }
+
+    def _get_convert_audio_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for whisper-convert-audio tool."""
+        return {
+            "type": "object",
+            "properties": {
+                "input_file": {
+                    "type": "string",
+                    "description": "Path to the audio/video file to convert",
+                },
+                "output_format": {
+                    "type": "string",
+                    "description": "Target output format",
+                    "default": "wav",
+                    "enum": ["wav", "mp3", "m4a", "flac", "ogg"],
+                },
+                "output_file": {
+                    "type": "string",
+                    "description": "Output file path (optional, will generate if not provided)",
+                },
+                "quality": {
+                    "type": "string",
+                    "description": "Conversion quality setting",
+                    "default": "high",
+                    "enum": ["high", "medium", "low"],
+                },
+            },
+            "required": ["input_file"],
         }

@@ -101,3 +101,31 @@ class FileContentTranscriptionConfig:
     response_format: str = "json"
     temperature: float = 0.0
     prompt: Optional[str] = None
+
+
+@dataclass
+class ConversionConfig:
+    """Configuration for audio file conversion."""
+
+    input_file: str
+    output_format: str = "wav"  # Default to WAV for best compatibility
+    output_file: Optional[str] = None  # If None, will generate temp file
+    sample_rate: Optional[int] = None  # If None, keep original
+    channels: Optional[int] = None  # If None, keep original (mono=1, stereo=2)
+    quality: str = "high"  # high, medium, low
+    remove_input: bool = False  # Whether to remove input file after conversion
+
+
+@dataclass
+class ConversionResult:
+    """Result of audio conversion operation."""
+
+    success: bool
+    output_file: Optional[str] = None
+    original_format: Optional[str] = None
+    converted_format: Optional[str] = None
+    duration: Optional[float] = None
+    file_size_mb: Optional[float] = None
+    conversion_method: Optional[str] = None  # ffmpeg, librosa, etc.
+    error_message: Optional[str] = None
+    temp_file: bool = False  # Whether output file is temporary

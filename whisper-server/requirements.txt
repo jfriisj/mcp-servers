@@ -19,6 +19,9 @@ accelerate>=0.24.0
 librosa>=0.10.0
 soundfile>=0.12.0
 
+# Audio/Video conversion (optional but recommended)
+ffmpeg-python>=0.2.0
+
 # Async processing for parallel operations
 aiofiles>=23.0.0
 
