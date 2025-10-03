@@ -13,16 +13,65 @@ from pydantic import AnyUrl
 
 from mcp_handler import MCPHandler
 
+# Import for composition root
+from infrastructure.analyzers.ast_analyzer import ASTAnalyzer
+from infrastructure.analyzers.principle_checkers import (
+    SRPChecker, OCPChecker, LSPChecker, ISPChecker, DIPChecker
+)
+from infrastructure.formatters.text_formatter import TextFormatter
+from application.analyze_file import AnalyzeFileUseCase
+from application.analyze_directory import AnalyzeDirectoryUseCase
+from application.generate_report import GenerateReportUseCase
+from application.suggest_refactoring import SuggestRefactoringUseCase
+
 logger = logging.getLogger(__name__)
 
 
 class SolidMCPServer:
-    """Main MCP server for SOLID principles analysis"""
+    """
+    Main MCP server for SOLID principles analysis.
+    
+    This is the Composition Root - where all dependencies are created
+    and wired together following Dependency Injection principles.
+    """
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(
+        self,
+        project_root: Optional[Path] = None,
+        server: Server = None,
+        mcp_handler: MCPHandler = None
+    ):
         self.project_root = project_root or Path.cwd()
-        self.server = Server("solid-mcp-server")
-        self.mcp_handler = MCPHandler(self.project_root)
+        self.server = server or Server("solid-mcp-server")
+        
+        # Composition Root: Create and wire dependencies
+        if mcp_handler is None:
+            # Create principle checkers
+            checkers = [
+                SRPChecker(), OCPChecker(), LSPChecker(),
+                ISPChecker(), DIPChecker()
+            ]
+            
+            # Create infrastructure components
+            analyzer = ASTAnalyzer(checkers)
+            formatter = TextFormatter()
+            
+            # Create use cases with dependencies
+            analyze_file_uc = AnalyzeFileUseCase(analyzer)
+            analyze_dir_uc = AnalyzeDirectoryUseCase(analyzer)
+            generate_report_uc = GenerateReportUseCase(formatter)
+            suggest_refactoring_uc = SuggestRefactoringUseCase()
+            
+            # Create handler with injected use cases
+            self.mcp_handler = MCPHandler(
+                self.project_root,
+                analyze_file_uc,
+                analyze_dir_uc,
+                generate_report_uc,
+                suggest_refactoring_uc
+            )
+        else:
+            self.mcp_handler = mcp_handler
 
     async def list_resources(self) -> List[Resource]:
         """List available resources"""
@@ -46,23 +95,30 @@ class SolidMCPServer:
         if str(uri) == "solid://principles":
             return self._get_solid_principles_guide()
         elif str(uri) == "solid://current-score":
-            # Get overall project score
-            reports = self.mcp_handler.batch_analyzer.analyze_directory(self.project_root)
-            summary = self.mcp_handler.batch_analyzer.generate_summary_report(reports)
+            # Get overall project score using new architecture
+            from application.analyze_directory import DirectoryFilters
+            from application.generate_report import ReportOptions
+            
+            filters = DirectoryFilters(
+                include_patterns=["*.py"],
+                exclude_patterns=["__pycache__", ".git", ".venv", "venv", "test_*"]
+            )
+            reports = self.mcp_handler.analyze_dir_uc.execute(
+                self.project_root, filters
+            )
+            
+            # Generate simple summary
+            total_violations = sum(len(r.violations) for r in reports)
+            files_with_violations = sum(1 for r in reports if r.violations)
+            avg_score = sum(r.score for r in reports) / len(reports) if reports else 100
+            
             return f"""
-Current SOLID Compliance Score: {summary['average_score']}/100
+Current SOLID Compliance Score: {avg_score:.1f}/100
 
 Project: {self.project_root.name}
-Files analyzed: {summary['total_files']}
-Files with violations: {summary['files_with_violations']}
-Total violations: {summary['total_violations']}
-
-Violations by principle:
-- SRP: {summary['violations_by_principle']['SRP']}
-- OCP: {summary['violations_by_principle']['OCP']}
-- LSP: {summary['violations_by_principle']['LSP']}
-- ISP: {summary['violations_by_principle']['ISP']}
-- DIP: {summary['violations_by_principle']['DIP']}
+Files analyzed: {len(reports)}
+Files with violations: {files_with_violations}
+Total violations: {total_violations}
             """.strip()
         else:
             raise ValueError(f"Unknown resource: {uri}")

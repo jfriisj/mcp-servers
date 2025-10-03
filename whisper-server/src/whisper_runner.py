@@ -746,8 +746,12 @@ class WhisperRunner:
                     error_message=f"Invalid base64 content: {str(e)}",
                 )
 
-            # Detect file format from binary data
-            detected_format = self._detect_audio_format(file_data)
+            # Detect file format from binary data, filename, and config hints
+            detected_format = self._detect_audio_format(
+                file_data, 
+                file_name=config.file_name,
+                format_hint=getattr(config, 'file_format', None)
+            )
             if not detected_format:
                 return TranscriptionResult(
                     text="",
@@ -814,14 +818,36 @@ class WhisperRunner:
                 error_message=f"File content transcription failed: {str(e)}",
             )
 
-    def _detect_audio_format(self, file_data: bytes) -> Optional[str]:
-        """Detect audio file format from binary data using magic bytes."""
+    def _detect_audio_format(self, file_data: bytes, file_name: Optional[str] = None, format_hint: Optional[str] = None) -> Optional[str]:
+        """Detect audio file format from binary data, filename, or format hint."""
+        
+        # If format hint is provided, validate and use it
+        if format_hint:
+            format_hint = format_hint.lower().lstrip('.')
+            # Check if it's a supported format
+            converter_formats = self.config_manager.conversion_supported_formats
+            whisper_formats = self.config_manager.supported_audio_formats
+            if format_hint in converter_formats or format_hint in whisper_formats:
+                return format_hint
+        
+        # Try to detect from filename extension as fallback
+        if file_name:
+            extension = file_name.lower().split('.')[-1] if '.' in file_name else None
+            if extension:
+                converter_formats = self.config_manager.conversion_supported_formats
+                whisper_formats = self.config_manager.supported_audio_formats
+                if extension in converter_formats or extension in whisper_formats:
+                    return extension
+        
+        # Fallback to magic byte detection
         if len(file_data) < 12:
             return None
 
         # Check magic bytes for different audio formats
         if file_data.startswith(b"RIFF") and file_data[8:12] == b"WAVE":
             return "wav"
+        elif file_data.startswith(b"RIFF") and file_data[8:12] == b"AVI ":
+            return "avi"
         elif (
             file_data.startswith(b"ID3")
             or file_data.startswith(b"\xff\xfb")
@@ -830,7 +856,7 @@ class WhisperRunner:
         ):
             return "mp3"
         elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
-            return "m4a"
+            return "m4a" if b"M4A" in file_data[:20] else "mp4"
         elif file_data.startswith(b"fLaC"):
             return "flac"
         elif file_data.startswith(b"OggS"):
@@ -838,9 +864,18 @@ class WhisperRunner:
         elif file_data.startswith(b"wvpk"):
             return "wv"
         elif file_data[4:8] == b"ftyp":
+            # Check for various MP4 container types
+            if b"qt  " in file_data[8:20]:
+                return "mov"
             return "mp4"
-        elif file_data.startswith(b"WEBM"):
+        elif file_data.startswith(b"WEBM") or (b"webm" in file_data[:20].lower()):
             return "webm"
+        # WMA format detection
+        elif file_data.startswith(b"\x30\x26\xB2\x75\x8E\x66\xCF\x11\xA6\xD9\x00\xAA\x00\x62\xCE\x6C"):
+            return "wma"
+        # ASF format (which WMA uses)
+        elif file_data.startswith(b"\x30\x26\xB2\x75"):
+            return "wma"
 
         # Additional checks for MP3 without ID3 tag
         if len(file_data) >= 2:

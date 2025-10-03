@@ -96,6 +96,7 @@ class FileContentTranscriptionConfig:
 
     file_content: str  # Base64 encoded file content
     file_name: str  # Original file name (for context)
+    file_format: Optional[str] = None  # Optional format hint
     model: str = "whisper-1"
     language: Optional[str] = None
     response_format: str = "json"

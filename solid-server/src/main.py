@@ -35,14 +35,36 @@ async def main():
         sys.exit(1)
     
     if args.test:
-        # Test mode - run some basic analysis
+        # Test mode - run some basic analysis using new architecture
         print("🔍 Running SOLID Principles MCP Server in test mode...")
         print(f"📁 Project root: {project_root}")
         
-        # Import components for testing
-        from solid_analyzer import SolidBatchAnalyzer
+        # Import components from new architecture
+        from infrastructure.analyzers.ast_analyzer import ASTAnalyzer
+        from infrastructure.analyzers.principle_checkers import (
+            SRPChecker, OCPChecker, LSPChecker, ISPChecker, DIPChecker
+        )
+        from infrastructure.formatters.text_formatter import TextFormatter
+        from application.analyze_file import AnalyzeFileUseCase
+        from application.analyze_directory import (
+            AnalyzeDirectoryUseCase, DirectoryFilters
+        )
+        from application.generate_report import (
+            GenerateReportUseCase, ReportOptions
+        )
         
-        analyzer = SolidBatchAnalyzer()
+        # Set up dependencies
+        checkers = [
+            SRPChecker(), OCPChecker(), LSPChecker(),
+            ISPChecker(), DIPChecker()
+        ]
+        analyzer = ASTAnalyzer(checkers)
+        formatter = TextFormatter()
+        
+        # Create use cases
+        analyze_file_uc = AnalyzeFileUseCase(analyzer)
+        analyze_dir_uc = AnalyzeDirectoryUseCase(analyzer)
+        generate_report_uc = GenerateReportUseCase(formatter)
         
         # Find some Python files to analyze
         python_files = list(project_root.rglob("*.py"))[:5]  # Limit to 5 files
@@ -55,7 +77,7 @@ async def main():
         
         for py_file in python_files:
             try:
-                report = analyzer.analyzer.analyze_file(py_file)
+                report = analyze_file_uc.execute(py_file)
                 rel_path = py_file.relative_to(project_root)
                 print(f"\n📄 {rel_path}")
                 print(f"   Score: {report.score:.1f}/100")
@@ -70,20 +92,29 @@ async def main():
             except Exception as e:
                 print(f"   ❌ Error analyzing {py_file.name}: {e}")
         
-        # Generate summary
+        # Generate directory summary
         try:
-            reports = analyzer.analyze_directory(project_root)
-            summary = analyzer.generate_summary_report(reports)
+            reports = analyze_dir_uc.execute(
+                project_root,
+                DirectoryFilters(
+                    include_patterns=["*.py"],
+                    exclude_patterns=["__pycache__", "test_*"]
+                )
+            )
             
-            print(f"\n📈 Overall Project Analysis:")
-            print(f"   Average Score: {summary['average_score']:.1f}/100")
-            print(f"   Files analyzed: {summary['total_files']}")
-            print(f"   Total violations: {summary['total_violations']}")
-            print(f"   Most common violations:")
+            output = generate_report_uc.execute(
+                reports,
+                ReportOptions(
+                    include_suggestions=True,
+                    output_format="text",
+                    severity_filter="all"
+                )
+            )
             
-            for principle, count in summary['violations_by_principle'].items():
-                if count > 0:
-                    print(f"   - {principle}: {count}")
+            print("\n📈 Overall Project Analysis:")
+            # Show first 15 lines of report
+            for line in output.split('\n')[:15]:
+                print(line)
             
         except Exception as e:
             print(f"❌ Error generating summary: {e}")

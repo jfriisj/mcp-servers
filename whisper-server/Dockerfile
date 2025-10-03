@@ -49,8 +49,9 @@ ENV CUDA_VISIBLE_DEVICES=0
 # Expose port if needed (though MCP uses stdio)
 EXPOSE 8000 9000
 
-# Copy entrypoint script
+# Copy entrypoint script and fix line endings
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN dos2unix /app/docker-entrypoint.sh 2>/dev/null || sed -i 's/\r$//' /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Set entrypoint

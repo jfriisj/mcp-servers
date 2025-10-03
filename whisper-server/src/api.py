@@ -18,6 +18,7 @@ from models import (
     TranscriptionConfig,
     TranscriptionWithTimestampsConfig,
     FileContentTranscriptionConfig,
+    ConversionConfig,
 )
 
 
@@ -25,10 +26,35 @@ class TranscriptionRequest(BaseModel):
     """Request model for transcription."""
 
     audio_file: Optional[str] = None  # Base64 encoded audio
+    file_format: Optional[str] = None  # Optional format hint (e.g., "wma", "mp4")
+    file_name: Optional[str] = None  # Optional original filename for format detection
     language: Optional[str] = "en"
     response_format: str = "json"
     temperature: float = 0.0
     prompt: Optional[str] = None
+
+
+class ConversionRequest(BaseModel):
+    """Request model for audio conversion."""
+    
+    input_file: str
+    output_format: str = "wav"
+    quality: str = "high"
+    output_file: Optional[str] = None
+
+
+class ConversionResponse(BaseModel):
+    """Response model for audio conversion."""
+    
+    success: bool
+    output_file: Optional[str] = None
+    original_format: Optional[str] = None
+    converted_format: Optional[str] = None
+    duration: Optional[float] = None
+    file_size_mb: Optional[float] = None
+    conversion_method: Optional[str] = None
+    error_message: Optional[str] = None
+    temp_file: bool = False
 
 
 class TranscriptionResponse(BaseModel):
@@ -68,6 +94,9 @@ class FastAPIApp:
                 "endpoints": {
                     "/transcribe": "POST - Transcribe audio file",
                     "/transcribe-file": "POST - Transcribe uploaded file",
+                    "/convert-audio": "POST - Convert audio file format",
+                    "/detect-language": "POST - Detect audio language",
+                    "/batch-transcribe": "POST - Batch transcribe files",
                     "/health": "GET - Health check",
                 },
             }
@@ -91,11 +120,19 @@ class FastAPIApp:
                         status_code=400, detail="audio_file is required"
                     )
 
+                # Determine filename for better format detection
+                filename = request.file_name or "uploaded_audio"
+                if request.file_format:
+                    filename = f"{filename}.{request.file_format.lower().lstrip('.')}"
+                elif not '.' in filename:
+                    filename = f"{filename}.unknown"
+
                 # Transcribe using file content
                 result = await self.whisper_runner.transcribe_file_content(
                     FileContentTranscriptionConfig(
                         file_content=request.audio_file,
-                        file_name="uploaded_audio.wav",
+                        file_name=filename,
+                        file_format=request.file_format,
                         language=request.language,
                         response_format=request.response_format,
                         temperature=request.temperature,
@@ -139,12 +176,16 @@ class FastAPIApp:
                         status_code=400, detail="Invalid file upload"
                     )
 
-                # Validate file type
-                if not file.filename.lower().endswith(
-                    (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm")
-                ):
+                # Check if file type is supported (either native or convertible)
+                file_ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+                whisper_formats = self.config_manager.supported_audio_formats
+                convertible_formats = self.config_manager.conversion_supported_formats if hasattr(self.config_manager, 'conversion_supported_formats') else []
+                
+                if file_ext not in whisper_formats and file_ext not in convertible_formats:
+                    supported_formats = whisper_formats + convertible_formats
                     raise HTTPException(
-                        status_code=400, detail="Unsupported file format"
+                        status_code=400, 
+                        detail=f"Unsupported file format '{file_ext}'. Supported formats: {', '.join(supported_formats[:10])}{'...' if len(supported_formats) > 10 else ''}"
                     )
 
                 # Read file content
@@ -354,14 +395,78 @@ class FastAPIApp:
                     detail=f"Batch transcription failed: {str(e)}"
                 )
 
-    def _detect_audio_format(self, file_data: bytes) -> Optional[str]:
-        """Detect audio file format from binary data."""
+        @self.app.post("/convert-audio", response_model=ConversionResponse)
+        async def convert_audio(request: ConversionRequest):
+            """Convert audio file to different format."""
+            try:
+                # Validate input file exists
+                if not os.path.exists(request.input_file):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Input file not found: {request.input_file}"
+                    )
+                
+                # Configure conversion
+                conversion_config = ConversionConfig(
+                    input_file=request.input_file,
+                    output_format=request.output_format,
+                    output_file=request.output_file,
+                    quality=request.quality
+                )
+                
+                # Perform conversion
+                result = await self.whisper_runner.convert_audio_file(conversion_config)
+                
+                return ConversionResponse(
+                    success=result.success,
+                    output_file=result.output_file,
+                    original_format=result.original_format,
+                    converted_format=result.converted_format,
+                    duration=result.duration,
+                    file_size_mb=result.file_size_mb,
+                    conversion_method=result.conversion_method,
+                    error_message=result.error_message,
+                    temp_file=result.temp_file
+                )
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Audio conversion failed: {str(e)}"
+                )
+
+    def _detect_audio_format(self, file_data: bytes, file_name: Optional[str] = None, format_hint: Optional[str] = None) -> Optional[str]:
+        """Detect audio file format from binary data, filename, or format hint."""
+        
+        # If format hint is provided, validate and use it
+        if format_hint:
+            format_hint = format_hint.lower().lstrip('.')
+            # Check if it's a supported format
+            converter_formats = self.whisper_runner.config_manager.conversion_supported_formats
+            whisper_formats = self.whisper_runner.config_manager.supported_audio_formats
+            if format_hint in converter_formats or format_hint in whisper_formats:
+                return format_hint
+        
+        # Try to detect from filename extension as fallback
+        if file_name:
+            extension = file_name.lower().split('.')[-1] if '.' in file_name else None
+            if extension:
+                converter_formats = self.whisper_runner.config_manager.conversion_supported_formats
+                whisper_formats = self.whisper_runner.config_manager.supported_audio_formats
+                if extension in converter_formats or extension in whisper_formats:
+                    return extension
+        
+        # Fallback to magic byte detection
         if len(file_data) < 12:
             return None
 
         # Check magic bytes for different audio formats
         if file_data.startswith(b"RIFF") and file_data[8:12] == b"WAVE":
             return "wav"
+        elif file_data.startswith(b"RIFF") and file_data[8:12] == b"AVI ":
+            return "avi"
         elif (
             file_data.startswith(b"ID3")
             or file_data.startswith(b"\xff\xfb")
@@ -369,17 +474,25 @@ class FastAPIApp:
             or file_data.startswith(b"\xff\xf2")
         ):
             return "mp3"
-        elif file_data.startswith(b"ftypM4A") or \
-                file_data.startswith(b"ftypmp4"):
-            return "m4a"
+        elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
+            return "m4a" if b"M4A" in file_data[:20] else "mp4"
         elif file_data.startswith(b"fLaC"):
             return "flac"
         elif file_data.startswith(b"OggS"):
             return "ogg"
         elif file_data[4:8] == b"ftyp":
+            # Check for various MP4 container types
+            if b"qt  " in file_data[8:20]:
+                return "mov"
             return "mp4"
-        elif file_data.startswith(b"WEBM"):
+        elif file_data.startswith(b"WEBM") or (b"webm" in file_data[:20].lower()):
             return "webm"
+        # WMA format detection
+        elif file_data.startswith(b"\x30\x26\xB2\x75\x8E\x66\xCF\x11\xA6\xD9\x00\xAA\x00\x62\xCE\x6C"):
+            return "wma"
+        # ASF format (which WMA uses)
+        elif file_data.startswith(b"\x30\x26\xB2\x75"):
+            return "wma"
 
         # Additional checks for MP3 without ID3 tag
         if len(file_data) >= 2:

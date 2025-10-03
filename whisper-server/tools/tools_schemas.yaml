@@ -123,6 +123,9 @@ whisper-transcribe-file-content:
         type: "string"
         description: "Original file name (optional, for context)"
         default: "uploaded_audio.wav"
+      file_format:
+        type: "string"
+        description: "File format hint (e.g., 'wma', 'mp4', 'avi') for better format detection"
       model:
         type: "string"
         description: "Whisper model to use"
@@ -146,3 +149,55 @@ whisper-transcribe-file-content:
         type: "string"
         description: "Optional text to guide the model's style"
     required: ["file_content"]
+
+whisper-convert-audio:
+  name: "whisper-convert-audio"
+  description: "Convert audio/video file to Whisper-compatible format"
+  inputSchema:
+    type: "object"
+    properties:
+      input_file:
+        type: "string"
+        description: "Path to the audio/video file to convert"
+      output_format:
+        type: "string"
+        description: "Target output format"
+        default: "wav"
+        enum: ["wav", "mp3", "m4a", "flac", "ogg"]
+      output_file:
+        type: "string"
+        description: "Output file path (optional, will generate if not provided)"
+      quality:
+        type: "string"
+        description: "Conversion quality setting"
+        default: "high"
+        enum: ["high", "medium", "low"]
+    required: ["input_file"]
+
+whisper-model-info:
+  name: "whisper-model-info"
+  description: "Get information about the loaded Whisper model"
+  inputSchema:
+    type: "object"
+    properties: {}
+    required: []
+
+whisper-audio-info:
+  name: "whisper-audio-info"
+  description: "Get detailed information about an audio file"
+  inputSchema:
+    type: "object"
+    properties:
+      audio_file:
+        type: "string"
+        description: "Path to the audio file to analyze"
+    required: ["audio_file"]
+
+whisper-get-config:
+  name: "whisper-get-config"
+  description: "Get current Whisper server configuration"
+  inputSchema:
+    type: "object"
+    properties: {}
+    required: []
+

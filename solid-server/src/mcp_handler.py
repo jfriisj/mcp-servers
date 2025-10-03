@@ -4,166 +4,308 @@ MCP Handler for SOLID Principles Analysis
 Handles MCP protocol tool calls for SOLID analysis.
 """
 
+import ast
 import json
 from pathlib import Path
 from typing import Any, Dict, List
 
 from mcp.types import TextContent, Tool
-from solid_analyzer import SolidAnalyzer, SolidBatchAnalyzer, SolidPrinciple
+
+# Import from new architecture
+from domain.models import SolidPrinciple, SolidViolation
+from application.analyze_file import AnalyzeFileUseCase
+from application.analyze_directory import (
+    AnalyzeDirectoryUseCase, DirectoryFilters
+)
+from application.generate_report import (
+    GenerateReportUseCase, ReportOptions
+)
+from application.suggest_refactoring import (
+    SuggestRefactoringUseCase, RefactoringOptions
+)
 
 
 class MCPHandler:
-    """MCP protocol handler for SOLID analysis tools"""
+    """
+    MCP protocol handler for SOLID analysis tools.
     
-    def __init__(self, project_root: Path):
+    Follows Dependency Inversion Principle - depends on use case abstractions,
+    not concrete implementations. Dependencies are injected via constructor.
+    """
+    
+    def __init__(
+        self,
+        project_root: Path,
+        analyze_file_uc: AnalyzeFileUseCase,
+        analyze_dir_uc: AnalyzeDirectoryUseCase,
+        generate_report_uc: GenerateReportUseCase,
+        suggest_refactoring_uc: SuggestRefactoringUseCase
+    ):
+        """
+        Initialize handler with injected dependencies.
+        
+        Args:
+            project_root: Root directory for the project
+            analyze_file_uc: Use case for analyzing single files
+            analyze_dir_uc: Use case for analyzing directories
+            generate_report_uc: Use case for generating reports
+            suggest_refactoring_uc: Use case for refactoring suggestions
+        """
         self.project_root = project_root
-        self.analyzer = SolidAnalyzer()
-        self.batch_analyzer = SolidBatchAnalyzer()
+        self.analyze_file_uc = analyze_file_uc
+        self.analyze_dir_uc = analyze_dir_uc
+        self.generate_report_uc = generate_report_uc
+        self.suggest_refactoring_uc = suggest_refactoring_uc
     
     def get_tools(self) -> List[Tool]:
         """Return list of available SOLID analysis tools"""
         return [
-            Tool(
-                name="solid-check-file",
-                description="Analyze a single Python file for SOLID principles violations",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to the Python file to analyze"
-                        },
-                        "principles": {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "enum": ["SRP", "OCP", "LSP", "ISP", "DIP", "ALL"]
-                            },
-                            "description": "Which SOLID principles to check. Use 'ALL' for all principles.",
-                            "default": ["ALL"]
-                        }
-                    },
-                    "required": ["file_path"]
-                }
-            ),
-            Tool(
-                name="solid-check-directory",
-                description="Analyze all Python files in a directory for SOLID principles violations",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "directory_path": {
-                            "type": "string",
-                            "description": "Path to the directory to analyze"
-                        },
-                        "include_patterns": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "File patterns to include (e.g., ['*.py'])",
-                            "default": ["*.py"]
-                        },
-                        "exclude_patterns": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Patterns to exclude from analysis",
-                            "default": ["__pycache__", ".git", ".venv", "venv", "test_*"]
-                        },
-                        "max_files": {
-                            "type": "integer",
-                            "description": "Maximum number of files to analyze",
-                            "default": 100
-                        }
-                    },
-                    "required": ["directory_path"]
-                }
-            ),
-            Tool(
-                name="solid-generate-report",
-                description="Generate a comprehensive SOLID principles report for a directory",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "directory_path": {
-                            "type": "string",
-                            "description": "Path to the directory to analyze"
-                        },
-                        "output_format": {
-                            "type": "string",
-                            "enum": ["text", "json", "markdown"],
-                            "description": "Output format for the report",
-                            "default": "text"
-                        },
-                        "include_suggestions": {
-                            "type": "boolean",
-                            "description": "Include improvement suggestions in the report",
-                            "default": True
-                        },
-                        "severity_filter": {
-                            "type": "string",
-                            "enum": ["all", "high", "medium", "low"],
-                            "description": "Filter violations by severity level",
-                            "default": "all"
-                        }
-                    },
-                    "required": ["directory_path"]
-                }
-            ),
-            Tool(
-                name="solid-explain-principle",
-                description="Get detailed explanation of a SOLID principle with examples",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "principle": {
-                            "type": "string",
-                            "enum": ["SRP", "OCP", "LSP", "ISP", "DIP"],
-                            "description": "SOLID principle to explain"
-                        }
-                    },
-                    "required": ["principle"]
-                }
-            ),
-            Tool(
-                name="solid-check-score",
-                description="Get SOLID compliance score for a file or directory",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Path to file or directory to score"
-                        }
-                    },
-                    "required": ["path"]
-                }
-            ),
-            Tool(
-                name="solid-list-violations",
-                description="List all SOLID violations in a structured format",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string", 
-                            "description": "Path to file or directory to analyze"
-                        },
-                        "principle_filter": {
-                            "type": "string",
-                            "enum": ["SRP", "OCP", "LSP", "ISP", "DIP", "ALL"],
-                            "description": "Filter by specific SOLID principle",
-                            "default": "ALL"
-                        },
-                        "severity_filter": {
-                            "type": "string",
-                            "enum": ["high", "medium", "low", "all"],
-                            "description": "Filter by violation severity",
-                            "default": "all"
-                        }
-                    },
-                    "required": ["path"]
-                }
-            )
+            self._tool_check_file(),
+            self._tool_check_directory(),
+            self._tool_generate_report(),
+            self._tool_explain_principle(),
+            self._tool_check_score(),
+            self._tool_list_violations(),
+            self._tool_suggest_refactoring(),
+            self._tool_dependency_graph(),
+            self._tool_analyze_inheritance(),
         ]
+    
+    def _tool_check_file(self) -> Tool:
+        """Tool definition for analyzing a single file"""
+        return Tool(
+            name="solid-check-file",
+            description="Analyze a single Python file for SOLID principles violations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the Python file to analyze"
+                    },
+                    "principles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["SRP", "OCP", "LSP", "ISP", "DIP", "ALL"]
+                        },
+                        "description": "Which SOLID principles to check. Use 'ALL' for all principles.",
+                        "default": ["ALL"]
+                    }
+                },
+                "required": ["file_path"]
+            }
+        )
+    
+    def _tool_check_directory(self) -> Tool:
+        """Tool definition for analyzing a directory"""
+        return Tool(
+            name="solid-check-directory",
+            description="Analyze all Python files in a directory for SOLID principles violations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "directory_path": {
+                        "type": "string",
+                        "description": "Path to the directory to analyze"
+                    },
+                    "include_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "File patterns to include (e.g., ['*.py'])",
+                        "default": ["*.py"]
+                    },
+                    "exclude_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Patterns to exclude from analysis",
+                        "default": ["__pycache__", ".git", ".venv", "venv", "test_*"]
+                    },
+                    "max_files": {
+                        "type": "integer",
+                        "description": "Maximum number of files to analyze",
+                        "default": 100
+                    }
+                },
+                "required": ["directory_path"]
+            }
+        )
+    
+    def _tool_generate_report(self) -> Tool:
+        """Tool definition for generating comprehensive reports"""
+        return Tool(
+            name="solid-generate-report",
+            description="Generate a comprehensive SOLID principles report for a directory",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "directory_path": {
+                        "type": "string",
+                        "description": "Path to the directory to analyze"
+                    },
+                    "output_format": {
+                        "type": "string",
+                        "enum": ["text", "json", "markdown"],
+                        "description": "Output format for the report",
+                        "default": "text"
+                    },
+                    "include_suggestions": {
+                        "type": "boolean",
+                        "description": "Include improvement suggestions in the report",
+                        "default": True
+                    },
+                    "severity_filter": {
+                        "type": "string",
+                        "enum": ["all", "high", "medium", "low"],
+                        "description": "Filter violations by severity level",
+                        "default": "all"
+                    }
+                },
+                "required": ["directory_path"]
+            }
+        )
+    
+    def _tool_explain_principle(self) -> Tool:
+        """Tool definition for explaining SOLID principles"""
+        return Tool(
+            name="solid-explain-principle",
+            description="Get detailed explanation of a SOLID principle with examples",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "principle": {
+                        "type": "string",
+                        "enum": ["SRP", "OCP", "LSP", "ISP", "DIP"],
+                        "description": "SOLID principle to explain"
+                    }
+                },
+                "required": ["principle"]
+            }
+        )
+    
+    def _tool_check_score(self) -> Tool:
+        """Tool definition for getting SOLID compliance scores"""
+        return Tool(
+            name="solid-check-score",
+            description="Get SOLID compliance score for a file or directory",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to file or directory to score"
+                    }
+                },
+                "required": ["path"]
+            }
+        )
+    
+    def _tool_list_violations(self) -> Tool:
+        """Tool definition for listing violations"""
+        return Tool(
+            name="solid-list-violations",
+            description="List all SOLID violations in a structured format",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string", 
+                        "description": "Path to file or directory to analyze"
+                    },
+                    "principle_filter": {
+                        "type": "string",
+                        "enum": ["SRP", "OCP", "LSP", "ISP", "DIP", "ALL"],
+                        "description": "Filter by specific SOLID principle",
+                        "default": "ALL"
+                    },
+                    "severity_filter": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low", "all"],
+                        "description": "Filter by violation severity",
+                        "default": "all"
+                    }
+                },
+                "required": ["path"]
+            }
+        )
+    
+    def _tool_suggest_refactoring(self) -> Tool:
+        """Tool definition for suggesting refactorings"""
+        return Tool(
+            name="solid-suggest-refactoring",
+            description="Generate a prioritized refactoring plan with specific suggestions",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to file or directory to analyze"
+                    },
+                    "max_suggestions": {
+                        "type": "integer",
+                        "description": "Maximum number of refactoring suggestions",
+                        "default": 10
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low", "all"],
+                        "description": "Priority level of suggestions",
+                        "default": "all"
+                    }
+                },
+                "required": ["path"]
+            }
+        )
+    
+    def _tool_dependency_graph(self) -> Tool:
+        """Tool definition for dependency graph analysis"""
+        return Tool(
+            name="solid-dependency-graph",
+            description="Analyze and visualize dependencies between classes",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to file or directory to analyze"
+                    },
+                    "include_external": {
+                        "type": "boolean",
+                        "description": "Include external dependencies",
+                        "default": False
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["text", "mermaid", "json"],
+                        "description": "Output format for dependency graph",
+                        "default": "text"
+                    }
+                },
+                "required": ["path"]
+            }
+        )
+    
+    def _tool_analyze_inheritance(self) -> Tool:
+        """Tool definition for inheritance tree analysis"""
+        return Tool(
+            name="solid-analyze-inheritance",
+            description="Analyze class inheritance trees and detect issues",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to file or directory to analyze"
+                    },
+                    "show_methods": {
+                        "type": "boolean",
+                        "description": "Include method information",
+                        "default": True
+                    }
+                },
+                "required": ["path"]
+            }
+        )
     
     async def call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
         """Handle tool calls"""
@@ -180,6 +322,12 @@ class MCPHandler:
                 return await self._solid_check_score(arguments)
             elif name == "solid-list-violations":
                 return await self._solid_list_violations(arguments)
+            elif name == "solid-suggest-refactoring":
+                return await self._solid_suggest_refactoring(arguments)
+            elif name == "solid-dependency-graph":
+                return await self._solid_dependency_graph(arguments)
+            elif name == "solid-analyze-inheritance":
+                return await self._solid_analyze_inheritance(arguments)
             else:
                 return [TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
@@ -197,25 +345,11 @@ class MCPHandler:
         if not file_path.suffix == ".py":
             return [TextContent(type="text", text=f"Only Python files are supported. Got: {file_path}")]
         
-        principles = args.get("principles", ["ALL"])
+        # Use new architecture
+        report = self.analyze_file_uc.execute(file_path)
         
-        # Analyze the file
-        report = self.analyzer.analyze_file(file_path)
-        
-        # Filter by requested principles if not ALL
-        if "ALL" not in principles:
-            principle_enums = []
-            for p in principles:
-                try:
-                    principle_enums.append(SolidPrinciple(p))
-                except ValueError:
-                    return [TextContent(type="text", text=f"Invalid principle: {p}")]
-            
-            filtered_violations = [v for v in report.violations if v.principle in principle_enums]
-            report.violations = filtered_violations
-        
-        # Format output
-        output = self._format_file_report(report)
+        # Format output using new formatter
+        output = self.formatter.format_file_report(report)
         return [TextContent(type="text", text=output)]
     
     async def _solid_check_directory(self, args: Dict[str, Any]) -> List[TextContent]:
@@ -228,23 +362,26 @@ class MCPHandler:
             return [TextContent(type="text", text=f"Directory not found: {directory_path}")]
         
         include_patterns = args.get("include_patterns", ["*.py"])
-        exclude_patterns = args.get("exclude_patterns", ["__pycache__", ".git", ".venv", "venv", "test_*"])
-        max_files = args.get("max_files", 100)
+        exclude_patterns = args.get("exclude_patterns", 
+            ["__pycache__", ".git", ".venv", "venv", "test_*"])
         
-        # Analyze directory
-        reports = self.batch_analyzer.analyze_directory(
-            directory_path, include_patterns, exclude_patterns
+        # Use new architecture
+        filters = DirectoryFilters(
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns
+        )
+        reports = self.analyze_dir_uc.execute(directory_path, filters)
+        
+        # Generate summary report
+        output = self.generate_report_uc.execute(
+            reports,
+            ReportOptions(
+                include_suggestions=False,
+                output_format="text",
+                severity_filter="all"
+            )
         )
         
-        # Limit results
-        if len(reports) > max_files:
-            reports = reports[:max_files]
-        
-        # Generate summary
-        summary = self.batch_analyzer.generate_summary_report(reports)
-        
-        # Format output
-        output = self._format_directory_report(reports, summary, directory_path)
         return [TextContent(type="text", text=output)]
     
     async def _solid_generate_report(self, args: Dict[str, Any]) -> List[TextContent]:
@@ -257,22 +394,20 @@ class MCPHandler:
         include_suggestions = args.get("include_suggestions", True)
         severity_filter = args.get("severity_filter", "all")
         
-        # Analyze directory
-        reports = self.batch_analyzer.analyze_directory(directory_path)
-        summary = self.batch_analyzer.generate_summary_report(reports)
+        # Use new architecture
+        filters = DirectoryFilters(
+            include_patterns=["*.py"],
+            exclude_patterns=["__pycache__", ".git", ".venv", "venv", "test_*"]
+        )
+        reports = self.analyze_dir_uc.execute(directory_path, filters)
         
-        # Filter by severity
-        if severity_filter != "all":
-            for report in reports:
-                report.violations = [v for v in report.violations if v.severity == severity_filter]
-        
-        # Generate report based on format
-        if output_format == "json":
-            output = self._format_json_report(reports, summary)
-        elif output_format == "markdown":
-            output = self._format_markdown_report(reports, summary, include_suggestions)
-        else:
-            output = self._format_text_report(reports, summary, include_suggestions)
+        # Generate report
+        options = ReportOptions(
+            include_suggestions=include_suggestions,
+            output_format=output_format,
+            severity_filter=severity_filter
+        )
+        output = self.generate_report_uc.execute(reports, options)
         
         return [TextContent(type="text", text=output)]
     
@@ -541,42 +676,23 @@ class NotificationManager:  # High-level depends on abstraction
             path = self.project_root / path
         
         if path.is_file():
-            # Single file score
-            report = self.analyzer.analyze_file(path)
-            output = f"""
-SOLID Compliance Score for: {path.name}
-Score: {report.score:.1f}/100
-
-Violation Summary:
-- SRP: {report.summary.get(SolidPrinciple.SINGLE_RESPONSIBILITY, 0)} violations
-- OCP: {report.summary.get(SolidPrinciple.OPEN_CLOSED, 0)} violations  
-- LSP: {report.summary.get(SolidPrinciple.LISKOV_SUBSTITUTION, 0)} violations
-- ISP: {report.summary.get(SolidPrinciple.INTERFACE_SEGREGATION, 0)} violations
-- DIP: {report.summary.get(SolidPrinciple.DEPENDENCY_INVERSION, 0)} violations
-
-Total Violations: {len(report.violations)}
-            """.strip()
+            # Single file score - use new architecture
+            report = self.analyze_file_uc.execute(path)
+            output = self.formatter.format_file_report(report)
         
         elif path.is_dir():
-            # Directory score
-            reports = self.batch_analyzer.analyze_directory(path)
-            summary = self.batch_analyzer.generate_summary_report(reports)
-            output = f"""
-SOLID Compliance Score for: {path.name}
-Average Score: {summary['average_score']}/100
-
-Summary:
-- Total Files: {summary['total_files']}
-- Files with Violations: {summary['files_with_violations']}
-- Total Violations: {summary['total_violations']}
-
-Violations by Principle:
-- SRP: {summary['violations_by_principle']['SRP']} violations
-- OCP: {summary['violations_by_principle']['OCP']} violations
-- LSP: {summary['violations_by_principle']['LSP']} violations  
-- ISP: {summary['violations_by_principle']['ISP']} violations
-- DIP: {summary['violations_by_principle']['DIP']} violations
-            """.strip()
+            # Directory score - use new architecture  
+            filters = DirectoryFilters(
+                include_patterns=["*.py"],
+                exclude_patterns=["__pycache__", ".git", ".venv", "venv", "test_*"]
+            )
+            reports = self.analyze_dir_uc.execute(path, filters)
+            options = ReportOptions(
+                include_suggestions=False,
+                output_format="text",
+                severity_filter="all"
+            )
+            output = self.generate_report_uc.execute(reports, options)
         else:
             return [TextContent(type="text", text=f"Path not found: {path}")]
         
@@ -588,49 +704,25 @@ Violations by Principle:
         if not path.is_absolute():
             path = self.project_root / path
         
-        principle_filter = args.get("principle_filter", "ALL")
-        severity_filter = args.get("severity_filter", "all")
-        
-        # Get reports
+        # Get reports using new architecture
         if path.is_file():
-            reports = [self.analyzer.analyze_file(path)]
+            reports = [self.analyze_file_uc.execute(path)]
         elif path.is_dir():
-            reports = self.batch_analyzer.analyze_directory(path)
+            filters = DirectoryFilters(
+                include_patterns=["*.py"],
+                exclude_patterns=["__pycache__", ".git", ".venv", "venv", "test_*"]
+            )
+            reports = self.analyze_dir_uc.execute(path, filters)
         else:
             return [TextContent(type="text", text=f"Path not found: {path}")]
         
-        # Filter violations
-        all_violations = []
-        for report in reports:
-            for violation in report.violations:
-                # Filter by principle
-                if principle_filter != "ALL" and violation.principle.value != principle_filter:
-                    continue
-                
-                # Filter by severity
-                if severity_filter != "all" and violation.severity != severity_filter:
-                    continue
-                
-                all_violations.append({
-                    "file": report.file_path,
-                    "violation": violation
-                })
-        
-        if not all_violations:
-            return [TextContent(type="text", text="No violations found matching the criteria.")]
-        
-        # Format output
-        output = f"Found {len(all_violations)} violations:\n\n"
-        
-        for item in all_violations[:50]:  # Limit to 50 violations
-            v = item["violation"]
-            file_name = Path(item["file"]).name
-            output += f"📍 {file_name}:{v.line_number} [{v.principle.value}] {v.severity.upper()}\n"
-            output += f"   {v.message}\n"
-            output += f"   💡 {v.suggestion}\n\n"
-        
-        if len(all_violations) > 50:
-            output += f"... and {len(all_violations) - 50} more violations.\n"
+        # Format output using new formatter
+        options = ReportOptions(
+            include_suggestions=False,
+            output_format="text",
+            severity_filter=args.get("severity_filter", "all")
+        )
+        output = self.generate_report_uc.execute(reports, options)
         
         return [TextContent(type="text", text=output)]
     
@@ -797,3 +889,459 @@ VIOLATIONS BY PRINCIPLE:
                     output += f"\n     💡 {violation.suggestion}"
         
         return output
+
+    async def _solid_suggest_refactoring(
+        self, args: Dict[str, Any]
+    ) -> List[TextContent]:
+        """Generate prioritized refactoring suggestions"""
+        path = args["path"]
+        max_suggestions = args.get("max_suggestions", 10)
+        priority = args.get("priority", "all")
+
+        path_obj = Path(path)
+        if not path_obj.is_absolute():
+            path_obj = self.project_root / path_obj
+            
+        if not path_obj.exists():
+            return [
+                TextContent(
+                    type="text",
+                    text=f"❌ Path not found: {path}"
+                )
+            ]
+
+        # Use new architecture
+        options = RefactoringOptions(
+            max_suggestions=max_suggestions,
+            priority_filter=priority
+        )
+        suggestions = self.suggest_refactoring_uc.execute(path_obj, options)
+        
+        # Format using formatter
+        output = self.formatter.format_suggestions(suggestions)
+        
+        return [TextContent(type="text", text=output)]
+
+        # Format output
+        output = f"""
+🔧 REFACTORING SUGGESTIONS (Top {len(suggestions)})
+{'=' * 60}
+
+Priority Score Calculation:
+- High severity: +10 points
+- Medium severity: +5 points
+- Low severity: +2 points
+
+"""
+        for i, sugg in enumerate(suggestions, 1):
+            severity_emoji = {
+                'high': '🔴',
+                'medium': '🟡',
+                'low': '🟢'
+            }.get(sugg['severity'], '⚪')
+
+            output += f"""
+{i}. {severity_emoji} Priority Score: {sugg['priority_score']}
+   File: {sugg['file']} (line {sugg['line']})
+   Principle: {sugg['principle']} - {sugg['severity'].upper()}
+   
+   Problem: {sugg['message']}
+   
+   💡 Suggestion: {sugg['suggestion']}
+   
+   Code Context:
+{sugg['code']}
+{'─' * 60}
+"""
+        return [TextContent(type="text", text=output.strip())]
+
+    def _calculate_priority_score(
+        self, violation: SolidViolation
+    ) -> int:
+        """Calculate priority score for a violation"""
+        severity_scores = {"high": 10, "medium": 5, "low": 2}
+        score = severity_scores.get(violation.severity, 0)
+
+        # Boost SRP and DIP violations (foundation principles)
+        if violation.principle in [
+            SolidPrinciple.SINGLE_RESPONSIBILITY,
+            SolidPrinciple.DEPENDENCY_INVERSION
+        ]:
+            score += 2
+
+        # Boost violations with specific keywords
+        high_impact_keywords = [
+            'constructor', 'dependency', 'inheritance',
+            'signature', 'coupling'
+        ]
+        if any(kw in violation.message.lower()
+               for kw in high_impact_keywords):
+            score += 1
+
+        return score
+
+    async def _solid_dependency_graph(
+        self, args: Dict[str, Any]
+    ) -> List[TextContent]:
+        """Generate dependency graph visualization"""
+        path = args["path"]
+        output_format = args.get("format", "text")
+        include_methods = args.get("include_methods", False)
+
+        path_obj = Path(path)
+        if not path_obj.exists():
+            return [
+                TextContent(
+                    type="text",
+                    text=f"❌ Path not found: {path}"
+                )
+            ]
+
+        # Collect all Python files
+        if path_obj.is_file():
+            files = [path_obj]
+        else:
+            files = list(path_obj.rglob("*.py"))
+            files = [
+                f for f in files
+                if "__pycache__" not in str(f)
+            ]
+
+        # Parse and extract dependencies
+        dependencies = {}
+        for file_path in files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+
+                # Extract classes and their dependencies
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        class_name = node.name
+                        deps = {
+                            'file': str(file_path.name),
+                            'bases': [
+                                b.id if isinstance(b, ast.Name) else str(b)
+                                for b in node.bases
+                            ],
+                            'imports': [],
+                            'methods': []
+                        }
+
+                        if include_methods:
+                            deps['methods'] = [
+                                m.name for m in node.body
+                                if isinstance(m, ast.FunctionDef)
+                            ]
+
+                        dependencies[class_name] = deps
+
+                # Extract imports
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            for cls in dependencies.values():
+                                if cls['file'] == file_path.name:
+                                    cls['imports'].append(alias.name)
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module:
+                            for cls in dependencies.values():
+                                if cls['file'] == file_path.name:
+                                    cls['imports'].append(node.module)
+
+            except Exception:
+                continue
+
+        if not dependencies:
+            return [
+                TextContent(
+                    type="text",
+                    text="⚠️  No classes found to analyze"
+                )
+            ]
+
+        # Format output based on requested format
+        if output_format == "mermaid":
+            output = self._format_mermaid_graph(
+                dependencies, include_methods
+            )
+        elif output_format == "json":
+            import json
+            output = json.dumps(dependencies, indent=2)
+        else:  # text
+            output = self._format_text_graph(
+                dependencies, include_methods
+            )
+
+        return [TextContent(type="text", text=output)]
+
+    def _format_mermaid_graph(
+        self, dependencies: Dict, include_methods: bool
+    ) -> str:
+        """Format dependencies as Mermaid diagram"""
+        output = "```mermaid\nclassDiagram\n"
+
+        for class_name, info in dependencies.items():
+            # Class definition
+            if include_methods and info['methods']:
+                output += f"    class {class_name} {{\n"
+                for method in info['methods'][:5]:  # Limit methods
+                    output += f"        +{method}()\n"
+                output += "    }\n"
+            else:
+                output += f"    class {class_name}\n"
+
+            # Inheritance relationships
+            for base in info['bases']:
+                if base in dependencies:
+                    output += f"    {base} <|-- {class_name}\n"
+
+        output += "```"
+        return output
+
+    def _format_text_graph(
+        self, dependencies: Dict, include_methods: bool
+    ) -> str:
+        """Format dependencies as text tree"""
+        output = """
+📊 DEPENDENCY GRAPH
+{'=' * 60}
+
+"""
+        for class_name, info in dependencies.items():
+            output += f"\n📦 {class_name}"
+            output += f" ({info['file']})\n"
+
+            if info['bases']:
+                output += "   ├─ Inherits from: "
+                output += ", ".join(info['bases']) + "\n"
+
+            if info['imports']:
+                output += "   ├─ Imports: "
+                output += ", ".join(info['imports'][:3])
+                if len(info['imports']) > 3:
+                    output += f" (+{len(info['imports'])-3} more)"
+                output += "\n"
+
+            if include_methods and info['methods']:
+                output += "   └─ Methods: "
+                output += ", ".join(info['methods'][:5])
+                if len(info['methods']) > 5:
+                    output += f" (+{len(info['methods'])-5} more)"
+                output += "\n"
+
+        # Detect circular dependencies
+        circular = self._detect_circular_deps(dependencies)
+        if circular:
+            output += "\n\n⚠️  CIRCULAR DEPENDENCIES DETECTED:\n"
+            for cycle in circular:
+                output += f"   • {' → '.join(cycle)}\n"
+
+        return output.strip()
+
+    def _detect_circular_deps(
+        self, dependencies: Dict
+    ) -> List[List[str]]:
+        """Detect circular dependency chains"""
+        circular = []
+
+        def has_path(start, end, visited=None):
+            if visited is None:
+                visited = set()
+            if start == end and visited:
+                return True
+            if start in visited:
+                return False
+            visited.add(start)
+
+            if start in dependencies:
+                for base in dependencies[start]['bases']:
+                    if has_path(base, end, visited.copy()):
+                        return True
+            return False
+
+        # Check each class for cycles
+        for class_name in dependencies:
+            for base in dependencies[class_name]['bases']:
+                if has_path(base, class_name):
+                    circular.append([class_name, base, class_name])
+
+        return circular
+
+    async def _solid_analyze_inheritance(
+        self, args: Dict[str, Any]
+    ) -> List[TextContent]:
+        """Analyze inheritance hierarchies"""
+        path = args["path"]
+        max_depth = args.get("max_depth", 5)
+        include_methods = args.get("include_methods", True)
+
+        path_obj = Path(path)
+        if not path_obj.exists():
+            return [
+                TextContent(
+                    type="text",
+                    text=f"❌ Path not found: {path}"
+                )
+            ]
+
+        # Collect all Python files
+        if path_obj.is_file():
+            files = [path_obj]
+        else:
+            files = list(path_obj.rglob("*.py"))
+            files = [
+                f for f in files
+                if "__pycache__" not in str(f)
+            ]
+
+        # Parse and build inheritance tree
+        classes = {}
+        for file_path in files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        class_info = {
+                            'name': node.name,
+                            'file': str(file_path.name),
+                            'bases': [
+                                b.id if isinstance(b, ast.Name)
+                                else str(b)
+                                for b in node.bases
+                            ],
+                            'methods': [],
+                            'line': node.lineno
+                        }
+
+                        if include_methods:
+                            for item in node.body:
+                                if isinstance(item, ast.FunctionDef):
+                                    class_info['methods'].append({
+                                        'name': item.name,
+                                        'line': item.lineno,
+                                        'args': [
+                                            a.arg for a in item.args.args
+                                        ]
+                                    })
+
+                        classes[node.name] = class_info
+
+            except Exception:
+                continue
+
+        if not classes:
+            return [
+                TextContent(
+                    type="text",
+                    text="⚠️  No classes found to analyze"
+                )
+            ]
+
+        # Build inheritance tree
+        output = """
+🌳 INHERITANCE HIERARCHY ANALYSIS
+{'=' * 60}
+
+"""
+
+        # Find root classes (no bases or external bases)
+        root_classes = [
+            name for name, info in classes.items()
+            if not info['bases'] or
+            all(b not in classes for b in info['bases'])
+        ]
+
+        for root in root_classes:
+            output += self._format_inheritance_tree(
+                root, classes, 0, max_depth, include_methods
+            )
+
+        # Check for LSP violations
+        lsp_violations = self._check_lsp_violations(classes)
+        if lsp_violations:
+            output += "\n\n⚠️  LISKOV SUBSTITUTION VIOLATIONS:\n"
+            for violation in lsp_violations:
+                output += f"   • {violation}\n"
+
+        return [TextContent(type="text", text=output.strip())]
+
+    def _format_inheritance_tree(
+        self,
+        class_name: str,
+        classes: Dict,
+        depth: int,
+        max_depth: int,
+        include_methods: bool
+    ) -> str:
+        """Format inheritance tree recursively"""
+        if depth >= max_depth or class_name not in classes:
+            return ""
+
+        indent = "  " * depth
+        marker = "└─" if depth > 0 else "📦"
+
+        output = f"{indent}{marker} {class_name}"
+
+        if class_name in classes:
+            info = classes[class_name]
+            output += f" ({info['file']}:{info['line']})\n"
+
+            if include_methods and info['methods']:
+                method_indent = "  " * (depth + 1)
+                output += f"{method_indent}Methods:\n"
+                for method in info['methods'][:5]:
+                    args = ', '.join(method['args'])
+                    output += f"{method_indent}  • "
+                    output += f"{method['name']}({args})\n"
+                if len(info['methods']) > 5:
+                    remaining = len(info['methods']) - 5
+                    output += f"{method_indent}  ... "
+                    output += f"({remaining} more methods)\n"
+
+        # Find children
+        children = [
+            name for name, info in classes.items()
+            if class_name in info['bases']
+        ]
+
+        for child in children:
+            output += self._format_inheritance_tree(
+                child, classes, depth + 1, max_depth, include_methods
+            )
+
+        return output
+
+    def _check_lsp_violations(self, classes: Dict) -> List[str]:
+        """Check for Liskov Substitution Principle violations"""
+        violations = []
+
+        for class_name, class_info in classes.items():
+            for base_class in class_info['bases']:
+                if base_class not in classes:
+                    continue
+
+                base_methods = {
+                    m['name']: m
+                    for m in classes[base_class]['methods']
+                }
+                child_methods = {
+                    m['name']: m for m in class_info['methods']
+                }
+
+                # Check method signature compatibility
+                for method_name, base_method in base_methods.items():
+                    if method_name in child_methods:
+                        child_method = child_methods[method_name]
+                        if len(child_method['args']) != len(
+                            base_method['args']
+                        ):
+                            violations.append(
+                                f"{class_name}.{method_name}() "
+                                f"has different signature than "
+                                f"{base_class}.{method_name}()"
+                            )
+
+        return violations

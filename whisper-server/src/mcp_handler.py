@@ -115,6 +115,21 @@ class MCPHandler:
                 description="Convert audio/video file to Whisper-compatible format",
                 inputSchema=self._get_convert_audio_schema(),
             ),
+            types.Tool(
+                name="whisper-model-info",
+                description="Get information about the loaded Whisper model",
+                inputSchema=self._get_model_info_schema(),
+            ),
+            types.Tool(
+                name="whisper-audio-info",
+                description="Get detailed information about an audio file",
+                inputSchema=self._get_audio_info_schema(),
+            ),
+            types.Tool(
+                name="whisper-get-config",
+                description="Get current Whisper server configuration",
+                inputSchema=self._get_config_schema(),
+            ),
         ]
 
     async def call_tool(
@@ -136,6 +151,12 @@ class MCPHandler:
                 return await self._handle_transcribe_file_content(arguments)
             elif name == "whisper-convert-audio":
                 return await self._handle_convert_audio(arguments)
+            elif name == "whisper-model-info":
+                return await self._handle_model_info(arguments)
+            elif name == "whisper-audio-info":
+                return await self._handle_audio_info(arguments)
+            elif name == "whisper-get-config":
+                return await self._handle_get_config(arguments)
             else:
                 return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
@@ -661,3 +682,286 @@ class MCPHandler:
             },
             "required": ["input_file"],
         }
+
+    async def _handle_model_info(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle whisper-model-info tool call."""
+        try:
+            # Get model information from the whisper runner
+            model_name = getattr(
+                self.whisper_runner, 'model_name', 'openai/whisper-large-v3'
+            )
+            device = getattr(self.whisper_runner, 'device', 'auto')
+            
+            # Extract model size from name
+            if 'large' in model_name:
+                size = 'Large (1550M parameters)'
+                context = '30 seconds'
+            elif 'medium' in model_name:
+                size = 'Medium (769M parameters)'
+                context = '30 seconds'
+            elif 'small' in model_name:
+                size = 'Small (244M parameters)'
+                context = '30 seconds'
+            elif 'base' in model_name:
+                size = 'Base (74M parameters)'
+                context = '30 seconds'
+            elif 'tiny' in model_name:
+                size = 'Tiny (39M parameters)'
+                context = '30 seconds'
+            else:
+                size = 'Unknown'
+                context = 'Unknown'
+            
+            output = f"""
+🤖 WHISPER MODEL INFORMATION
+{'=' * 60}
+
+**Model:** {model_name}
+**Size:** {size}
+**Device:** {device}
+**Audio Context:** {context}
+
+**Supported Languages:** 99+ languages
+**Output Formats:** text, json, srt, vtt, verbose_json
+
+**Capabilities:**
+• Multilingual transcription
+• Language detection
+• Timestamp generation
+• Speaker diarization (basic)
+• Audio format conversion
+
+**Model Features:**
+• Transformer-based architecture
+• Trained on 680,000 hours of multilingual data
+• Robust to accents and background noise
+• Fast inference with GPU acceleration
+"""
+            
+            return [types.TextContent(type="text", text=output.strip())]
+            
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Failed to get model info: {str(e)}",
+                )
+            ]
+
+    async def _handle_audio_info(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle whisper-audio-info tool call."""
+        try:
+            audio_file = args["audio_file"]
+            
+            # Check if file exists
+            from pathlib import Path
+            audio_path = Path(audio_file)
+            if not audio_path.exists():
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"❌ Audio file not found: {audio_file}",
+                    )
+                ]
+            
+            # Get file size
+            file_size_bytes = audio_path.stat().st_size
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            
+            # Get audio properties using ffprobe if available
+            import subprocess
+            import json
+            
+            try:
+                result = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v", "quiet",
+                        "-print_format", "json",
+                        "-show_format",
+                        "-show_streams",
+                        str(audio_path)
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    probe_data = json.loads(result.stdout)
+                    
+                    # Extract audio stream info
+                    audio_streams = [
+                        s for s in probe_data.get('streams', [])
+                        if s.get('codec_type') == 'audio'
+                    ]
+                    
+                    if audio_streams:
+                        stream = audio_streams[0]
+                        duration = float(
+                            probe_data.get('format', {}).get('duration', 0)
+                        )
+                        sample_rate = stream.get('sample_rate', 'Unknown')
+                        channels = stream.get('channels', 'Unknown')
+                        codec = stream.get('codec_name', 'Unknown')
+                        bit_rate = stream.get('bit_rate', 'Unknown')
+                        
+                        output = f"""
+🎵 AUDIO FILE INFORMATION
+{'=' * 60}
+
+**File:** {audio_path.name}
+**Path:** {audio_file}
+**Size:** {file_size_mb:.2f} MB ({file_size_bytes:,} bytes)
+
+**Audio Properties:**
+• Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)
+• Sample Rate: {sample_rate} Hz
+• Channels: {channels}
+• Codec: {codec}
+• Bit Rate: {bit_rate} bps
+
+**Format:** {probe_data.get('format', {}).get('format_name', 'Unknown')}
+
+**Whisper Compatibility:**
+✅ File is accessible
+{'✅' if int(sample_rate) >= 16000 else '⚠️'} Sample rate {'adequate' if int(sample_rate) >= 16000 else 'low (recommend 16kHz+)'}
+{'✅' if duration < 1800 else '⚠️'} Duration {'acceptable' if duration < 1800 else 'long (consider splitting)'}
+"""
+                        return [
+                            types.TextContent(type="text", text=output.strip())
+                        ]
+                
+            except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
+                pass
+            
+            # Fallback if ffprobe not available
+            output = f"""
+🎵 AUDIO FILE INFORMATION
+{'=' * 60}
+
+**File:** {audio_path.name}
+**Path:** {audio_file}
+**Size:** {file_size_mb:.2f} MB ({file_size_bytes:,} bytes)
+**Extension:** {audio_path.suffix}
+
+⚠️  Detailed audio properties unavailable (ffprobe not found)
+✅ File is accessible and ready for transcription
+
+**Note:** Install ffmpeg/ffprobe for detailed audio analysis
+"""
+            return [types.TextContent(type="text", text=output.strip())]
+            
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Failed to get audio info: {str(e)}",
+                )
+            ]
+
+    async def _handle_get_config(
+        self, args: Dict[str, Any]
+    ) -> List[types.TextContent]:
+        """Handle whisper-get-config tool call."""
+        try:
+            # Get configuration from whisper runner and server
+            config_info = {
+                'model': getattr(
+                    self.whisper_runner, 'model_name',
+                    'openai/whisper-large-v3'
+                ),
+                'device': getattr(self.whisper_runner, 'device', 'auto'),
+                'compute_type': getattr(
+                    self.whisper_runner, 'compute_type', 'default'
+                ),
+            }
+            
+            # Try to get server configuration
+            try:
+                from config import WhisperConfig
+                server_config = WhisperConfig()
+                config_info.update({
+                    'host': server_config.host,
+                    'port': server_config.port,
+                    'max_file_size': f"{server_config.max_file_size / (1024*1024):.0f}MB",
+                })
+            except Exception:
+                config_info.update({
+                    'host': 'localhost',
+                    'port': 8000,
+                    'max_file_size': '100MB',
+                })
+            
+            output = f"""
+⚙️  WHISPER SERVER CONFIGURATION
+{'=' * 60}
+
+**Model Configuration:**
+• Model: {config_info['model']}
+• Device: {config_info['device']}
+• Compute Type: {config_info['compute_type']}
+
+**Server Configuration:**
+• Host: {config_info['host']}
+• Port: {config_info['port']}
+• Max File Size: {config_info['max_file_size']}
+
+**Default Settings:**
+• Temperature: 0.0
+• Response Format: json
+• Language: auto-detect
+
+**Supported Audio Formats:**
+• Input: mp3, wav, m4a, flac, ogg, webm, mp4, etc.
+• Output: text, json, srt, vtt, verbose_json
+
+**Performance Tips:**
+• GPU acceleration available (if CUDA/Metal installed)
+• Batch processing supported for multiple files
+• Audio conversion available for incompatible formats
+"""
+            
+            return [types.TextContent(type="text", text=output.strip())]
+            
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"❌ Failed to get configuration: {str(e)}",
+                )
+            ]
+
+    def _get_model_info_schema(self) -> Dict[str, Any]:
+        """Schema for whisper-model-info tool."""
+        return {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+    def _get_audio_info_schema(self) -> Dict[str, Any]:
+        """Schema for whisper-audio-info tool."""
+        return {
+            "type": "object",
+            "properties": {
+                "audio_file": {
+                    "type": "string",
+                    "description": "Path to the audio file to analyze",
+                }
+            },
+            "required": ["audio_file"],
+        }
+
+    def _get_config_schema(self) -> Dict[str, Any]:
+        """Schema for whisper-get-config tool."""
+        return {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
