@@ -94,16 +94,25 @@ async def main():
     else:
         # Normal MCP server mode
         try:
-            print("🚀 Starting SOLID Principles MCP Server...")
-            print(f"📁 Project root: {project_root}")
+            # Don't print to stdout in MCP mode - it interferes with the protocol
+            # Use stderr for any necessary logging
+            import logging
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                handlers=[logging.StreamHandler(sys.stderr)]
+            )
+            logger = logging.getLogger('solid-mcp-server')
+            logger.info(f"Starting SOLID Principles MCP Server with project root: {project_root}")
             
             server = SolidMCPServer(project_root)
             await server.serve()
             
         except KeyboardInterrupt:
-            print("\n🛑 Server stopped by user")
+            # Use stderr for exit messages in MCP mode
+            print("\n🛑 Server stopped by user", file=sys.stderr)
         except Exception as e:
-            print(f"❌ Server error: {e}")
+            print(f"❌ Server error: {e}", file=sys.stderr)
             sys.exit(1)
 
 

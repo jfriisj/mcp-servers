@@ -402,4 +402,59 @@ This project is open source. Check the main repository for licensing information
 
 ---
 
+## 🐳 Docker Usage
+
+The SOLID Principles MCP Server is available as a Docker container for easy deployment and CI/CD integration.
+
+### Quick Start with Docker
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/jfriisj/solid-mcp-server:latest
+
+# Analyze your code
+docker run --rm -v /path/to/your/code:/workspace ghcr.io/jfriisj/solid-mcp-server:latest --test
+
+# Generate a report
+docker run --rm \
+  -v /path/to/your/code:/workspace:ro \
+  -v /path/to/output:/output \
+  ghcr.io/jfriisj/solid-mcp-server:latest \
+  --generate-report
+```
+
+### Docker Compose
+
+Use the provided `docker-compose.yml`:
+
+```bash
+# Test with sample code
+docker-compose up solid-dev
+
+# Analyze your project
+PROJECT_PATH=/path/to/your/code docker-compose up solid-mcp
+
+# Generate reports
+PROJECT_PATH=/path/to/your/code \
+OUTPUT_PATH=/path/to/reports \
+docker-compose up solid-report
+```
+
+### Available Images
+
+| Registry | Image | Tags |
+|----------|-------|------|
+| GitHub Container Registry | `ghcr.io/jfriisj/solid-mcp-server` | `latest`, `main`, `develop`, version tags |
+
+### Environment Variables
+
+- `SOLID_PROJECT_ROOT`: Project root directory (default: `/workspace`)
+- `SOLID_OUTPUT_DIR`: Output directory for reports (default: `/output`)
+- `SOLID_FORMAT`: Report format - `text`, `json`, `markdown` (default: `markdown`)
+- `SOLID_SEVERITY`: Filter by severity - `all`, `high`, `medium`, `low` (default: `all`)
+
+For comprehensive Docker documentation, see [DOCKER.md](./DOCKER.md).
+
+---
+
 **Ready to improve your code quality? Start analyzing with SOLID principles today!**

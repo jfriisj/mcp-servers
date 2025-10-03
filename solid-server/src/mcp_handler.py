@@ -96,7 +96,7 @@ class MCPHandler:
                         "include_suggestions": {
                             "type": "boolean",
                             "description": "Include improvement suggestions in the report",
-                            "default": true
+                            "default": True
                         },
                         "severity_filter": {
                             "type": "string",

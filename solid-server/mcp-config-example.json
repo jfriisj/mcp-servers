@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "solid": {
+      "command": "python",
+      "args": [
+        "C:/github/mcp-servers/solid-server/src/main.py",
+        "--project-root",
+        "${workspaceFolder}"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "cwd": "C:/github/mcp-servers/solid-server"
+    }
+  }
+}

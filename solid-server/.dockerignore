@@ -1,0 +1,41 @@
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Development files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (already copied)
+DOCKER.md
+
+# Test outputs
+docker-output/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
