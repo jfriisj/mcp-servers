@@ -317,6 +317,76 @@ Transcribe multiple audio files in a single operation.
 - `response_format`: Output format (default: "json")
 - `temperature`: Sampling temperature (default: 0.0)
 
+### `whisper-convert-audio`
+
+Convert audio/video files to Whisper-compatible formats.
+
+**Parameters:**
+
+- `input_file` (required): Path to the audio/video file
+- `output_format`: Target format (default: "wav")
+- `output_file`: Output path (optional, auto-generated if not provided)
+- `quality`: Conversion quality - "high", "medium", or "low" (default: "high")
+
+### `whisper-transcribe-file-content`
+
+Transcribe base64-encoded audio content (useful for file uploads).
+
+**Parameters:**
+
+- `file_content` (required): Base64-encoded audio data
+- `file_name`: Original filename (optional)
+- `file_format`: Format hint (e.g., "mp3", "wav")
+- `language`: Language code (optional)
+- `response_format`: Output format (default: "json")
+- `temperature`: Sampling temperature (default: 0.0)
+
+### `whisper-model-info`
+
+Get information about the loaded Whisper model and its capabilities.
+
+**Parameters:** None
+
+**Returns:**
+
+- Model name and version
+- Model size (parameter count)
+- Device (CPU/GPU)
+- Supported languages
+- Output formats
+- Model capabilities
+
+### `whisper-audio-info`
+
+Get detailed metadata about an audio file without transcribing it.
+
+**Parameters:**
+
+- `audio_file` (required): Path to the audio file
+
+**Returns:**
+
+- File size and duration
+- Sample rate and channels
+- Audio codec and bit rate
+- Format information
+- Whisper compatibility check
+- Recommendations for optimization
+
+### `whisper-get-config`
+
+View current Whisper server configuration and settings.
+
+**Parameters:** None
+
+**Returns:**
+
+- Model configuration (name, device, compute type)
+- Server configuration (host, port, max file size)
+- Default transcription settings
+- Supported audio formats
+- Performance tips
+
 ## Agent Access to Docker MCP Server
 
 ### VS Code Integration
