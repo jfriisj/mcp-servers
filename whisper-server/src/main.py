@@ -54,7 +54,7 @@ async def main():
         if mode == "api":
             # Run FastAPI server
             print("🚀 Starting Whisper FastAPI server...")
-            from api import create_app
+            from presentation.api.fastapi_app import create_app
 
             app = create_app(project_root)
             config = uvicorn.Config(app, host=host, port=port)
@@ -64,7 +64,7 @@ async def main():
         elif mode == "mcp":
             # Run MCP server (default)
             print("🎯 Starting Whisper MCP server...")
-            from server import WhisperMCPServer
+            from presentation.mcp.server import WhisperMCPServer
 
             service = WhisperMCPServer(project_root)
             await service.serve()

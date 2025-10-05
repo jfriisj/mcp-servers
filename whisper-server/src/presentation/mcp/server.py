@@ -44,7 +44,7 @@ class WhisperMCPServer:
             project_root: Optional project root path for configuration
         """
         # Create composition root with dependency injection
-        from mcp_handler import MCPHandler
+        from presentation.mcp.handler import MCPHandler
         from presentation.composition_root import CompositionRoot
 
         root_path = str(project_root) if project_root else None
