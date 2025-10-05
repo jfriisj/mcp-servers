@@ -93,9 +93,6 @@ class TranscribeWithTimestampsUseCase:
 
         # File is large, use segmentation
         try:
-            # Create temporary directory for segments
-            temp_dir = self._temp_file_manager.create_temp_directory()
-
             # Segment the audio file
             segments = await self._audio_segmenter.segment_audio(
                 file_path=config.audio_file,

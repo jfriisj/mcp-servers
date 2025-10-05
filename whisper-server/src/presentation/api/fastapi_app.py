@@ -188,29 +188,19 @@ class FastAPIApp:
             temp_file_path = temp_file.name
 
         try:
-            # Use appropriate use case based on response format
-            if response_format == "verbose_json":
-                config = TranscriptionConfig(
-                    audio_file=temp_file_path,
-                    language=language,
-                    response_format=response_format,
-                    temperature=temperature,
-                    prompt=prompt,
-                    model="whisper-1",
-                )
-                result = await self._root.transcribe_with_timestamps.execute(
-                    config
-                )
-            else:
-                config = TranscriptionConfig(
-                    audio_file=temp_file_path,
-                    language=language,
-                    response_format=response_format,
-                    temperature=temperature,
-                    prompt=prompt,
-                    model="whisper-1",
-                )
-                result = await self._root.transcribe_audio.execute(config)
+            # Always use transcribe_with_timestamps for file uploads
+            # to handle automatic segmentation for long audio files
+            config = TranscriptionConfig(
+                audio_file=temp_file_path,
+                language=language,
+                response_format=response_format,
+                temperature=temperature,
+                prompt=prompt,
+                model="whisper-1",
+            )
+            result = await self._root.transcribe_with_timestamps.execute(
+                config
+            )
 
             return TranscriptionResponse(
                 text=result.text,
