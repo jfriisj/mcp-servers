@@ -1,7 +1,9 @@
-"""
+"""  
 Main MCP server orchestration for Whisper
 ==========================================
 Coordinates all components and provides the main server interface.
+
+Refactored to use Clean Architecture with CompositionRoot.
 """
 
 from pathlib import Path
@@ -9,7 +11,7 @@ from typing import Optional
 
 # MCP imports (these would be installed as dependencies)
 try:
-    from mcp.server import Server, NotificationOptions
+    from mcp.server import NotificationOptions, Server
     from mcp.server.models import InitializationOptions
 
     HAS_MCP = True
@@ -32,22 +34,22 @@ except ImportError:
 
     class InitializationOptions:
         pass
-
-
 class WhisperMCPServer:
     """Main MCP server for Whisper audio transcription."""
 
     def __init__(self, project_root: Optional[Path] = None):
-        self.project_root = project_root or Path.cwd()
-
-        # Initialize components with dependency injection
-        from config import ConfigurationManager
+        """Initialize MCP server with CompositionRoot.
+        
+        Args:
+            project_root: Optional project root path for configuration
+        """
+        # Create composition root with dependency injection
         from mcp_handler import MCPHandler
-        from whisper_runner import WhisperRunner
+        from presentation.composition_root import CompositionRoot
 
-        self.config_manager = ConfigurationManager(self.project_root)
-        self.whisper_runner = WhisperRunner(self.config_manager)
-        self.mcp_handler = MCPHandler(self.whisper_runner)
+        root_path = str(project_root) if project_root else None
+        self.composition_root = CompositionRoot(root_path)
+        self.mcp_handler = MCPHandler(self.composition_root)
 
         # Setup MCP server
         self.server = Server("whisper-server", "1.0.0")

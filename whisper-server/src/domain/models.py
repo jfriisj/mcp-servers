@@ -1,8 +1,16 @@
 """
-Data models for Whisper MCP Server
-==================================
-Dataclasses defining configuration and result structures
-for Whisper operations.
+Domain Models - Whisper Server
+===============================
+Data structures (dataclasses) for Whisper operations.
+
+These are pure data structures with no business logic or dependencies.
+They represent the core domain concepts:
+- Configuration objects (inputs to operations)
+- Result objects (outputs from operations)
+
+Following SOLID principles:
+- Single Responsibility: Each model represents one concept
+- Open/Closed: Can extend without modifying existing code
 """
 
 from dataclasses import dataclass

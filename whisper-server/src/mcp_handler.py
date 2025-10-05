@@ -2,11 +2,24 @@
 MCP protocol handling for Whisper Server
 ========================================
 Manages MCP tool definitions and protocol interactions.
+
+Refactored to use Clean Architecture with CompositionRoot.
 """
 
 from typing import Any, Dict, List
-import base64
-import requests
+
+from mcp import types
+
+# Domain models
+from domain.models import (
+    TranscriptionConfig,
+    LanguageDetectionConfig,
+    BatchTranscriptionConfig,
+    ConversionConfig,
+)
+
+# Presentation layer
+from presentation.composition_root import CompositionRoot
 
 # MCP imports (these would be installed as dependencies)
 try:
@@ -30,8 +43,13 @@ except ImportError:
 class MCPHandler:
     """Handles MCP protocol interactions and tool definitions."""
 
-    def __init__(self, whisper_runner):
-        self.whisper_runner = whisper_runner
+    def __init__(self, composition_root: CompositionRoot):
+        """Initialize MCP handler with composition root.
+        
+        Args:
+            composition_root: Dependency injection container with use cases
+        """
+        self._root = composition_root
 
     def get_tools(self) -> List[types.Tool]:
         """Get list of available Whisper tools."""
@@ -170,32 +188,39 @@ class MCPHandler:
     async def _handle_transcribe(
         self, args: Dict[str, Any]
     ) -> List[types.TextContent]:
-        """Handle whisper-transcribe tool call by delegating to FastAPI."""
+        """Handle whisper-transcribe tool call using Clean Architecture."""
         try:
-            response = requests.post(
-                "http://localhost:8000/transcribe",
-                json={
-                    "audio_file": args["audio_file"],
-                    "language": args.get("language"),
-                    "response_format": args.get("response_format", "json"),
-                    "temperature": args.get("temperature", 0.0),
-                    "prompt": args.get("prompt"),
-                },
-                timeout=30
+            # Create transcription config from arguments
+            config = TranscriptionConfig(
+                audio_file=args["audio_file"],
+                language=args.get("language"),
+                response_format=args.get("response_format", "json"),
+                temperature=args.get("temperature", 0.0),
+                prompt=args.get("prompt"),
             )
-            response.raise_for_status()
-            result = response.json()
-            return [
-                types.TextContent(
-                    type="text",
-                    text=(
-                        f"✅ Transcription completed successfully!\n\n"
-                        f"**Text:** {result['text']}\n"
-                        f"**Language:** {result.get('language', 'N/A')}"
-                    ),
-                )
-            ]
-        except requests.RequestException as e:
+            
+            # Execute use case
+            result = await self._root.transcribe_audio.execute(config)
+            
+            if result.success:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=(
+                            f"✅ Transcription completed successfully!\n\n"
+                            f"**Text:** {result.text}\n"
+                            f"**Language:** {result.language or 'N/A'}"
+                        ),
+                    )
+                ]
+            else:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"❌ {result.error_message}",
+                    )
+                ]
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
@@ -209,39 +234,48 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-timestamps tool call."""
         try:
-            response = requests.post(
-                "http://localhost:8000/transcribe-file",
-                files={
-                    "file": (args["audio_file"].split("/")[-1],
-                             open(args["audio_file"], "rb")),
-                },
-                data={
-                    "language": args.get("language"),
-                    "response_format": "verbose_json",
-                    "temperature": args.get("temperature", 0.0),
-                    "prompt": args.get("prompt"),
-                },
-                timeout=30
+            # Create transcription config
+            config = TranscriptionConfig(
+                audio_file=args["audio_file"],
+                language=args.get("language"),
+                response_format="verbose_json",
+                temperature=args.get("temperature", 0.0),
+                prompt=args.get("prompt"),
             )
-            response.raise_for_status()
-            result = response.json()
+            
+            # Execute use case
+            result = await self._root.transcribe_with_timestamps.execute(
+                config
+            )
+            
+            if result.success:
+                segments_count = len(result.segments) if result.segments else 0
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=(
+                            "✅ Transcription with timestamps completed!\n\n"
+                            f"**Text:** {result.text}\n"
+                            f"**Language:** {result.language or 'N/A'}\n"
+                            f"**Duration:** {result.duration or 'N/A'}s\n"
+                            f"**Segments:** {segments_count}"
+                        ),
+                    )
+                ]
+            else:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"❌ {result.error_message}",
+                    )
+                ]
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
                     text=(
-                        "✅ Transcription with timestamps completed!\n\n"
-                        f"**Text:** {result['text']}\n"
-                        f"**Language:** {result.get('language', 'N/A')}\n"
-                        f"**Duration:** {result.get('duration', 'N/A')}s\n"
-                        f"**Segments:** {len(result.get('segments', []))}"
+                        f"❌ Transcription with timestamps failed: {str(e)}"
                     ),
-                )
-            ]
-        except requests.RequestException as e:
-            return [
-                types.TextContent(
-                    type="text",
-                    text=f"❌ Transcription with timestamps failed: {str(e)}",
                 )
             ]
 
@@ -250,30 +284,33 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-detect-language tool call."""
         try:
-            # Read the audio file and encode as base64
-            with open(args["audio_file"], "rb") as f:
-                audio_content = base64.b64encode(f.read()).decode()
-
-            response = requests.post(
-                "http://localhost:8000/detect-language",
-                json={
-                    "audio_file": audio_content,
-                },
-                timeout=30
+            # Create language detection config
+            config = LanguageDetectionConfig(
+                audio_file=args["audio_file"],
             )
-            response.raise_for_status()
-            result = response.json()
-            return [
-                types.TextContent(
-                    type="text",
-                    text=(
-                        "✅ Language detection completed successfully!\n\n"
-                        f"**Detected Language:** {result['detected_language']}\n"
-                        f"**Confidence:** {result['confidence']:.2f}"
-                    ),
-                )
-            ]
-        except requests.RequestException as e:
+            
+            # Execute use case
+            result = await self._root.detect_language.execute(config)
+            
+            if result.success:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=(
+                            "✅ Language detection completed!\n\n"
+                            f"**Detected:** {result.detected_language}\n"
+                            f"**Confidence:** {result.confidence:.2f}"
+                        ),
+                    )
+                ]
+            else:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"❌ {result.error_message}",
+                    )
+                ]
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
@@ -286,25 +323,19 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-batch-transcribe tool call."""
         try:
-            response = requests.post(
-                "http://localhost:8000/batch-transcribe",
-                json={
-                    "audio_files": args["audio_files"],
-                    "language": args.get("language"),
-                    "response_format": args.get("response_format", "json"),
-                    "temperature": args.get("temperature", 0.0),
-                },
-                timeout=300,  # 5 minutes timeout for batch processing
+            # Create batch transcription config
+            config = BatchTranscriptionConfig(
+                audio_files=args["audio_files"],
+                language=args.get("language"),
+                response_format=args.get("response_format", "json"),
+                temperature=args.get("temperature", 0.0),
             )
-            response.raise_for_status()
-            result = response.json()
-
-            return [
-                self._format_batch_result(
-                    type("BatchResult", (), result)()
-                )
-            ]
-        except requests.RequestException as e:
+            
+            # Execute use case
+            result = await self._root.batch_transcribe.execute(config)
+            
+            return [self._format_batch_result(result)]
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
@@ -318,40 +349,29 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-transcribe-file-content tool call."""
         try:
-            response = requests.post(
-                "http://localhost:8000/transcribe",
-                json={
-                    "audio_file": args["file_content"],
-                    "language": args.get("language"),
-                    "response_format": args.get("response_format", "json"),
-                    "temperature": args.get("temperature", 0.0),
-                    "prompt": args.get("prompt"),
-                },
-                timeout=120,  # 2 minutes timeout
+            # Execute use case directly with file content
+            result = await self._root.transcribe_file_content.execute(
+                file_content=args["file_content"],
+                file_name=args.get("file_name"),
+                file_format=args.get("file_format"),
+                language=args.get("language"),
+                response_format=args.get("response_format", "json"),
+                temperature=args.get("temperature", 0.0),
+                prompt=args.get("prompt"),
             )
-            response.raise_for_status()
-            result = response.json()
-
-            # Convert API response to expected format
-            formatted_result = type("TranscriptionResult", (), {
-                "text": result["text"],
-                "language": result.get("language"),
-                "success": result["success"],
-                "error_message": result.get("error_message"),
-                "duration": result.get("duration"),
-                "segments": result.get("segments"),
-            })()
-
+            
             return [
                 self._format_transcription_result(
-                    "Transcription from file content", formatted_result
+                    "Transcription from file content", result
                 )
             ]
-        except requests.RequestException as e:
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
-                    text=f"❌ Transcription from file content failed: {str(e)}",
+                    text=(
+                        f"❌ File content transcription failed: {str(e)}"
+                    ),
                 )
             ]
 
@@ -361,31 +381,24 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-convert-audio tool call."""
         try:
-            response = requests.post(
-                "http://localhost:8000/convert-audio",
-                json={
-                    "input_file": args["input_file"],
-                    "output_format": args.get("output_format", "wav"),
-                    "quality": args.get("quality", "high"),
-                    "output_file": args.get("output_file"),
-                },
-                timeout=300,  # 5 minutes timeout for conversion
+            config = ConversionConfig(
+                input_file=args["input_file"],
+                output_format=args.get("output_format", "wav"),
+                quality=args.get("quality", "high"),
+                output_file=args.get("output_file")
             )
-            response.raise_for_status()
-            result = response.json()
+            
+            result = await self._root.convert_audio.execute(config)
 
-            if result.get("success"):
+            if result.success:
                 return [
                     types.TextContent(
                         type="text",
                         text=(
                             "✅ Audio conversion completed successfully!\n\n"
-                            f"**Input:** {result.get('original_format', 'unknown')} format\n"
-                            f"**Output:** {result.get('converted_format', 'unknown')} format\n"
-                            f"**File:** {result.get('output_file', 'N/A')}\n"
-                            f"**Method:** {result.get('conversion_method', 'N/A')}\n"
-                            f"**Duration:** {result.get('duration', 'N/A')}s\n"
-                            f"**Size:** {result.get('file_size_mb', 'N/A'):.2f}MB"
+                            f"**Output File:** {result.output_file}\n"
+                            f"**Format:** {result.converted_format}\n"
+                            f"**Duration:** {result.duration}s\n"
                         ),
                     )
                 ]
@@ -393,10 +406,11 @@ class MCPHandler:
                 return [
                     types.TextContent(
                         type="text",
-                        text=f"❌ Audio conversion failed: {result.get('error_message', 'Unknown error')}",
+                        text=f"❌ Audio conversion failed: "
+                        f"{result.error_message}",
                     )
                 ]
-        except requests.RequestException as e:
+        except Exception as e:
             return [
                 types.TextContent(
                     type="text",
@@ -688,11 +702,11 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-model-info tool call."""
         try:
-            # Get model information from the whisper runner
-            model_name = getattr(
-                self.whisper_runner, 'model_name', 'openai/whisper-large-v3'
-            )
-            device = getattr(self.whisper_runner, 'device', 'auto')
+            # Get model information from composition root
+            model_info = self._root.get_whisper_model().get_model_info()
+            
+            model_name = model_info.get('model_name', 'openai/whisper-large-v3')
+            device = model_info.get('device', 'auto')
             
             # Extract model size from name
             if 'large' in model_name:
@@ -869,33 +883,25 @@ class MCPHandler:
     ) -> List[types.TextContent]:
         """Handle whisper-get-config tool call."""
         try:
-            # Get configuration from whisper runner and server
-            config_info = {
-                'model': getattr(
-                    self.whisper_runner, 'model_name',
-                    'openai/whisper-large-v3'
-                ),
-                'device': getattr(self.whisper_runner, 'device', 'auto'),
-                'compute_type': getattr(
-                    self.whisper_runner, 'compute_type', 'default'
-                ),
-            }
+            # Get configuration from composition root
+            model_info = self._root.get_whisper_model().get_model_info()
+            config_provider = self._root.get_configuration()
             
-            # Try to get server configuration
-            try:
-                from config import WhisperConfig
-                server_config = WhisperConfig()
-                config_info.update({
-                    'host': server_config.host,
-                    'port': server_config.port,
-                    'max_file_size': f"{server_config.max_file_size / (1024*1024):.0f}MB",
-                })
-            except Exception:
-                config_info.update({
-                    'host': 'localhost',
-                    'port': 8000,
-                    'max_file_size': '100MB',
-                })
+            model_name = model_info.get(
+                'model_name', 'openai/whisper-large-v3'
+            )
+            max_size_bytes = getattr(
+                config_provider, 'max_file_size', 100*1024*1024
+            )
+            
+            config_info = {
+                'model': model_name,
+                'device': model_info.get('device', 'auto'),
+                'compute_type': model_info.get('compute_type', 'default'),
+                'host': getattr(config_provider, 'host', 'localhost'),
+                'port': getattr(config_provider, 'port', 8000),
+                'max_file_size': f"{max_size_bytes / (1024*1024):.0f}MB",
+            }
             
             output = f"""
 ⚙️  WHISPER SERVER CONFIGURATION

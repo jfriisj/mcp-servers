@@ -1,25 +1,26 @@
-"""
+"""  
 FastAPI application for Whisper transcription
 =============================================
 Provides REST API endpoints for audio transcription using the Whisper model.
+
+Refactored to use Clean Architecture with CompositionRoot.
 """
 
 import base64
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from config import ConfigurationManager
-from whisper_runner import WhisperRunner
-from models import (
-    TranscriptionConfig,
-    TranscriptionWithTimestampsConfig,
-    FileContentTranscriptionConfig,
+from domain.models import (
     ConversionConfig,
+    LanguageDetectionConfig,
+    TranscriptionConfig,
 )
+from presentation.composition_root import CompositionRoot
 
 
 class TranscriptionRequest(BaseModel):
@@ -71,10 +72,13 @@ class TranscriptionResponse(BaseModel):
 class FastAPIApp:
     """FastAPI application for Whisper transcription."""
 
-    def __init__(self, project_root: Optional[Path] = None):
-        self.project_root = project_root or Path.cwd()
-        self.config_manager = ConfigurationManager(self.project_root)
-        self.whisper_runner = WhisperRunner(self.config_manager)
+    def __init__(self, composition_root: CompositionRoot):
+        """Initialize FastAPI app with composition root.
+        
+        Args:
+            composition_root: Dependency injection container
+        """
+        self._root = composition_root
         self.app = FastAPI(
             title="Whisper Transcription API",
             description="REST API for audio transcription using Whisper",
@@ -104,11 +108,13 @@ class FastAPIApp:
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint."""
-            model_loaded = self.whisper_runner._model_loaded
+            model_info = self._root.get_whisper_model().get_model_info()
+            model_loaded = model_info.get('model_name') is not None
+            device = model_info.get('device', 'cpu')
             return {
                 "status": "healthy" if model_loaded else "unhealthy",
                 "model_loaded": model_loaded,
-                "cuda_available": self.config_manager.device == "cuda",
+                "cuda_available": device == "cuda",
             }
 
         @self.app.post("/transcribe", response_model=TranscriptionResponse)
@@ -123,22 +129,21 @@ class FastAPIApp:
                 # Determine filename for better format detection
                 filename = request.file_name or "uploaded_audio"
                 if request.file_format:
-                    filename = f"{filename}.{request.file_format.lower().lstrip('.')}"
-                elif not '.' in filename:
+                    fmt = request.file_format.lower().lstrip('.')
+                    filename = f"{filename}.{fmt}"
+                elif '.' not in filename:
                     filename = f"{filename}.unknown"
 
-                # Transcribe using file content
-                result = await self.whisper_runner.transcribe_file_content(
-                    FileContentTranscriptionConfig(
-                        file_content=request.audio_file,
-                        file_name=filename,
-                        file_format=request.file_format,
-                        language=request.language,
-                        response_format=request.response_format,
-                        temperature=request.temperature,
-                        prompt=request.prompt,
-                        model="whisper-1",
-                    )
+                # Use transcribe_file_content use case
+                result = await self._root.transcribe_file_content.execute(
+                    file_content=request.audio_file,
+                    file_name=filename,
+                    file_format=request.file_format,
+                    language=request.language,
+                    response_format=request.response_format,
+                    temperature=request.temperature,
+                    prompt=request.prompt,
+                    model="whisper-1",
                 )
 
                 return TranscriptionResponse(
@@ -176,70 +181,47 @@ class FastAPIApp:
                         status_code=400, detail="Invalid file upload"
                     )
 
-                # Check if file type is supported (either native or convertible)
-                file_ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
-                whisper_formats = self.config_manager.supported_audio_formats
-                convertible_formats = self.config_manager.conversion_supported_formats if hasattr(self.config_manager, 'conversion_supported_formats') else []
-                
-                if file_ext not in whisper_formats and file_ext not in convertible_formats:
-                    supported_formats = whisper_formats + convertible_formats
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Unsupported file format '{file_ext}'. Supported formats: {', '.join(supported_formats[:10])}{'...' if len(supported_formats) > 10 else ''}"
-                    )
-
                 # Read file content
                 content = await file.read()
 
                 # Create temporary file
+                suffix = f".{file.filename.split('.')[-1]}"
                 with tempfile.NamedTemporaryFile(
-                    suffix=f".{file.filename.split('.')[-1]}", delete=False
+                    suffix=suffix, delete=False
                 ) as temp_file:
                     temp_file.write(content)
                     temp_file_path = temp_file.name
 
                 try:
-                    # Validate the temporary file
-                    is_valid, error_msg = self.config_manager.validate_audio_file(
-                        temp_file_path
-                    )
-                    if not is_valid:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Invalid audio file: {error_msg}"
-                        )
-
-                    # Determine transcription method based on response format
+                    # Use appropriate use case based on response format
                     if response_format == "verbose_json":
-                        result = await self.whisper_runner.transcribe_with_timestamps(
-                            TranscriptionWithTimestampsConfig(
-                                audio_file=temp_file_path,
-                                language=language,
-                                response_format=response_format,
-                                temperature=temperature,
-                                prompt=prompt,
-                                model="whisper-1",
-                            )
+                        config = TranscriptionConfig(
+                            audio_file=temp_file_path,
+                            language=language,
+                            response_format=response_format,
+                            temperature=temperature,
+                            prompt=prompt,
+                            model="whisper-1",
                         )
+                        result = await self._root.transcribe_with_timestamps.execute(config)
                     else:
-                        result = await self.whisper_runner.transcribe_audio(
-                            TranscriptionConfig(
-                                audio_file=temp_file_path,
-                                language=language,
-                                response_format=response_format,
-                                temperature=temperature,
-                                prompt=prompt,
-                                model="whisper-1",
-                            )
+                        config = TranscriptionConfig(
+                            audio_file=temp_file_path,
+                            language=language,
+                            response_format=response_format,
+                            temperature=temperature,
+                            prompt=prompt,
+                            model="whisper-1",
                         )
+                        result = await self._root.transcribe_audio.execute(config)
 
                     return TranscriptionResponse(
                         text=result.text,
                         language=result.language,
                         success=result.success,
-                        error_message=result.error_message \
-                            if not result.success
-                            else None,
+                        error_message=result.error_message
+                        if not result.success
+                        else None,
                         duration=result.duration,
                         segments=result.segments,
                     )
@@ -268,24 +250,33 @@ class FastAPIApp:
                     )
 
                 # Create temporary file from base64
-                file_data = base64.b64decode(request.audio_file, validate=True)
-                detected_format = self._detect_audio_format(file_data)
+                file_data = base64.b64decode(
+                    request.audio_file, validate=True
+                )
 
-                if not detected_format:
-                    raise HTTPException(
-                        status_code=400, detail="Unsupported audio format"
-                    )
+                # Simple format detection
+                detected_format = "wav"  # Default
+                if file_data.startswith(b"RIFF") and len(file_data) > 12:
+                    if file_data[8:12] == b"WAVE":
+                        detected_format = "wav"
+                elif file_data.startswith(b"ID3"):
+                    detected_format = "mp3"
+                elif file_data.startswith(b"\xff\xfb"):
+                    detected_format = "mp3"
 
+                suffix = f".{detected_format}"
                 with tempfile.NamedTemporaryFile(
-                    suffix=f".{detected_format}", delete=False
+                    suffix=suffix, delete=False
                 ) as temp_file:
                     temp_file.write(file_data)
                     temp_file_path = temp_file.name
 
                 try:
-                    result = await self.whisper_runner.detect_language(
-                        type("Config", (), {"audio_file": temp_file_path})()
+                    # Use detect_language use case
+                    config = LanguageDetectionConfig(
+                        audio_file=temp_file_path
                     )
+                    result = await self._root.detect_language.execute(config)
 
                     return {
                         "detected_language": result.detected_language,
@@ -336,40 +327,37 @@ class FastAPIApp:
                             failed += 1
                             continue
 
+                        # Read file and encode
                         with open(audio_file, "rb") as f:
                             file_content = base64.b64encode(f.read()).decode()
 
-                        # Transcribe using file content
-                        transcription_result = await self.whisper_runner.\
-                            transcribe_file_content(
-                                FileContentTranscriptionConfig(
-                                    file_content=file_content,
-                                    file_name=os.path.basename(audio_file),
-                                    language=request.get("language"),
-                                    response_format=request.get(
-                                        "response_format", "json"
-                                    ),
-                                    temperature=request.get("temperature", 0.0),
-                                    prompt=None,
-                                    model="whisper-1",
-                                )
-                            )
+                        # Use transcribe_file_content use case
+                        result = await self._root.transcribe_file_content.execute(
+                            file_content=file_content,
+                            file_name=os.path.basename(audio_file),
+                            language=request.get("language"),
+                            response_format=request.get(
+                                "response_format", "json"
+                            ),
+                            temperature=request.get("temperature", 0.0),
+                            prompt=None,
+                            model="whisper-1",
+                        )
 
-                        if transcription_result.success:
+                        if result.success:
                             successful += 1
                             results.append({
                                 "success": True,
-                                "text": transcription_result.text,
-                                "language": transcription_result.language,
-                                "duration": transcription_result.duration,
-                                "segments": transcription_result.segments,
+                                "text": result.text,
+                                "language": result.language,
+                                "duration": result.duration,
+                                "segments": result.segments,
                             })
                         else:
                             failed += 1
                             results.append({
                                 "success": False,
-                                "error_message":
-                                    transcription_result.error_message,
+                                "error_message": result.error_message,
                                 "text": ""
                             })
 
@@ -402,20 +390,19 @@ class FastAPIApp:
                 # Validate input file exists
                 if not os.path.exists(request.input_file):
                     raise HTTPException(
-                        status_code=400, 
+                        status_code=400,
                         detail=f"Input file not found: {request.input_file}"
                     )
-                
-                # Configure conversion
-                conversion_config = ConversionConfig(
+
+                # Use convert_audio use case
+                config = ConversionConfig(
                     input_file=request.input_file,
                     output_format=request.output_format,
                     output_file=request.output_file,
                     quality=request.quality
                 )
-                
-                # Perform conversion
-                result = await self.whisper_runner.convert_audio_file(conversion_config)
+
+                result = await self._root.convert_audio.execute(config)
                 
                 return ConversionResponse(
                     success=result.success,
@@ -433,78 +420,15 @@ class FastAPIApp:
                 raise
             except Exception as e:
                 raise HTTPException(
-                    status_code=500, 
+                    status_code=500,
                     detail=f"Audio conversion failed: {str(e)}"
                 )
-
-    def _detect_audio_format(self, file_data: bytes, file_name: Optional[str] = None, format_hint: Optional[str] = None) -> Optional[str]:
-        """Detect audio file format from binary data, filename, or format hint."""
-        
-        # If format hint is provided, validate and use it
-        if format_hint:
-            format_hint = format_hint.lower().lstrip('.')
-            # Check if it's a supported format
-            converter_formats = self.whisper_runner.config_manager.conversion_supported_formats
-            whisper_formats = self.whisper_runner.config_manager.supported_audio_formats
-            if format_hint in converter_formats or format_hint in whisper_formats:
-                return format_hint
-        
-        # Try to detect from filename extension as fallback
-        if file_name:
-            extension = file_name.lower().split('.')[-1] if '.' in file_name else None
-            if extension:
-                converter_formats = self.whisper_runner.config_manager.conversion_supported_formats
-                whisper_formats = self.whisper_runner.config_manager.supported_audio_formats
-                if extension in converter_formats or extension in whisper_formats:
-                    return extension
-        
-        # Fallback to magic byte detection
-        if len(file_data) < 12:
-            return None
-
-        # Check magic bytes for different audio formats
-        if file_data.startswith(b"RIFF") and file_data[8:12] == b"WAVE":
-            return "wav"
-        elif file_data.startswith(b"RIFF") and file_data[8:12] == b"AVI ":
-            return "avi"
-        elif (
-            file_data.startswith(b"ID3")
-            or file_data.startswith(b"\xff\xfb")
-            or file_data.startswith(b"\xff\xf3")
-            or file_data.startswith(b"\xff\xf2")
-        ):
-            return "mp3"
-        elif file_data.startswith(b"ftypM4A") or file_data.startswith(b"ftypmp4"):
-            return "m4a" if b"M4A" in file_data[:20] else "mp4"
-        elif file_data.startswith(b"fLaC"):
-            return "flac"
-        elif file_data.startswith(b"OggS"):
-            return "ogg"
-        elif file_data[4:8] == b"ftyp":
-            # Check for various MP4 container types
-            if b"qt  " in file_data[8:20]:
-                return "mov"
-            return "mp4"
-        elif file_data.startswith(b"WEBM") or (b"webm" in file_data[:20].lower()):
-            return "webm"
-        # WMA format detection
-        elif file_data.startswith(b"\x30\x26\xB2\x75\x8E\x66\xCF\x11\xA6\xD9\x00\xAA\x00\x62\xCE\x6C"):
-            return "wma"
-        # ASF format (which WMA uses)
-        elif file_data.startswith(b"\x30\x26\xB2\x75"):
-            return "wma"
-
-        # Additional checks for MP3 without ID3 tag
-        if len(file_data) >= 2:
-            first_two = file_data[:2]
-            if first_two in [b"\xff\xfb", b"\xff\xf3", b"\xff\xf2",
-                             b"\xff\xf1"]:
-                return "mp3"
-
-        return None
 
 
 def create_app(project_root: Optional[Path] = None) -> FastAPI:
     """Create and return the FastAPI application."""
-    fastapi_app = FastAPIApp(project_root)
+    # Create composition root with dependency injection
+    root_path = str(project_root) if project_root else None
+    composition_root = CompositionRoot(root_path)
+    fastapi_app = FastAPIApp(composition_root)
     return fastapi_app.app
