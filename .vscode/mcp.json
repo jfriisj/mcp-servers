@@ -12,18 +12,6 @@
         "@modelcontextprotocol/server-sequential-thinking"
       ]
     },
-    "solid": {
-      "command": "python",
-      "args": [
-        "solid-server/src/main.py",
-        "--project-root",
-        "${workspaceFolder}"
-      ],
-      "cwd": "C:/github/mcp-servers",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
-    },
     "whisper": {
       "command": "python",
       "args": [
@@ -73,18 +61,6 @@
         "ghcr.io/jfriisj/multi-lint-python:latest"
       ]
     },
-    "import-test": {
-      "command": "python",
-      "args": [
-        "import-test-server/src/main.py",
-        "--project-root",
-        "${workspaceFolder}"
-      ],
-      "cwd": "C:/github/mcp-servers",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
-    },
     "import-test-docker": {
       "command": "docker",
       "args": [
@@ -95,7 +71,7 @@
         "mcp-import-test-${workspaceFolderBasename}",
         "-v",
         "${workspaceFolder}:/workspace",
-        "import-test-server"
+        "ghcr.io/jfriisj/import-test-mcp-server:latest"
       ]
     },
     "solid-docker": {
