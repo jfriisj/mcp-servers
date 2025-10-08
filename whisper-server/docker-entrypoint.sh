@@ -31,11 +31,8 @@ done
 
 echo "🎯 Starting Whisper MCP Server with CUDA support" >&2
 
-# Activate virtual environment
-source /opt/venv/bin/activate
-
 # Check if CUDA is available
-if python -c "import torch; print('CUDA available:', torch.cuda.is_available())" >/dev/null 2>&1; then
+if python3 -c "import torch; print('CUDA available:', torch.cuda.is_available())" >/dev/null 2>&1; then
     echo "✅ CUDA is available and ready" >&2
 else
     echo "⚠️  CUDA not available, falling back to CPU" >&2
@@ -68,8 +65,8 @@ echo "  Model Cache: ${HF_HOME:-/app/models}" >&2
 # Start the server
 cd /app/src
 echo "Current directory: $(pwd)" >&2
-echo "Python path: $(which python)" >&2
+echo "Python path: $(which python3)" >&2
 
 # Start MCP server
-echo "Running: python main.py --mode $MODE $*" >&2
-exec python main.py --mode $MODE "$@"
+echo "Running: python3 main.py --mode $MODE $*" >&2
+exec python3 main.py --mode $MODE "$@"

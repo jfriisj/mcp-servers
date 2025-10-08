@@ -1,35 +1,63 @@
-# Use NVIDIA CUDA base image with Python
-FROM nvidia/cuda:13.0.1-cudnn-runtime-ubuntu24.04
+# ============================================================================
+# OPTIMIZED MULTI-STAGE BUILD FOR WHISPER SERVER WITH GPU SUPPORT
+# Target: Reduce image size from 15GB to 8-10GB
+# ============================================================================
+
+# Stage 1: Builder - Install dependencies and prepare environment
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 AS builder
+
+# Install build dependencies including venv
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set working directory
+WORKDIR /app
+
+# Create virtual environment
+RUN python3.11 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies in the virtual environment
+# Using specific PyTorch version optimized for CUDA 12.1
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir "numpy<2.0" && \
+    pip install --no-cache-dir \
+    torch==2.1.0 \
+    torchaudio==2.1.0 \
+    --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ============================================================================
+# Stage 2: Runtime - Minimal runtime environment
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # Set environment variables for CUDA
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=${CUDA_HOME}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
-# Install system dependencies
-# Note: Not pinning versions to avoid conflicts with CUDA base image
+# Install only runtime dependencies (no git, no build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-venv \
+    python3.11 \
     ffmpeg \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Create virtual environment
-RUN python3 -m venv /opt/venv
+# Copy the entire virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set PATH to use the virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
-
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
-    pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY src/ ./src/
