@@ -52,6 +52,14 @@ usage() {
 check_project_dir() {
     local dir="$1"
     
+    # Convert Windows paths to Unix paths if needed (Git Bash on Windows)
+    if [[ "$dir" =~ ^[A-Z]: ]]; then
+        echo -e "${YELLOW}⚠️  Detected Windows path format. Converting to Unix format...${NC}"
+        # This shouldn't happen in Docker, but just in case
+        dir="/workspace"
+        echo -e "${BLUE}ℹ️  Using mounted workspace: $dir${NC}"
+    fi
+    
     if [ ! -d "$dir" ]; then
         echo -e "${RED}❌ Error: Project directory '$dir' does not exist${NC}"
         echo -e "${YELLOW}💡 Make sure to mount your code directory to /workspace:${NC}"

@@ -1,0 +1,115 @@
+{
+  "servers": {
+    "spec-workflow": {
+      "command": "npx",
+      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "."],
+      "cwd": "${workspaceFolder}"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "solid": {
+      "command": "python",
+      "args": [
+        "solid-server/src/main.py",
+        "--project-root",
+        "${workspaceFolder}"
+      ],
+      "cwd": "C:/github/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "whisper": {
+      "command": "python",
+      "args": [
+        "src/main.py"
+      ],
+      "cwd": "${workspaceFolder}/whisper-server",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/whisper-server/src"
+      }
+    },
+    "multi-lint-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-docker-lint-mcp",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/multi-lint-docker:latest"
+      ]
+    },
+    "multi-lint-infrastructure": {
+      "command": "docker", 
+      "args": [
+        "run",
+        "--rm", 
+        "-i",
+        "--name",
+        "mcp-infrastructure-lint-mcp",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/multi-lint-infrastructure:latest"
+      ]
+    },
+    "multi-lint-python": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-python-lint-mcp",
+        "-v", 
+        "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/multi-lint-python:latest"
+      ]
+    },
+    "import-test": {
+      "command": "python",
+      "args": [
+        "import-test-server/src/main.py",
+        "--project-root",
+        "${workspaceFolder}"
+      ],
+      "cwd": "C:/github/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "import-test-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-import-test-${workspaceFolderBasename}",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "import-test-server"
+      ]
+    },
+    "solid-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-solid-${workspaceFolderBasename}",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/solid-mcp-server:latest"
+      ]
+    }
+  }
+}
