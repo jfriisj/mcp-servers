@@ -4,12 +4,13 @@ A collection of Model Context Protocol (MCP) servers providing specialized devel
 
 ## 🚀 Overview
 
-This repository contains two specialized MCP servers:
+This repository contains three specialized MCP servers:
 
 - **SOLID Server** - SOLID principles analysis and code quality assessment for Python
-- **Whisper Server** - Audio transcription using local Hugging Face Whisper Large V3 model
+- **Whisper Server** - Audio transcription using local Hugging Face Whisper Large V3 model  
+- **Import Test Server** - Python import validation, dependency checking, and circular import detection
 
-These servers enable AI assistants to perform code quality analysis and audio transcription through the MCP protocol.
+These servers enable AI assistants to perform code quality analysis, audio transcription, and import validation through the MCP protocol.
 
 ## 📦 Servers
 
@@ -60,6 +61,29 @@ Provides audio transcription capabilities using the local Hugging Face Whisper L
 - `whisper-detect-language` - Detect audio language
 - `whisper-batch-transcribe` - Batch transcribe multiple files
 
+### 🔍 Import Test Server
+
+**Location:** `import-test-server/`
+
+Validates Python imports, exports, and dependencies to ensure code correctness and maintainability.
+
+**Features:**
+- **Import Validation** - Check if all imports can be resolved
+- **Circular Import Detection** - Find circular dependency chains
+- **Unused Import Detection** - Identify imports that aren't used
+- **Dependency Analysis** - Validate project dependencies
+- **Health Scoring** - Calculate import health metrics (0-100)
+- **Multiple Analysis Levels** - Single file, directory, or entire project
+- **Issue Classification** - Categorize issues by type and severity
+
+**Key Tools:**
+- `import-test-analyze-file` - Analyze imports in a single Python file
+- `import-test-analyze-project` - Analyze imports across entire project
+- `import-test-circular-imports` - Detect circular import dependencies
+- `import-test-validate-dependencies` - Check missing/unused dependencies
+- `import-test-unused-imports` - Find unused imports in files
+- `import-test-get-stats` - Get comprehensive import statistics
+
 ## 🛠️ Installation
 
 ### Prerequisites
@@ -87,6 +111,10 @@ Provides audio transcription capabilities using the local Hugging Face Whisper L
    cd ../whisper-server
    pip install -r requirements.txt
    # Set HUGGINGFACE_TOKEN environment variable or update .env file
+   
+   # Import Test Server
+   cd ../import-test-server
+   pip install -r requirements.txt
    ```
 
 3. **Configure MCP client** (example for VS Code `.vscode/mcp.json`):
@@ -106,6 +134,11 @@ Provides audio transcription capabilities using the local Hugging Face Whisper L
          "env": {
            "HUGGINGFACE_TOKEN": "your-huggingface-token-here"
          }
+       },
+       "import-test": {
+         "command": "python",
+         "args": ["${workspaceFolder}/mcp-servers/import-test-server/src/main.py"],
+         "cwd": "${workspaceFolder}"
        }
      }
    }

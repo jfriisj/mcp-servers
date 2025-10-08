@@ -1,0 +1,10 @@
+{
+  "example": "Add this to your .vscode/mcp.json configuration",
+  "mcpServers": {
+    "import-test": {
+      "command": "python",
+      "args": ["C:/github/mcp-servers/import-test-server/src/main.py"],
+      "cwd": "C:/your/project/directory"
+    }
+  }
+}
