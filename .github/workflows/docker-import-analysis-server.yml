@@ -1,4 +1,4 @@
-name: Build and Publish Import Test MCP Server Docker Image
+name: Build and Publish Import Analysis MCP Server Docker Image
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: jfriisj/import-test-mcp-server
+  IMAGE_NAME: jfriisj/import-analysis-mcp-server
 
 jobs:
   build:
@@ -48,8 +48,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./import-test-server
-          file: ./import-test-server/Dockerfile
+          context: ./import-analysis-server
+          file: ./import-analysis-server/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

@@ -1,8 +1,8 @@
 """
-Import Test MCP Server
-=====================
+Import Analysis MCP Server
+==========================
 
-MCP server for testing and validating Python imports, exports, and dependencies.
+MCP server for analyzing and validating Python imports, exports, and dependencies.
 """
 
 from pathlib import Path
@@ -26,12 +26,12 @@ from application.validate_dependencies import ValidateDependenciesUseCase
 logger = logging.getLogger(__name__)
 
 
-class ImportTestMCPServer:
+class ImportAnalysisMCPServer:
     """MCP Server for import testing and validation"""
     
     def __init__(self, project_root: Optional[Path] = None):
         self.project_root = project_root or Path.cwd()
-        self.server = Server("import-test-mcp-server")
+        self.server = Server("import-analysis-mcp-server")
         
         # Initialize dependencies following dependency injection pattern
         self.dependency_resolver = DependencyResolver(self.project_root)

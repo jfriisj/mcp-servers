@@ -67,7 +67,7 @@ class MCPHandler:
     def _tool_analyze_file_imports(self) -> Tool:
         """Tool for analyzing imports in a single file"""
         return Tool(
-            name="import-test-analyze-file",
+            name="import-analysis-analyze-file",
             description="Analyze imports in a single Python file to check validity and find issues",
             inputSchema={
                 "type": "object",
@@ -94,7 +94,7 @@ class MCPHandler:
     def _tool_analyze_project_imports(self) -> Tool:
         """Tool for analyzing imports across entire project"""
         return Tool(
-            name="import-test-analyze-project",
+            name="import-analysis-analyze-project",
             description="Analyze imports across all Python files in a project",
             inputSchema={
                 "type": "object",
@@ -127,7 +127,7 @@ class MCPHandler:
     def _tool_check_circular_imports(self) -> Tool:
         """Tool for detecting circular imports"""
         return Tool(
-            name="import-test-circular-imports",
+            name="import-analysis-circular-imports",
             description="Detect circular import dependencies in a project",
             inputSchema={
                 "type": "object",
@@ -144,7 +144,7 @@ class MCPHandler:
     def _tool_validate_dependencies(self) -> Tool:
         """Tool for validating project dependencies"""
         return Tool(
-            name="import-test-validate-dependencies",
+            name="import-analysis-validate-dependencies",
             description="Validate project dependencies and find missing/unused packages",
             inputSchema={
                 "type": "object",
@@ -171,7 +171,7 @@ class MCPHandler:
     def _tool_find_unused_imports(self) -> Tool:
         """Tool for finding unused imports"""
         return Tool(
-            name="import-test-unused-imports",
+            name="import-analysis-unused-imports",
             description="Find unused imports in Python files",
             inputSchema={
                 "type": "object",
@@ -188,7 +188,7 @@ class MCPHandler:
     def _tool_check_import_style(self) -> Tool:
         """Tool for checking import style consistency"""
         return Tool(
-            name="import-test-check-style",
+            name="import-analysis-check-style",
             description="Check import style consistency and ordering",
             inputSchema={
                 "type": "object",
@@ -211,7 +211,7 @@ class MCPHandler:
     def _tool_resolve_import(self) -> Tool:
         """Tool for resolving individual imports"""
         return Tool(
-            name="import-test-resolve-import",
+            name="import-analysis-resolve-import",
             description="Check if a specific import can be resolved",
             inputSchema={
                 "type": "object",
@@ -232,7 +232,7 @@ class MCPHandler:
     def _tool_get_import_stats(self) -> Tool:
         """Tool for getting import statistics"""
         return Tool(
-            name="import-test-get-stats",
+            name="import-analysis-get-stats",
             description="Get comprehensive import statistics for a project",
             inputSchema={
                 "type": "object",
@@ -249,7 +249,7 @@ class MCPHandler:
     def _tool_dependency_tree(self) -> Tool:
         """Tool for generating dependency tree structure"""
         return Tool(
-            name="import-test-dependency-tree",
+            name="import-analysis-dependency-tree",
             description="Generate a tree structure diagram of import dependencies",
             inputSchema={
                 "type": "object",
@@ -288,7 +288,7 @@ class MCPHandler:
     def _tool_service_dependencies(self) -> Tool:
         """Tool for analyzing service-to-service dependencies"""
         return Tool(
-            name="import-test-service-dependencies",
+            name="import-analysis-service-dependencies",
             description="Analyze cross-service dependencies and usage patterns between different layers/services",
             inputSchema={
                 "type": "object",
@@ -322,7 +322,7 @@ class MCPHandler:
     def _tool_architecture_analysis(self) -> Tool:
         """Tool for analyzing overall architecture patterns"""
         return Tool(
-            name="import-test-architecture-analysis",
+            name="import-analysis-architecture-analysis",
             description="Analyze architectural patterns, layer violations, and design principles adherence",
             inputSchema={
                 "type": "object",
@@ -356,27 +356,27 @@ class MCPHandler:
     async def call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
         """Handle tool calls"""
         try:
-            if name == "import-test-analyze-file":
+            if name == "import-analysis-analyze-file":
                 return await self._analyze_file_imports(arguments)
-            elif name == "import-test-analyze-project":
+            elif name == "import-analysis-analyze-project":
                 return await self._analyze_project_imports(arguments)
-            elif name == "import-test-circular-imports":
+            elif name == "import-analysis-circular-imports":
                 return await self._check_circular_imports(arguments)
-            elif name == "import-test-validate-dependencies":
+            elif name == "import-analysis-validate-dependencies":
                 return await self._validate_dependencies(arguments)
-            elif name == "import-test-unused-imports":
+            elif name == "import-analysis-unused-imports":
                 return await self._find_unused_imports(arguments)
-            elif name == "import-test-check-style":
+            elif name == "import-analysis-check-style":
                 return await self._check_import_style(arguments)
-            elif name == "import-test-resolve-import":
+            elif name == "import-analysis-resolve-import":
                 return await self._resolve_import(arguments)
-            elif name == "import-test-get-stats":
+            elif name == "import-analysis-get-stats":
                 return await self._get_import_stats(arguments)
-            elif name == "import-test-dependency-tree":
+            elif name == "import-analysis-dependency-tree":
                 return await self._generate_dependency_tree(arguments)
-            elif name == "import-test-service-dependencies":
+            elif name == "import-analysis-service-dependencies":
                 return await self._analyze_service_dependencies(arguments)
-            elif name == "import-test-architecture-analysis":
+            elif name == "import-analysis-architecture-analysis":
                 return await self._analyze_architecture(arguments)
             else:
                 return [TextContent(type="text", text=f"❌ Unknown tool: {name}")]

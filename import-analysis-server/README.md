@@ -1,4 +1,4 @@
-# Import Test MCP Server
+# Import Analysis MCP Server
 
 A Model Context Protocol (MCP) server that validates Python imports, exports, and dependency correctness in projects. This server helps ensure all imports are valid, finds circular dependencies, detects unused imports, and validates project dependencies.
 

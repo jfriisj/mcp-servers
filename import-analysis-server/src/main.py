@@ -1,6 +1,6 @@
 """
-Import Test MCP Server
-======================
+Import Analysis MCP Server
+===========================
 
 A Model Context Protocol (MCP) server that validates Python imports, 
 exports, and dependency correctness in projects.
@@ -20,7 +20,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from server import ImportTestMCPServer
+from server import ImportAnalysisMCPServer
 
 
 async def main():
@@ -137,10 +137,10 @@ async def main():
                 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 handlers=[logging.StreamHandler(sys.stderr)]
             )
-            logger = logging.getLogger('import-test-mcp-server')
+            logger = logging.getLogger('import-analysis-mcp-server')
             logger.info(f"Starting Import Test MCP Server with project root: {project_root}")
             
-            server = ImportTestMCPServer(project_root)
+            server = ImportAnalysisMCPServer(project_root)
             await server.serve()
             
         except KeyboardInterrupt:

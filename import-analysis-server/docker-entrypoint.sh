@@ -1,5 +1,5 @@
 #!/bin/bash
-# Docker entrypoint script for Import Test MCP Server
+# Docker entrypoint script for Import Analysis MCP Server
 
 set -e
 
@@ -10,29 +10,29 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🔍 Starting Import Test MCP Server...${NC}"
+echo -e "${BLUE}🔍 Starting Import Analysis MCP Server...${NC}"
 
 # Function to print usage
 usage() {
-    echo -e "${YELLOW}Import Test MCP Server Docker Container${NC}"
+    echo -e "${YELLOW}Import Analysis MCP Server Docker Container${NC}"
     echo ""
     echo "Usage modes:"
     echo "  1. MCP Server mode (default):"
-    echo "     docker run -v /path/to/code:/workspace ghcr.io/jfriisj/import-test-mcp-server"
+    echo "     docker run -v /path/to/code:/workspace ghcr.io/jfriisj/import-analysis-mcp-server"
     echo ""
     echo "  2. Test mode:"
-    echo "     docker run -v /path/to/code:/workspace ghcr.io/jfriisj/import-test-mcp-server --test"
+    echo "     docker run -v /path/to/code:/workspace ghcr.io/jfriisj/import-analysis-mcp-server --test"
     echo ""
     echo "  3. Interactive analysis:"
-    echo "     docker run -it -v /path/to/code:/workspace ghcr.io/jfriisj/import-test-mcp-server bash"
+    echo "     docker run -it -v /path/to/code:/workspace ghcr.io/jfriisj/import-analysis-mcp-server bash"
     echo ""
     echo "  4. Generate report to host:"
     echo "     docker run -v /path/to/code:/workspace -v /path/to/output:/output \\"
-    echo "       ghcr.io/jfriisj/import-test-mcp-server --generate-report"
+    echo "       ghcr.io/jfriisj/import-analysis-mcp-server --generate-report"
     echo ""
     echo "  5. Quick analysis:"
     echo "     docker run -v /path/to/code:/workspace \\"
-    echo "       ghcr.io/jfriisj/import-test-mcp-server --quick-check"
+    echo "       ghcr.io/jfriisj/import-analysis-mcp-server --quick-check"
     echo ""
     echo "Options:"
     echo "  --test                Run in test mode"
@@ -63,7 +63,7 @@ check_project_dir() {
     if [ ! -d "$dir" ]; then
         echo -e "${RED}❌ Error: Project directory '$dir' does not exist${NC}"
         echo -e "${YELLOW}💡 Make sure to mount your code directory to /workspace:${NC}"
-        echo -e "   docker run -v /path/to/your/code:/workspace ghcr.io/jfriisj/import-test-mcp-server"
+        echo -e "   docker run -v /path/to/your/code:/workspace ghcr.io/jfriisj/import-analysis-mcp-server"
         exit 1
     fi
     
