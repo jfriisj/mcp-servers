@@ -21,6 +21,7 @@ A Model Context Protocol (MCP) server that validates Python imports, exports, an
 - **Detailed reports**: Get comprehensive analysis results
 - **Issue categorization**: Classify issues by type and severity
 - **Statistics**: Get project-wide import statistics
+- **Dependency tree**: Visualize import relationships as tree diagrams
 
 ### 🛠️ Issue Types Detected
 
@@ -139,6 +140,34 @@ Get comprehensive import statistics.
 **Parameters:**
 - `project_path` (required): Path to project directory
 
+### `import-test-dependency-tree`
+Generate a tree structure diagram of import dependencies.
+
+**Parameters:**
+- `project_path` (required): Path to project directory
+- `format` (optional): Output format - "text", "ascii", "mermaid", "json" (default: "text")
+- `max_depth` (optional): Maximum depth of tree (default: 5, max: 10)
+- `include_external` (optional): Include external library dependencies (default: false)
+- `root_module` (optional): Start tree from specific module
+
+**Example:**
+```python
+# Generate text dependency tree
+result = await call_tool("import-test-dependency-tree", {
+    "project_path": ".",
+    "format": "text",
+    "max_depth": 3,
+    "include_external": false
+})
+
+# Generate Mermaid diagram for documentation
+result = await call_tool("import-test-dependency-tree", {
+    "project_path": ".",
+    "format": "mermaid",
+    "max_depth": 4
+})
+```
+
 ## Example Output
 
 ### File Analysis
@@ -186,6 +215,41 @@ Get comprehensive import statistics.
 
 🔄 Circular Imports (1):
   ⚠️  src.models → src.services → src.models
+```
+
+### Dependency Tree Visualization
+```
+🌳 Dependency Tree
+==================================================
+
+└── 📁 myproject
+    ├── 📄 main
+    │   ├── 📄 server
+    │   │   ├── 📄 handlers.auth
+    │   │   ├── 📄 handlers.api
+    │   │   └── 📄 database.models
+    │   ├── 📄 config
+    │   └── 📄 utils.helpers
+    ├── 📄 tests.test_server
+    │   ├── 📄 server
+    │   └── 📄 config
+    └── 📄 database.models
+        ├── 📄 utils.validators
+        └── 📦 sqlalchemy  # External dependency
+```
+
+### Mermaid Diagram Output
+```mermaid
+graph TD
+    node1["myproject"]
+    node2["main"]
+    node1 --> node2
+    node3["server"]
+    node2 --> node3
+    node4["handlers.auth"]
+    node3 --> node4
+    node5["handlers.api"]
+    node3 --> node5
 ```
 
 ## Configuration

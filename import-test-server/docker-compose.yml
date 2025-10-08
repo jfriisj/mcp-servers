@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  import-test-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: import-test-mcp-server
+    volumes:
+      # Mount your Python project here
+      - ./test-project:/workspace:ro
+      # Mount output directory for reports
+      - ./output:/output
+    environment:
+      # Optional: Configure analysis parameters
+      - IMPORT_TEST_MAX_FILES=50
+      - IMPORT_TEST_INCLUDE_TESTS=true
+      - PYTHONUNBUFFERED=1
+    # For MCP server mode (default)
+    stdin_open: true
+    tty: true
+    
+  # Alternative service for quick testing
+  import-test-quick:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: import-test-quick-check
+    volumes:
+      - ./test-project:/workspace:ro
+    command: ["--quick-check"]
+    profiles: ["quick"]
+    
+  # Alternative service for report generation
+  import-test-report:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: import-test-report-gen
+    volumes:
+      - ./test-project:/workspace:ro
+      - ./output:/output
+    command: ["--generate-report"]
+    profiles: ["report"]
+
+networks:
+  default:
+    name: mcp-servers

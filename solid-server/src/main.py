@@ -39,32 +39,19 @@ async def main():
         print("🔍 Running SOLID Principles MCP Server in test mode...")
         print(f"📁 Project root: {project_root}")
         
-        # Import components from new architecture
-        from infrastructure.analyzers.ast_analyzer import ASTAnalyzer
-        from infrastructure.analyzers.principle_checkers import (
-            SRPChecker, OCPChecker, LSPChecker, ISPChecker, DIPChecker
-        )
-        from infrastructure.formatters.text_formatter import TextFormatter
-        from application.analyze_file import AnalyzeFileUseCase
-        from application.analyze_directory import (
-            AnalyzeDirectoryUseCase, DirectoryFilters
-        )
-        from application.generate_report import (
-            GenerateReportUseCase, ReportOptions
-        )
+        # Use composition root to eliminate DIP violations in test mode
+        from presentation.composition_root import CompositionRoot
+        from application.analyze_directory import DirectoryFilters
+        from application.generate_report import ReportOptions
         
-        # Set up dependencies
-        checkers = [
-            SRPChecker(), OCPChecker(), LSPChecker(),
-            ISPChecker(), DIPChecker()
-        ]
-        analyzer = ASTAnalyzer(checkers)
-        formatter = TextFormatter()
+        # Create composition root and get configured use cases
+        composition_root = CompositionRoot(project_root)
+        use_cases = composition_root._get_use_cases()
         
-        # Create use cases
-        analyze_file_uc = AnalyzeFileUseCase(analyzer)
-        analyze_dir_uc = AnalyzeDirectoryUseCase(analyzer)
-        generate_report_uc = GenerateReportUseCase(formatter)
+        # Extract use cases from the composition root
+        analyze_file_uc = use_cases['analyze_file']
+        analyze_dir_uc = use_cases['analyze_directory'] 
+        generate_report_uc = use_cases['generate_report']
         
         # Find some Python files to analyze
         python_files = list(project_root.rglob("*.py"))[:5]  # Limit to 5 files
@@ -92,24 +79,21 @@ async def main():
             except Exception as e:
                 print(f"   ❌ Error analyzing {py_file.name}: {e}")
         
-        # Generate directory summary
+        # Generate directory summary using composition root
         try:
-            reports = analyze_dir_uc.execute(
-                project_root,
-                DirectoryFilters(
-                    include_patterns=["*.py"],
-                    exclude_patterns=["__pycache__", "test_*"]
-                )
+            # Use composition root's pre-configured filters to avoid DIP violation
+            filters = DirectoryFilters(
+                include_patterns=["*.py"],
+                exclude_patterns=["__pycache__", "test_*"]
             )
+            reports = analyze_dir_uc.execute(project_root, filters)
             
-            output = generate_report_uc.execute(
-                reports,
-                ReportOptions(
-                    include_suggestions=True,
-                    output_format="text",
-                    severity_filter="all"
-                )
+            options = ReportOptions(
+                include_suggestions=True,
+                output_format="text", 
+                severity_filter="all"
             )
+            output = generate_report_uc.execute(reports, options)
             
             print("\n📈 Overall Project Analysis:")
             # Show first 15 lines of report
@@ -136,7 +120,9 @@ async def main():
             logger = logging.getLogger('solid-mcp-server')
             logger.info(f"Starting SOLID Principles MCP Server with project root: {project_root}")
             
-            server = SolidMCPServer(project_root)
+            # Use composition root for proper dependency injection
+            from presentation.composition_root import create_solid_server
+            server = create_solid_server(project_root)
             await server.serve()
             
         except KeyboardInterrupt:

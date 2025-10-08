@@ -72,6 +72,7 @@ Validates Python imports, exports, and dependencies to ensure code correctness a
 - **Circular Import Detection** - Find circular dependency chains
 - **Unused Import Detection** - Identify imports that aren't used
 - **Dependency Analysis** - Validate project dependencies
+- **Dependency Tree Visualization** - Generate visual tree diagrams of import relationships
 - **Health Scoring** - Calculate import health metrics (0-100)
 - **Multiple Analysis Levels** - Single file, directory, or entire project
 - **Issue Classification** - Categorize issues by type and severity
@@ -83,6 +84,7 @@ Validates Python imports, exports, and dependencies to ensure code correctness a
 - `import-test-validate-dependencies` - Check missing/unused dependencies
 - `import-test-unused-imports` - Find unused imports in files
 - `import-test-get-stats` - Get comprehensive import statistics
+- `import-test-dependency-tree` - Generate visual dependency tree diagrams
 
 ## 🛠️ Installation
 
@@ -312,7 +314,49 @@ python test_solid_mcp_protocol.py
 
 # Test Whisper server
 python whisper-server/tests/test_whisper.py
+
+# Test Import Test server
+python import-test-server/src/main.py --test
 ```
+
+## 🐳 Docker Usage
+
+All servers provide Docker containerization for easy deployment and isolation:
+
+### SOLID Server
+
+```bash
+# Quick analysis
+docker run --rm -v /path/to/project:/workspace ghcr.io/jfriisj/solid-mcp-server --test
+
+# MCP server mode  
+docker run -i -v /path/to/project:/workspace ghcr.io/jfriisj/solid-mcp-server
+```
+
+### Whisper Server
+
+```bash
+# Quick transcription
+docker run --rm -v /path/to/audio:/audio ghcr.io/jfriisj/whisper-mcp-server --test
+
+# With GPU support
+docker run --gpus all -i -v /path/to/audio:/audio ghcr.io/jfriisj/whisper-mcp-server
+```
+
+### Import Test Server
+
+```bash
+# Quick import validation
+docker run --rm -v /path/to/python/project:/workspace ghcr.io/jfriisj/import-test-mcp-server --test
+
+# MCP server mode
+docker run -i -v /path/to/python/project:/workspace ghcr.io/jfriisj/import-test-mcp-server
+
+# Generate comprehensive report
+docker run --rm -v /path/to/python/project:/workspace -v /path/to/output:/output ghcr.io/jfriisj/import-test-mcp-server --generate-report
+```
+
+See individual server directories for detailed Docker documentation and additional options.
 
 ## 🤝 Contributing
 
@@ -348,6 +392,12 @@ python whisper-server/tests/test_whisper.py
 - datasets>=2.14.0
 - accelerate>=0.24.0
 - python-dotenv>=1.0.0
+
+### Import Test Server Dependencies
+
+- Python 3.8+
+- mcp>=0.1.0
+- typing-extensions>=4.8.0
 
 ## 📄 License
 
