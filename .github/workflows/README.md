@@ -1,129 +1,101 @@
-# GitHub Actions Workflows
+# MCP Servers Unified Workflow
 
-This directory contains GitHub Actions workflows for building and publishing Docker images.
+This directory contains the unified GitHub Actions workflow for building and publishing all MCP servers.
 
-## Docker SOLID Server Workflow
+## 🚀 Usage
 
-**File:** `docker-solid-server.yml`
+The `mcp-servers.yml` workflow builds different servers based on commit message triggers:
 
-### Trigger
+### Single Server Builds
+- `@solid` - Build SOLID MCP Server
+- `@import-analysis` - Build Import Analysis MCP Server  
+- `@whisper-cpu` or `@whisper` - Build Whisper CPU MCP Server
+- `@whisper-gpu` - Build Whisper GPU MCP Server (Docker Hub only)
 
-This workflow builds and publishes the SOLID MCP Server Docker image **only when** the commit message contains `@build`.
+### Batch Builds
+- `@all` - Build all servers except GPU version (due to GitHub size limits)
 
-### Usage
+## 📦 Registry Strategy
 
-To trigger a Docker build, include `@build` in your commit message:
+| Server | Registry | Size | Platform Support |
+|--------|----------|------|------------------|
+| SOLID MCP | GitHub Container Registry | ~500MB | linux/amd64, linux/arm64 |
+| Import Analysis MCP | GitHub Container Registry | ~300MB | linux/amd64, linux/arm64 |
+| Whisper CPU MCP | GitHub Container Registry | ~2GB | linux/amd64, linux/arm64 |
+| Whisper GPU MCP | Docker Hub | ~8-10GB | linux/amd64 |
+
+## 🔧 Configuration
+
+### Required Secrets
+- `GITHUB_TOKEN` - Automatically provided for GitHub Container Registry
+- `DOCKERHUB_USERNAME` - Docker Hub username (for GPU builds)
+- `DOCKERHUB_TOKEN` - Docker Hub access token (for GPU builds)
+
+### Image Naming Convention
+- GitHub Container Registry: `ghcr.io/jfriisj/{server-name}-mcp-server`
+- Docker Hub: `jfriisj/{server-name}-mcp-server-gpu`
+
+## 📝 Example Commits
 
 ```bash
-# This will trigger the Docker build
-git commit -m "Update SOLID server @build"
-git push
+# Build single server
+git commit -m "feat: Update SOLID analyzer @solid"
 
-# This will NOT trigger the build
-git commit -m "Update SOLID server documentation"
-git push
+# Build Whisper CPU version
+git commit -m "fix: PyTorch compatibility @whisper"
 
-# You can combine with other text
-git commit -m "Fix bug in analyzer @build - rebuild container"
-git push
+# Build all compatible servers
+git commit -m "feat: Major updates across all servers @all"
+
+# Build GPU version (Docker Hub)
+git commit -m "feat: CUDA acceleration improvements @whisper-gpu"
 ```
 
-### Manual Trigger
+## 🏗️ Workflow Features
 
-You can also manually trigger the workflow from the GitHub Actions tab using the "Run workflow" button.
+- **Conditional Builds**: Only triggered by specific commit message patterns
+- **Multi-platform Support**: AMD64 and ARM64 for compatible images
+- **Build Caching**: GitHub Actions cache for faster subsequent builds
+- **Size Monitoring**: Automatic image size reporting
+- **Health Checks**: Container validation after build
+- **Build Summary**: Comprehensive status report with trigger documentation
 
-### What It Does
+## 🎯 Pull Commands
 
-When triggered (commit message contains `@build`):
-
-1. **Checks out the repository**
-2. **Sets up Docker Buildx** for multi-platform builds
-3. **Logs in to GitHub Container Registry** (ghcr.io)
-4. **Extracts metadata** for tagging (branch name, commit SHA, latest)
-5. **Builds and pushes** the Docker image for:
-   - `linux/amd64` (Intel/AMD 64-bit)
-   - `linux/arm64` (ARM 64-bit, e.g., Apple Silicon, Raspberry Pi)
-6. **Uses GitHub Actions cache** to speed up subsequent builds
-
-### Tags Generated
-
-The workflow creates the following tags:
-
-- `main` - Current main branch build
-- `develop` - Current develop branch build
-- `main-<sha>` or `develop-<sha>` - Build from specific commit
-- `latest` - Only on main branch (default branch)
-
-### Example Docker Pull Commands
-
+### GitHub Container Registry
 ```bash
-# Pull latest version (from main branch)
+# SOLID MCP Server
 docker pull ghcr.io/jfriisj/solid-mcp-server:latest
 
-# Pull specific branch
-docker pull ghcr.io/jfriisj/solid-mcp-server:main
-docker pull ghcr.io/jfriisj/solid-mcp-server:develop
+# Import Analysis MCP Server
+docker pull ghcr.io/jfriisj/import-analysis-mcp-server:latest
 
-# Pull specific commit
-docker pull ghcr.io/jfriisj/solid-mcp-server:main-abc1234
+# Whisper CPU MCP Server
+docker pull ghcr.io/jfriisj/whisper-mcp-server-cpu:latest
 ```
 
-## Benefits of This Approach
-
-✅ **Faster CI/CD** - Only builds when you explicitly request it with `@build`  
-✅ **Cost Efficient** - Saves GitHub Actions minutes by not building on every push  
-✅ **Explicit Control** - You decide when to rebuild the container  
-✅ **Simple** - No complex conditions, just add `@build` to your commit message  
-✅ **Multi-platform** - Automatically builds for both Intel/AMD and ARM architectures  
-
-## Tips
-
-- Use `@build` when you've made changes to:
-  - Dockerfile
-  - requirements.txt
-  - Source code that affects Docker image
-  - Dependencies or configuration
-
-- Don't use `@build` for:
-  - Documentation updates
-  - README changes
-  - Minor code tweaks that don't need immediate Docker rebuild
-  - Work in progress commits
-
-## Troubleshooting
-
-### Build Failed
-
-Check the Actions tab on GitHub to see the error logs. Common issues:
-
-- Docker build errors (check Dockerfile syntax)
-- Missing dependencies in requirements.txt
-- Python errors in the source code
-
-### Image Not Found
-
-Make sure:
-- The workflow completed successfully
-- You're pulling from the correct registry: `ghcr.io/jfriisj/solid-mcp-server`
-- You have the correct permissions if the package is private
-
-### Authentication Error
-
-If pulling private images, authenticate with:
-
+### Docker Hub
 ```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+# Whisper GPU MCP Server
+docker pull jfriisj/whisper-mcp-server-gpu:latest
 ```
 
-## Future Workflows
+## 🔍 Benefits
 
-You can create similar workflows for other servers (e.g., whisper-server) using the same pattern:
+✅ **Unified Management** - Single workflow file for all servers  
+✅ **Selective Building** - Build only what you need with targeted triggers  
+✅ **Cost Efficient** - Saves GitHub Actions minutes with conditional builds  
+✅ **Registry Optimization** - Lightweight images on GitHub, full features on Docker Hub  
+✅ **Multi-platform Support** - AMD64 and ARM64 where applicable  
+✅ **Comprehensive Reporting** - Detailed build summaries and documentation  
 
-1. Copy `docker-solid-server.yml`
-2. Update the `IMAGE_NAME` environment variable
-3. Update the `context` and `file` paths in the build step
-4. Use `@build-whisper` or similar in commit messages to differentiate
+## 🚨 Important Notes
+
+- **GPU builds use Docker Hub** due to GitHub Container Registry size limits (>2GB)
+- **`@all` excludes GPU** to prevent GitHub size limit failures
+- **Docker Hub credentials required** for `@whisper-gpu` builds
+- **Multi-platform builds** automatically enabled for compatible servers
 
 ---
 
-**Last Updated:** October 3, 2025
+**Last Updated:** October 10, 2025
