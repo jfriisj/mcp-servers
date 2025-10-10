@@ -274,6 +274,14 @@ Add Docker-based servers to your MCP configuration:
         "-v", "${workspaceFolder}:/workspace",
         "ghcr.io/jfriisj/import-analysis-mcp-server:latest" 
       ]
+    },
+    "study-buddy-docker": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/study-buddy-mcp-server:latest"
+      ]
     }
   }
 }
@@ -489,6 +497,7 @@ git commit -m "feat: Major updates across all servers @all"
 | Import Analysis MCP | GitHub Container Registry | ~300MB | `@import-analysis` | linux/amd64, linux/arm64 |
 | Whisper CPU MCP | GitHub Container Registry | ~3GB | `@whisper` or `@whisper-cpu` | linux/amd64, linux/arm64 |
 | Whisper GPU MCP | Docker Hub | ~16GB | `@whisper-gpu` | linux/amd64 |
+| Study Buddy MCP | GitHub Container Registry | ~150MB | `@study-buddy` | linux/amd64, linux/arm64 |
 
 ### Manual Workflow Triggers
 
@@ -502,6 +511,7 @@ You can also trigger builds manually from the GitHub Actions tab using the "Run 
 docker pull ghcr.io/jfriisj/solid-mcp-server:latest
 docker pull ghcr.io/jfriisj/import-analysis-mcp-server:latest  
 docker pull ghcr.io/jfriisj/whisper-mcp-server-cpu:latest
+docker pull ghcr.io/jfriisj/study-buddy-mcp-server:latest
 docker pull ghcr.io/jfriisj/multi-lint-python:latest
 docker pull ghcr.io/jfriisj/multi-lint-infrastructure:latest
 docker pull ghcr.io/jfriisj/multi-lint-docker:latest
