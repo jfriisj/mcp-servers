@@ -1,0 +1,77 @@
+# =============================================================================
+# Study Buddy MCP Server - Docker Compose Configuration
+# =============================================================================
+# Simple deployment for MCP server with native prompts
+# 
+# Usage:
+#   docker-compose up -d          # Start in background
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop and remove
+# =============================================================================
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: study-buddy-mcp:latest
+    container_name: study-buddy-mcp
+    
+    ports:
+      - "3000:3000"  # MCP server port
+    
+    # volumes:
+    #   - ./data:/data  # Optional: Persistent database storage (uncomment if needed)
+    #   - ./uploads:/uploads  # Optional: document uploads
+    
+    environment:
+      # Use internal database by default (no volume mount issues)
+      - STUDY_BUDDY_DB_PATH=/app/study_buddy.db
+      - LOG_LEVEL=INFO
+      - PYTHONPATH=/app/src:/app/mcp-server/src
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+# Optional: Add volume for data persistence
+volumes:
+  study-buddy-data:
+    driver: local
+
+# =============================================================================
+# Usage Examples:
+# =============================================================================
+# 
+# Start the MCP server:
+#   docker-compose up -d
+# 
+# View logs:
+#   docker-compose logs -f mcp-server
+# 
+# Connect to MCP server:
+#   MCP client connects to: stdio://docker exec -i study-buddy-mcp mcp-server
+#   Or TCP: tcp://localhost:3000
+# 
+# Stop the server:
+#   docker-compose down
+# 
+# Rebuild after code changes:
+#   docker-compose build --no-cache
+#   docker-compose up -d
+# =============================================================================

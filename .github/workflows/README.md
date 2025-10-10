@@ -11,6 +11,7 @@ The `mcp-servers.yml` workflow builds different servers based on commit message 
 - `@import-analysis` - Build Import Analysis MCP Server  
 - `@whisper-cpu` or `@whisper` - Build Whisper CPU MCP Server
 - `@whisper-gpu` - Build Whisper GPU MCP Server (Docker Hub only)
+- `@study-buddy` - Build Study Buddy MCP Server
 
 ### Batch Builds
 - `@all` - Build all servers except GPU version (due to GitHub size limits)
@@ -23,6 +24,7 @@ The `mcp-servers.yml` workflow builds different servers based on commit message 
 | Import Analysis MCP | GitHub Container Registry | ~300MB | linux/amd64, linux/arm64 |
 | Whisper CPU MCP | GitHub Container Registry | ~2GB | linux/amd64, linux/arm64 |
 | Whisper GPU MCP | Docker Hub | ~8-10GB | linux/amd64 |
+| Study Buddy MCP | GitHub Container Registry | ~150MB | linux/amd64, linux/arm64 |
 
 ## 🔧 Configuration
 
@@ -49,6 +51,9 @@ git commit -m "feat: Major updates across all servers @all"
 
 # Build GPU version (Docker Hub)
 git commit -m "feat: CUDA acceleration improvements @whisper-gpu"
+
+# Build Study Buddy server
+git commit -m "feat: Document processing enhancements @study-buddy"
 ```
 
 ## 🏗️ Workflow Features
@@ -72,6 +77,9 @@ docker pull ghcr.io/jfriisj/import-analysis-mcp-server:latest
 
 # Whisper CPU MCP Server
 docker pull ghcr.io/jfriisj/whisper-mcp-server-cpu:latest
+
+# Study Buddy MCP Server
+docker pull ghcr.io/jfriisj/study-buddy-mcp-server:latest
 ```
 
 ### Docker Hub

@@ -11,22 +11,7 @@
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
       ]
-    },
-    "whisper": {
-      "command": "python",
-      "args": [
-        "src/main.py"
-      ],
-      "cwd": "${workspaceFolder}/whisper-server",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}/whisper-server/src",
-        "HUGGINGFACE_TOKEN": "${HUGGINGFACE_TOKEN}",
-        "HF_TOKEN": "${HF_TOKEN}",
-        "USE_GPU": "true",
-        "ENABLE_PARALLEL_PROCESSING": "true",
-        "MAX_CONCURRENT_TRANSCRIPTIONS": "3"
-      }
-    },    
+    }, 
     "whisper-docker-cpu": {
       "command": "docker",
       "args": [
@@ -89,18 +74,6 @@
         "ghcr.io/jfriisj/multi-lint-python:latest"
       ]
     },
-    "import-analysis": {
-      "command": "python",
-      "args": [
-        "import-analysis-server/src/main.py",
-        "--project-root",
-        "${workspaceFolder}"
-      ],
-      "cwd": "C:/github/mcp-servers",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
-    },
     "import-analysis-docker": {
       "command": "docker",
       "args": [
@@ -126,6 +99,16 @@
         "${workspaceFolder}:/workspace",
         "ghcr.io/jfriisj/solid-mcp-server:latest"
       ]
+    },
+    "study-buddy": {
+      "command": "C:/Users/jonfriis/AppData/Local/Programs/Python/Python312/python.exe",
+      "args": [
+        "study_buddy/src/study_buddy/server/main.py"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "STUDY_BUDDY_DB_PATH": "${workspaceFolder}/study_buddy/data/study_buddy.db"
+      }
     }
   }
 }

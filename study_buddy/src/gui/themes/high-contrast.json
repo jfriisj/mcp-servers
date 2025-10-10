@@ -1,0 +1,86 @@
+{
+  "theme_info": {
+    "name": "Study Buddy High Contrast",
+    "version": "1.0.0",
+    "description": "High contrast theme for accessibility compliance",
+    "author": "Study Buddy Team",
+    "tags": ["accessibility", "high-contrast", "wcag-compliant"]
+  },
+  "colors": {
+    "primary_bg": "#000000",
+    "secondary_bg": "#1A1A1A",
+    "accent_bg": "#333333",
+    "primary_fg": "#FFFFFF",
+    "secondary_fg": "#E0E0E0",
+    "accent_fg": "#00FFFF",
+    "border_color": "#FFFFFF",
+    "selection_bg": "#FFFF00",
+    "selection_fg": "#000000",
+    "error_color": "#FF0000",
+    "warning_color": "#FFFF00",
+    "success_color": "#00FF00",
+    "info_color": "#00FFFF",
+    "disabled_bg": "#404040",
+    "disabled_fg": "#808080",
+    "hover_bg": "#333333",
+    "active_bg": "#666666",
+    "shadow_color": "#FFFFFF"
+  },
+  "fonts": {
+    "default_family": "Arial",
+    "mono_family": "Courier New",
+    "heading_family": "Arial Bold",
+    "default_size": 12,
+    "small_size": 10,
+    "large_size": 14,
+    "heading_size": 16,
+    "title_size": 18,
+    "mono_size": 11
+  },
+  "dimensions": {
+    "padding_small": 6,
+    "padding_medium": 12,
+    "padding_large": 18,
+    "padding_xl": 24,
+    "border_width": 2,
+    "border_radius": 0,
+    "button_height": 36,
+    "entry_height": 32,
+    "listbox_row_height": 28,
+    "scrollbar_width": 20,
+    "icon_size_small": 20,
+    "icon_size_medium": 28,
+    "icon_size_large": 36
+  },
+  "effects": {
+    "relief": "solid",
+    "button_relief": "raised",
+    "entry_relief": "sunken",
+    "frame_relief": "solid",
+    "label_relief": "flat"
+  },
+  "responsive": {
+    "breakpoints": {
+      "small": 800,
+      "medium": 1200,
+      "large": 1600
+    },
+    "font_scale": {
+      "small": 1.0,
+      "medium": 1.2,
+      "large": 1.4
+    },
+    "padding_scale": {
+      "small": 1.0,
+      "medium": 1.2,
+      "large": 1.5
+    }
+  },
+  "accessibility": {
+    "high_contrast": true,
+    "font_scaling": 1.2,
+    "focus_highlight": true,
+    "keyboard_navigation": true,
+    "screen_reader_support": true
+  }
+}

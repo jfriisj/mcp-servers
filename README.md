@@ -10,7 +10,8 @@ This repository contains multiple specialized MCP servers designed for comprehen
 - **🎯 SOLID Server** - SOLID principles analysis and code quality assessment for Python
 - **🎤 Whisper Server** - Audio transcription using local Hugging Face Whisper Large V3 model  
 - **🔍 Import Analysis Server** - Python import validation, dependency analysis, and circular import detection
-- **🔧 Multi-Lint Servers** - Comprehensive linting for Python, Infrastructure as Code, and Docker
+- **� Study Buddy Server** - Document processing, intelligent chunking, and AI-powered study assistance
+- **�🔧 Multi-Lint Servers** - Comprehensive linting for Python, Infrastructure as Code, and Docker
 
 ### 🚀 Unified Deployment Strategy
 - **GitHub Container Registry** - Lightweight servers optimized for size and performance
@@ -98,7 +99,40 @@ Comprehensive Python import validation, dependency analysis, and architectural a
 - `import-analysis-architecture-analysis` - Analyze architectural patterns and violations
 - `import-analysis-service-dependencies` - Analyze cross-service dependency patterns
 
-### 🔧 Multi-Lint Servers
+### � Study Buddy Server
+
+**Location:** `study_buddy/`
+
+Comprehensive document processing and AI-powered study assistance platform for managing and analyzing academic and professional documents.
+
+**Features:**
+- **Document Processing** - Upload and parse PDF, DOCX, PPTX, and Markdown files
+- **Intelligent Chunking** - Smart content segmentation using chapter, section, heading, or slide-based strategies
+- **AI-Powered Summaries** - Generate brief, standard, or detailed summaries with rich metadata
+- **Export Capabilities** - Create markdown files with YAML frontmatter for external tools
+- **Full-Text Search** - Advanced search across documents and chunks with filtering
+- **Study Workflows** - Native MCP prompts for document analysis, comparison, and concept extraction
+- **Progress Tracking** - Monitor reading progress and study sessions
+- **Bookmark Management** - Save and organize important document sections
+
+**Key Tools:**
+- `upload_document` - Process and store documents with metadata extraction
+- `index_document` - Create intelligent chunks using configurable strategies
+- `save_summary` - Generate AI summaries with export-ready metadata
+- `search_documents` - Full-text search with advanced filtering options
+- `create_markdown_file` - Export content to standalone markdown files
+- `get_document_structure` - Retrieve organized document table of contents
+- `export_summary_to_file` - Export summaries with rich metadata for external use
+
+**Native MCP Prompts:**
+- `analyze_document` - Comprehensive document analysis with focus areas
+- `create_study_plan` - Structured study planning with timeline management
+- `summarize_chapter` - Focused chapter summarization with style options
+- `compare_documents` - Comparative analysis across multiple documents
+- `extract_key_concepts` - Concept extraction and definition generation
+- `research_questions` - Generate study questions at different complexity levels
+
+### �🔧 Multi-Lint Servers
 
 **Docker Images Available:**
 - `ghcr.io/jfriisj/multi-lint-python` - Comprehensive Python linting (ruff, black, mypy, pylint, etc.)
@@ -195,6 +229,10 @@ docker run --rm -i -v "${PWD}:/workspace" \
 # Whisper GPU Server (Docker Hub - requires GPU support)
 docker run --rm -i --gpus all -v "${PWD}:/workspace" \
   jfriisj/whisper-mcp-server-gpu:latest
+
+# Study Buddy Server (GitHub Container Registry)
+docker run --rm -i -v "${PWD}:/workspace" \
+  ghcr.io/jfriisj/study-buddy-mcp-server:latest
 
 # Multi-Lint Python
 docker run --rm -i -v "${PWD}:/workspace" \

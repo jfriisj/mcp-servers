@@ -1,0 +1,42 @@
+[tool.pytest.ini_options]
+# Pytest configuration for Integration Testing Suite
+
+# Test discovery
+testpaths = [
+    "gui/integration/tests/integration"
+]
+
+# Test markers
+markers = [
+    "integration: Integration test with real server communication",
+    "requires_server: Test requires MCP server to be running", 
+    "slow: Slow running test (> 30 seconds)",
+    "load: Load/performance test with high resource usage",
+    "resilience: Error recovery and resilience test",
+    "connection: Connection lifecycle test",
+    "tools: Tool invocation workflow test", 
+    "workflows: End-to-end workflow test",
+    "errors: Error handling test",
+    "performance: Performance benchmark test"
+]
+
+# Output configuration
+addopts = [
+    "-v",                    # Verbose output
+    "--tb=short",           # Short traceback format
+    "--strict-markers",     # Require marker registration
+    "--durations=10",       # Show 10 slowest tests
+    "--color=yes"           # Colored output
+]
+
+# Test filtering
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+# Async testing
+asyncio_mode = "auto"
+
+# Minimum Python version
+minversion = "7.0"

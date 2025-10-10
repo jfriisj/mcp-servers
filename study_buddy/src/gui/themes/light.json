@@ -1,0 +1,86 @@
+{
+  "theme_info": {
+    "name": "Study Buddy Light",
+    "version": "1.0.0",
+    "description": "Professional light theme for Study Buddy application",
+    "author": "Study Buddy Team",
+    "tags": ["light", "professional", "default"]
+  },
+  "colors": {
+    "primary_bg": "#FFFFFF",
+    "secondary_bg": "#F5F5F5",
+    "accent_bg": "#E8F4FD",
+    "primary_fg": "#2C3E50",
+    "secondary_fg": "#7F8C8D",
+    "accent_fg": "#2980B9",
+    "border_color": "#BDC3C7",
+    "selection_bg": "#3498DB",
+    "selection_fg": "#FFFFFF",
+    "error_color": "#E74C3C",
+    "warning_color": "#F39C12",
+    "success_color": "#27AE60",
+    "info_color": "#2980B9",
+    "disabled_bg": "#ECF0F1",
+    "disabled_fg": "#95A5A6",
+    "hover_bg": "#EBF5FB",
+    "active_bg": "#D6EAF8",
+    "shadow_color": "#34495E"
+  },
+  "fonts": {
+    "default_family": "Segoe UI",
+    "mono_family": "Consolas",
+    "heading_family": "Segoe UI Semibold",
+    "default_size": 10,
+    "small_size": 9,
+    "large_size": 12,
+    "heading_size": 14,
+    "title_size": 16,
+    "mono_size": 9
+  },
+  "dimensions": {
+    "padding_small": 4,
+    "padding_medium": 8,
+    "padding_large": 12,
+    "padding_xl": 16,
+    "border_width": 1,
+    "border_radius": 4,
+    "button_height": 28,
+    "entry_height": 24,
+    "listbox_row_height": 20,
+    "scrollbar_width": 16,
+    "icon_size_small": 16,
+    "icon_size_medium": 24,
+    "icon_size_large": 32
+  },
+  "effects": {
+    "relief": "flat",
+    "button_relief": "raised",
+    "entry_relief": "sunken",
+    "frame_relief": "flat",
+    "label_relief": "flat"
+  },
+  "responsive": {
+    "breakpoints": {
+      "small": 800,
+      "medium": 1200,
+      "large": 1600
+    },
+    "font_scale": {
+      "small": 0.9,
+      "medium": 1.0,
+      "large": 1.1
+    },
+    "padding_scale": {
+      "small": 0.8,
+      "medium": 1.0,
+      "large": 1.2
+    }
+  },
+  "accessibility": {
+    "high_contrast": false,
+    "font_scaling": 1.0,
+    "focus_highlight": true,
+    "keyboard_navigation": true,
+    "screen_reader_support": true
+  }
+}
