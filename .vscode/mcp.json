@@ -87,7 +87,7 @@
         "ghcr.io/jfriisj/import-analysis-mcp-server:latest"
       ]
     },
-    "solid-docker": {
+    "solid": {
       "command": "docker",
       "args": [
         "run",
@@ -101,14 +101,17 @@
       ]
     },
     "study-buddy": {
-      "command": "C:/Users/jonfriis/AppData/Local/Programs/Python/Python312/python.exe",
+      "command": "docker",
       "args": [
-        "study_buddy/src/study_buddy/server/main.py"
-      ],
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "STUDY_BUDDY_DB_PATH": "${workspaceFolder}/study_buddy/data/study_buddy.db"
-      }
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-study-buddy-${workspaceFolderBasename}",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "ghcr.io/jfriisj/study-buddy-mcp-server:latest"
+      ]
     }
   }
 }
