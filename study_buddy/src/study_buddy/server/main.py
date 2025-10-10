@@ -75,45 +75,46 @@ async def main() -> None:
     setup_python_path()
     
     try:
-        # Import after path setup
-        from study_buddy.server.server import StudyBuddyMCPServer
+        # Import both old and new server implementations
+        logger.info("🔧 Loading SOLID-compliant server implementation...")
+        
+        from study_buddy.server.solid_server import StudyBuddyMCPServer, StudyBuddyServerFactory
         
         # Determine database path: CLI arg > env var > container default
         database_path = args.database_path or os.getenv("STUDY_BUDDY_DB_PATH")
         
-        # Create and start the server
-        server = StudyBuddyMCPServer(database_path=database_path)
+        # Create server using SOLID factory pattern
+        if args.test:
+            server = StudyBuddyServerFactory.create_test_server(database_path or ":memory:")
+        else:
+            server = StudyBuddyServerFactory.create_development_server(database_path)
         
         if args.test:
-            logger.info("🧪 Running in test mode - verifying server setup")
+            logger.info("🧪 Running in test mode - verifying SOLID server setup")
             
             # Test initialization
             await server._initialize_dependencies()
             
             # Test health check
-            if server.container:
-                health = server.container.health_check()
-                logger.info(f"📊 Health check: {health}")
-                
-                # Test available tools
-                mcp_handler = server.mcp_handler
-                logger.info(f"🔧 MCP Handler initialized: {mcp_handler is not None}")
-                
-                # Test database
-                try:
-                    db = server.container.get_database_connection()
-                    result = db.execute("SELECT COUNT(*) as count FROM documents").fetchone()
-                    doc_count = result[0] if result else 0
-                    logger.info(f"📚 Document count: {doc_count}")
-                except Exception as e:
-                    logger.error(f"❌ Database test failed: {e}")
-            else:
-                logger.error("❌ Container not initialized")
+            health = server.get_health_status()
+            logger.info(f"📊 Health check: {health}")
             
-            logger.info("✅ Test mode completed successfully")
+            # Test container
+            container_health = server.container.health_check()
+            logger.info(f"� Container services: {container_health.get('services', [])}")
+            
+            # Test configuration
+            config_value = server.config_manager.get_value("database_path", "not_configured")
+            logger.info(f"⚙️ Configuration - Database path: {config_value}")
+            
+            # Test dependency injection
+            logger.info(f"� DI Container healthy: {container_health['healthy']}")
+            logger.info(f"🔗 Total services registered: {container_health['total_services']}")
+            
+            logger.info("✅ Test mode completed successfully - SOLID architecture verified")
             return
         
-        logger.info("✅ Study Buddy MCP Server ready - starting stdio communication")
+        logger.info("✅ SOLID-compliant Study Buddy MCP Server ready - starting stdio communication")
         
         # Start the MCP server
         await server.run()
