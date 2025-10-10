@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  whisper-api:
+  # GPU-enabled version (local development)
+  whisper-api-gpu:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: whisper-api-server
+      dockerfile: Dockerfile.gpu
+    container_name: whisper-api-gpu-server
     environment:
       - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
       - HF_TOKEN=${HF_TOKEN:-}
@@ -34,6 +35,31 @@ services:
       - "8000:8000"
     command: ["--mode", "api", "--host", "0.0.0.0", "--port", "8000"]
 
+  # CPU-only version (lightweight, for GitHub packages)
+  whisper-api-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: whisper-api-cpu-server
+    environment:
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - USE_GPU=false
+      - ENABLE_PARALLEL_PROCESSING=false
+      - MAX_CONCURRENT_TRANSCRIPTIONS=1
+      - HF_HOME=/app/models
+      - TEST_MODE=false
+    volumes:
+      # Mount audio files directory for processing
+      - ./audio:/app/audio:ro
+      # Mount model cache for persistence
+      - whisper_models_cpu:/app/models
+    ports:
+      - "8001:8000"
+    command: ["--mode", "api", "--host", "0.0.0.0", "--port", "8000"]
+
 volumes:
   whisper_models:
+    driver: local
+  whisper_models_cpu:
     driver: local

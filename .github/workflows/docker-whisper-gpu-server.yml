@@ -1,0 +1,88 @@
+name: Build and Publish Whisper MCP Server GPU Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'whisper-server/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME_GPU: jfriisj/whisper-mcp-server-gpu
+
+jobs:
+  build-gpu:
+    name: Build and Push GPU Image to Docker Hub
+    runs-on: ubuntu-latest
+    # Only run if commit message contains @whisper-build-gpu
+    if: contains(github.event.head_commit.message, '@whisper-build-gpu')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for GPU image
+        id: meta-gpu
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME_GPU }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push GPU Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whisper-server
+          file: ./whisper-server/Dockerfile.gpu
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-gpu.outputs.tags }}
+          labels: ${{ steps.meta-gpu.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test GPU Docker image
+        run: |
+          echo "🧪 Testing GPU Docker image..."
+          docker run --rm ${{ env.IMAGE_NAME_GPU }}:latest --help
+          echo "✅ GPU Docker image test completed"
+          
+      - name: Check image size
+        run: |
+          echo "📊 Checking image size..."
+          docker images ${{ env.IMAGE_NAME_GPU }}:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+          
+      - name: Create release notes
+        run: |
+          echo "## 🚀 Whisper MCP Server GPU Released" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Full-featured GPU version published to Docker Hub**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Usage:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_NAME_GPU }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm --gpus all -e HUGGINGFACE_TOKEN=your_token \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.IMAGE_NAME_GPU }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 MCP Configuration:" >> $GITHUB_STEP_SUMMARY
+          echo "Use server: **whisper-docker-gpu** in VS Code MCP settings" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚡ Performance:" >> $GITHUB_STEP_SUMMARY
+          echo "- CUDA-enabled for GPU acceleration" >> $GITHUB_STEP_SUMMARY
+          echo "- Multi-threaded processing" >> $GITHUB_STEP_SUMMARY
+          echo "- Optimized for high-performance transcription" >> $GITHUB_STEP_SUMMARY

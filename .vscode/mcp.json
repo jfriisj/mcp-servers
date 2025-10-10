@@ -19,8 +19,36 @@
       ],
       "cwd": "${workspaceFolder}/whisper-server",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/whisper-server/src"
+        "PYTHONPATH": "${workspaceFolder}/whisper-server/src",
+        "HUGGINGFACE_TOKEN": "${HUGGINGFACE_TOKEN}",
+        "HF_TOKEN": "${HF_TOKEN}",
+        "USE_GPU": "true",
+        "ENABLE_PARALLEL_PROCESSING": "true",
+        "MAX_CONCURRENT_TRANSCRIPTIONS": "3"
       }
+    },    
+    "whisper-docker-cpu": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "whisper-mcp-cpu",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "-e",
+        "HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}",
+        "-e",
+        "HF_TOKEN=${HF_TOKEN}",
+        "-e",
+        "USE_GPU=false",
+        "-e",
+        "ENABLE_PARALLEL_PROCESSING=false",
+        "-e",
+        "MAX_CONCURRENT_TRANSCRIPTIONS=1",
+        "ghcr.io/jfriisj/whisper-mcp-server-cpu:latest"
+      ]
     },
     "multi-lint-docker": {
       "command": "docker",

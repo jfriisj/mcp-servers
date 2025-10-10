@@ -1,0 +1,87 @@
+name: Build and Publish Whisper MCP Server CPU Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'whisper-server/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_CPU: jfriisj/whisper-mcp-server-cpu
+
+jobs:
+  build-cpu:
+    name: Build and Push CPU Image to GitHub Container Registry
+    runs-on: ubuntu-latest
+    # Only run if commit message contains @whisper-build
+    if: contains(github.event.head_commit.message, '@whisper-build')
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for CPU image
+        id: meta-cpu
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CPU }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push CPU Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whisper-server
+          file: ./whisper-server/Dockerfile.cpu
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-cpu.outputs.tags }}
+          labels: ${{ steps.meta-cpu.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test CPU Docker image
+        run: |
+          echo "🧪 Testing CPU Docker image..."
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CPU }}:latest --help
+          echo "✅ CPU Docker image test completed"
+          
+      - name: Check image size
+        run: |
+          echo "📊 Checking image size..."
+          docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CPU }}:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+          
+      - name: Create release notes
+        run: |
+          echo "## 🎉 Whisper MCP Server CPU Released" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Lightweight CPU-only version published to GitHub Container Registry**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Usage:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CPU }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm -e HUGGINGFACE_TOKEN=your_token \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CPU }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 MCP Configuration:" >> $GITHUB_STEP_SUMMARY
+          echo "Use server: **whisper-docker-cpu** in VS Code MCP settings" >> $GITHUB_STEP_SUMMARY

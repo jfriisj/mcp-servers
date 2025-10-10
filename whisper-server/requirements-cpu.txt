@@ -1,0 +1,26 @@
+# Whisper MCP Server Requirements - CPU Only (Lightweight)
+# Target: <2GB Docker image for GitHub Container Registry
+
+# Core MCP package
+mcp>=1.0.0
+
+# Hugging Face Transformers (minimal for CPU)
+transformers==4.44.2
+accelerate==0.34.2
+
+# Audio processing (essential only)
+librosa==0.10.2
+soundfile==0.12.1
+
+# Audio/Video conversion
+ffmpeg-python==0.2.0
+
+# Async processing (minimal)
+aiofiles==24.1.0
+
+# FastAPI (minimal dependencies)
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# Environment variables
+python-dotenv==1.0.0

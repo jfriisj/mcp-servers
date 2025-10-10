@@ -10,27 +10,27 @@ mcp>=1.0.0
 # torch>=2.0.0
 # torchaudio>=2.0.0
 
-# Hugging Face Transformers for local Whisper model
-transformers>=4.35.0
-datasets>=2.14.0
-accelerate>=0.24.0
+# Hugging Face Transformers for local Whisper model (compatible with PyTorch 2.4.1)
+transformers==4.44.2
+datasets==2.20.0
+accelerate==0.34.2
 
 # Audio processing
-librosa>=0.10.0
-soundfile>=0.12.0
+librosa==0.10.2
+soundfile==0.12.1
 
 # Audio/Video conversion (optional but recommended)
-ffmpeg-python>=0.2.0
+ffmpeg-python==0.2.0
 
 # Async processing for parallel operations
-aiofiles>=23.0.0
+aiofiles==24.1.0
 
 # Async HTTP server
-aiohttp>=3.9.0
+aiohttp==3.10.5
 
 # FastAPI for HTTP API mode
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
 
 # Environment variables
 python-dotenv>=1.0.0
