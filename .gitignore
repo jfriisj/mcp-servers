@@ -157,3 +157,6 @@ ffmpeg-master-latest-win64-gpl/
 *.wav
 *.mp3
 *.mp4
+data/study_buddy.db-shm
+study_buddy/data/study_buddy.db-shm
+study_buddy/data/study_buddy.db-wal
