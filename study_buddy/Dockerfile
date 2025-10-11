@@ -90,7 +90,6 @@ FROM dependencies AS build
 
 # Copy MCP server source code
 COPY --chown=studybuddy:studybuddy src/ ./src/
-COPY --chown=studybuddy:studybuddy mcp-server/ ./mcp-server/
 
 # Set Python path for MCP server
 ENV PYTHONPATH=/app/src:/app/mcp-server/src
