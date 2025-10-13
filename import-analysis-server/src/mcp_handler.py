@@ -540,13 +540,637 @@ class MCPHandler:
     
     async def _check_import_style(self, args: Dict[str, Any]) -> List[TextContent]:
         """Check import style consistency"""
-        # This is a placeholder - would need more sophisticated style checking
-        return [TextContent(type="text", text="🔧 Import style checking not yet implemented")]
+        path = Path(args["path"])
+        if not path.is_absolute():
+            path = self.project_root / path
+        
+        if not path.exists():
+            return [TextContent(type="text", text=f"❌ Path not found: {path}")]
+        
+        try:
+            style_guide = args.get("style_guide", "pep8")
+            style_issues = []
+            files_checked = 0
+            
+            # Get Python files to check
+            if path.is_file():
+                if path.suffix == ".py":
+                    python_files = [path]
+                else:
+                    return [TextContent(type="text", text=f"❌ Only Python files are supported: {path}")]
+            else:
+                python_files = list(path.rglob("*.py"))
+                python_files = [f for f in python_files if "__pycache__" not in str(f)]
+            
+            # Check each file for style issues
+            for file_path in python_files[:50]:  # Limit to 50 files
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    file_issues = self._check_file_import_style(file_path, content, style_guide)
+                    if file_issues:
+                        style_issues.extend(file_issues)
+                    files_checked += 1
+                    
+                except Exception as e:
+                    # Skip files that can't be read
+                    continue
+            
+            # Format results
+            if not style_issues:
+                return [TextContent(type="text", text=f"✅ No import style issues found in {files_checked} file(s)!")]
+            
+            output = f"� Import Style Issues ({style_guide.upper()} guide)\n"
+            output += f"{'=' * 60}\n\n"
+            output += f"📊 Summary: {len(style_issues)} issue(s) in {files_checked} file(s)\n\n"
+            
+            # Group issues by file
+            issues_by_file = {}
+            for issue in style_issues:
+                file_name = issue["file"]
+                if file_name not in issues_by_file:
+                    issues_by_file[file_name] = []
+                issues_by_file[file_name].append(issue)
+            
+            # Display issues
+            for file_name, file_issues in list(issues_by_file.items())[:10]:  # Show first 10 files
+                rel_path = Path(file_name).relative_to(path) if path.is_dir() else Path(file_name).name
+                output += f"📄 {rel_path} ({len(file_issues)} issue(s)):\n"
+                
+                for issue in file_issues[:5]:  # Show first 5 issues per file
+                    severity_emoji = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(issue["severity"], "⚪")
+                    output += f"  {severity_emoji} Line {issue['line']}: {issue['message']}\n"
+                    if issue.get("suggestion"):
+                        output += f"     💡 {issue['suggestion']}\n"
+                
+                if len(file_issues) > 5:
+                    output += f"  ... and {len(file_issues) - 5} more issues\n"
+                output += "\n"
+            
+            if len(issues_by_file) > 10:
+                output += f"... and {len(issues_by_file) - 10} more files with issues\n"
+            
+            return [TextContent(type="text", text=output.strip())]
+            
+        except Exception as e:
+            return [TextContent(type="text", text=f"❌ Style check failed: {str(e)}")]
+    
+    def _check_file_import_style(self, file_path: Path, content: str, style_guide: str) -> List[Dict]:
+        """Check import style in a single file"""
+        import ast
+        import re
+        
+        issues = []
+        lines = content.split('\n')
+        
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            return []  # Skip files with syntax errors
+        
+        # Find all import statements
+        imports = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.append({
+                        'type': 'import',
+                        'module': alias.name,
+                        'name': alias.asname or alias.name,
+                        'line': node.lineno,
+                        'full_line': lines[node.lineno - 1] if node.lineno <= len(lines) else ""
+                    })
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                for alias in node.names:
+                    imports.append({
+                        'type': 'from',
+                        'module': module,
+                        'name': alias.name,
+                        'asname': alias.asname,
+                        'line': node.lineno,
+                        'level': node.level,  # For relative imports
+                        'full_line': lines[node.lineno - 1] if node.lineno <= len(lines) else ""
+                    })
+        
+        if not imports:
+            return []
+        
+        # Apply style checks based on guide
+        if style_guide == "pep8":
+            issues.extend(self._check_pep8_import_style(file_path, imports, lines))
+        elif style_guide == "google":
+            issues.extend(self._check_google_import_style(file_path, imports, lines))
+        else:  # custom
+            issues.extend(self._check_custom_import_style(file_path, imports, lines))
+        
+        return issues
+    
+    def _check_pep8_import_style(self, file_path: Path, imports: List[Dict], lines: List[str]) -> List[Dict]:
+        """Check PEP 8 import style compliance"""
+        issues = []
+        
+        # Group imports by type
+        stdlib_imports = []
+        thirdparty_imports = []
+        local_imports = []
+        
+        stdlib_modules = {
+            'os', 'sys', 'json', 'datetime', 'pathlib', 'typing', 'collections',
+            'itertools', 'functools', 'asyncio', 'threading', 'multiprocessing',
+            'unittest', 'logging', 'argparse', 'configparser', 're', 'ast'
+        }
+        
+        for imp in imports:
+            # Classify import type
+            if imp['module'].split('.')[0] in stdlib_modules:
+                stdlib_imports.append(imp)
+            elif imp['module'].startswith('.') or imp.get('level', 0) > 0:
+                local_imports.append(imp)
+            else:
+                thirdparty_imports.append(imp)
+        
+        # Check import ordering (PEP 8: stdlib, third-party, local)
+        all_imports = stdlib_imports + thirdparty_imports + local_imports
+        current_imports = sorted(imports, key=lambda x: x['line'])
+        
+        # Check if imports are properly grouped and separated
+        prev_group = None
+        blank_line_expected = False
+        
+        for i, imp in enumerate(current_imports):
+            # Determine current group
+            if imp in stdlib_imports:
+                current_group = 'stdlib'
+            elif imp in thirdparty_imports:
+                current_group = 'thirdparty'
+            else:
+                current_group = 'local'
+            
+            # Check for proper grouping
+            if prev_group and current_group != prev_group:
+                # Should have blank line between groups
+                line_before = imp['line'] - 2  # -1 for 0-based, -1 for line before
+                if (line_before >= 0 and line_before < len(lines) and 
+                    lines[line_before].strip() != ""):
+                    issues.append({
+                        'file': str(file_path),
+                        'line': imp['line'],
+                        'severity': 'warning',
+                        'message': f"Missing blank line between {prev_group} and {current_group} imports",
+                        'suggestion': f"Add blank line before this {current_group} import"
+                    })
+            
+            # Check for wildcard imports
+            if imp.get('name') == '*':
+                issues.append({
+                    'file': str(file_path),
+                    'line': imp['line'],
+                    'severity': 'warning',
+                    'message': "Wildcard import should be avoided",
+                    'suggestion': "Import specific names instead of using '*'"
+                })
+            
+            # Check for multiple imports on same line (for 'import' statements)
+            if imp['type'] == 'import' and ',' in imp['full_line']:
+                issues.append({
+                    'file': str(file_path),
+                    'line': imp['line'],
+                    'severity': 'info',
+                    'message': "Multiple imports on same line",
+                    'suggestion': "Put each import on separate lines"
+                })
+            
+            prev_group = current_group
+        
+        # Check alphabetical ordering within groups
+        for group_name, group_imports in [
+            ('stdlib', stdlib_imports),
+            ('third-party', thirdparty_imports),
+            ('local', local_imports)
+        ]:
+            if len(group_imports) > 1:
+                sorted_group = sorted(group_imports, key=lambda x: x['module'])
+                if [imp['module'] for imp in group_imports] != [imp['module'] for imp in sorted_group]:
+                    # Find first out-of-order import
+                    for i, imp in enumerate(group_imports):
+                        if i > 0 and imp['module'] < group_imports[i-1]['module']:
+                            issues.append({
+                                'file': str(file_path),
+                                'line': imp['line'],
+                                'severity': 'info',
+                                'message': f"Imports within {group_name} group should be alphabetically sorted",
+                                'suggestion': f"Move '{imp['module']}' to correct alphabetical position"
+                            })
+                            break
+        
+        return issues
+    
+    def _check_google_import_style(self, file_path: Path, imports: List[Dict], lines: List[str]) -> List[Dict]:
+        """Check Google Python style guide compliance"""
+        issues = []
+        
+        # Google style is similar to PEP 8 but with some differences
+        # For now, use PEP 8 as base and add Google-specific rules
+        pep8_issues = self._check_pep8_import_style(file_path, imports, lines)
+        issues.extend(pep8_issues)
+        
+        # Google-specific rules can be added here
+        for imp in imports:
+            # Google prefers 'from x import y' for single items
+            if imp['type'] == 'import' and '.' not in imp['module']:
+                # This is a simple module import - OK
+                pass
+        
+        return issues
+    
+    def _check_custom_import_style(self, file_path: Path, imports: List[Dict], lines: List[str]) -> List[Dict]:
+        """Check custom import style rules"""
+        issues = []
+        
+        # Basic custom rules - can be extended
+        for imp in imports:
+            # Check for unused imports (basic check)
+            if imp.get('name') and imp['name'].startswith('_'):
+                issues.append({
+                    'file': str(file_path),
+                    'line': imp['line'],
+                    'severity': 'info',
+                    'message': f"Import '{imp['name']}' starts with underscore (may be internal)",
+                    'suggestion': "Consider if this internal import is necessary"
+                })
+        
+        return issues
     
     async def _resolve_import(self, args: Dict[str, Any]) -> List[TextContent]:
         """Resolve a specific import"""
-        # This would need to parse the import statement and check resolution
-        return [TextContent(type="text", text="🔧 Individual import resolution not yet implemented")]
+        import_statement = args["import_statement"]
+        from_file = Path(args["from_file"])
+        
+        if not from_file.is_absolute():
+            from_file = self.project_root / from_file
+        
+        if not from_file.exists():
+            return [TextContent(type="text", text=f"❌ Source file not found: {from_file}")]
+        
+        try:
+            # Parse the import statement
+            import_info = self._parse_import_statement(import_statement)
+            if not import_info:
+                return [TextContent(type="text", text=f"❌ Invalid import statement: {import_statement}")]
+            
+            # Try to resolve the import
+            resolution_result = self._attempt_import_resolution(import_info, from_file)
+            
+            # Format the result
+            output = f"🔍 Import Resolution: {import_statement}\n"
+            output += f"{'=' * 60}\n\n"
+            
+            output += f"📄 Source File: {from_file.name}\n"
+            output += f"� Import Type: {import_info['type']}\n"
+            output += f"🎯 Target Module: {import_info['module']}\n"
+            
+            if import_info.get('names'):
+                output += f"📋 Imported Names: {', '.join(import_info['names'])}\n"
+            
+            output += f"\n🔎 Resolution Status: "
+            
+            if resolution_result['success']:
+                output += f"✅ RESOLVED\n"
+                output += f"📍 Resolved to: {resolution_result['resolved_path']}\n"
+                
+                if resolution_result.get('module_type'):
+                    output += f"🏷️  Module Type: {resolution_result['module_type']}\n"
+                
+                if resolution_result.get('available_names'):
+                    available = resolution_result['available_names'][:10]  # Show first 10
+                    output += f"📚 Available Names: {', '.join(available)}\n"
+                    if len(resolution_result['available_names']) > 10:
+                        output += f"    ... and {len(resolution_result['available_names']) - 10} more\n"
+                
+                # Check if imported names are actually available
+                if import_info.get('names'):
+                    unavailable = []
+                    available_set = set(resolution_result.get('available_names', []))
+                    
+                    for name in import_info['names']:
+                        if name != '*' and name not in available_set:
+                            unavailable.append(name)
+                    
+                    if unavailable:
+                        output += f"\n⚠️  Unavailable Names: {', '.join(unavailable)}\n"
+                        output += f"💡 These names are imported but not found in the target module\n"
+                
+            else:
+                output += f"❌ FAILED\n"
+                output += f"💔 Reason: {resolution_result['error']}\n"
+                
+                if resolution_result.get('suggestions'):
+                    output += f"\n💡 Suggestions:\n"
+                    for suggestion in resolution_result['suggestions']:
+                        output += f"  • {suggestion}\n"
+            
+            # Additional context
+            if resolution_result.get('is_relative'):
+                output += f"\n🔗 Relative Import: {'Yes' if resolution_result['is_relative'] else 'No'}\n"
+            
+            if resolution_result.get('search_paths'):
+                output += f"\n🛣️  Search Paths Checked:\n"
+                for path in resolution_result['search_paths'][:5]:  # Show first 5
+                    output += f"  • {path}\n"
+                if len(resolution_result['search_paths']) > 5:
+                    output += f"  • ... and {len(resolution_result['search_paths']) - 5} more\n"
+            
+            return [TextContent(type="text", text=output.strip())]
+            
+        except Exception as e:
+            return [TextContent(type="text", text=f"❌ Import resolution failed: {str(e)}")]
+    
+    def _parse_import_statement(self, import_statement: str) -> Optional[Dict]:
+        """Parse an import statement into its components"""
+        import ast
+        import re
+        
+        # Clean up the statement
+        statement = import_statement.strip()
+        if not statement:
+            return None
+        
+        try:
+            # Try to parse as Python code
+            tree = ast.parse(statement)
+            
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    # Handle: import module [as alias]
+                    if node.names:
+                        alias = node.names[0]  # Take first one
+                        return {
+                            'type': 'import',
+                            'module': alias.name,
+                            'alias': alias.asname,
+                            'names': []
+                        }
+                
+                elif isinstance(node, ast.ImportFrom):
+                    # Handle: from module import name [as alias]
+                    module = node.module or ""
+                    names = []
+                    
+                    for alias in node.names:
+                        names.append(alias.name)
+                    
+                    return {
+                        'type': 'from',
+                        'module': module,
+                        'names': names,
+                        'level': node.level  # For relative imports
+                    }
+        
+        except SyntaxError:
+            # If AST parsing fails, try regex parsing
+            pass
+        
+        # Fallback regex parsing
+        # Match: from module import name1, name2
+        from_match = re.match(r'from\s+([\w.]+)\s+import\s+(.+)', statement)
+        if from_match:
+            module = from_match.group(1)
+            imports_str = from_match.group(2)
+            names = [name.strip() for name in imports_str.split(',')]
+            return {
+                'type': 'from',
+                'module': module,
+                'names': names,
+                'level': 0
+            }
+        
+        # Match: import module
+        import_match = re.match(r'import\s+([\w.]+)(?:\s+as\s+([\w.]+))?', statement)
+        if import_match:
+            module = import_match.group(1)
+            alias = import_match.group(2)
+            return {
+                'type': 'import',
+                'module': module,
+                'alias': alias,
+                'names': []
+            }
+        
+        return None
+    
+    def _attempt_import_resolution(self, import_info: Dict, from_file: Path) -> Dict:
+        """Attempt to resolve an import and return detailed results"""
+        import sys
+        import os
+        import importlib.util
+        from importlib import import_module
+        
+        result = {
+            'success': False,
+            'error': None,
+            'resolved_path': None,
+            'module_type': None,
+            'available_names': [],
+            'is_relative': False,
+            'search_paths': [],
+            'suggestions': []
+        }
+        
+        module_name = import_info['module']
+        is_relative = import_info.get('level', 0) > 0 or module_name.startswith('.')
+        result['is_relative'] = is_relative
+        
+        # Build search paths
+        search_paths = []
+        
+        # Add directory of source file
+        source_dir = from_file.parent
+        search_paths.append(str(source_dir))
+        
+        # Add project root
+        search_paths.append(str(self.project_root))
+        
+        # Add parent directories for relative imports
+        if is_relative:
+            current_dir = source_dir
+            for _ in range(import_info.get('level', 1)):
+                current_dir = current_dir.parent
+                search_paths.append(str(current_dir))
+        
+        # Add Python sys.path
+        search_paths.extend(sys.path)
+        
+        result['search_paths'] = search_paths
+        
+        # Try different resolution strategies
+        resolved_path = None
+        
+        # Strategy 1: Direct file/directory check
+        for search_path in search_paths[:5]:  # Check first 5 paths
+            try:
+                search_dir = Path(search_path)
+                if not search_dir.exists():
+                    continue
+                
+                # Convert module name to file path
+                module_parts = module_name.strip('.').split('.')
+                
+                # Try as file
+                potential_file = search_dir
+                for part in module_parts:
+                    potential_file = potential_file / part
+                
+                # Check .py file
+                py_file = potential_file.with_suffix('.py')
+                if py_file.exists():
+                    resolved_path = py_file
+                    result['module_type'] = 'file'
+                    break
+                
+                # Check as package (__init__.py)
+                init_file = potential_file / '__init__.py'
+                if init_file.exists():
+                    resolved_path = init_file
+                    result['module_type'] = 'package'
+                    break
+                    
+            except Exception:
+                continue
+        
+        # Strategy 2: Try importlib (for installed packages)
+        if not resolved_path:
+            try:
+                spec = importlib.util.find_spec(module_name)
+                if spec and spec.origin:
+                    resolved_path = Path(spec.origin)
+                    result['module_type'] = 'installed_package'
+            except (ImportError, ModuleNotFoundError, ValueError):
+                pass
+        
+        # If resolved, try to extract available names
+        if resolved_path:
+            result['success'] = True
+            result['resolved_path'] = str(resolved_path)
+            
+            # Try to get available names
+            try:
+                available_names = self._extract_module_names(resolved_path)
+                result['available_names'] = available_names
+            except Exception:
+                result['available_names'] = []
+        
+        else:
+            # Resolution failed - provide helpful error and suggestions
+            result['success'] = False
+            result['error'] = f"Module '{module_name}' could not be resolved"
+            
+            # Generate suggestions
+            suggestions = []
+            
+            # Check for similar names in search paths
+            similar_modules = self._find_similar_modules(module_name, search_paths[:3])
+            if similar_modules:
+                suggestions.append(f"Similar modules found: {', '.join(similar_modules[:3])}")
+            
+            # Check if it might be an installed package
+            try:
+                import pkg_resources
+                installed_packages = [pkg.project_name for pkg in pkg_resources.working_set]
+                similar_packages = [pkg for pkg in installed_packages if module_name.lower() in pkg.lower()][:3]
+                if similar_packages:
+                    suggestions.append(f"Similar installed packages: {', '.join(similar_packages)}")
+            except Exception:
+                pass
+            
+            # General suggestions
+            if is_relative:
+                suggestions.append("For relative imports, ensure the module structure is correct")
+            else:
+                suggestions.append("Check if the module is installed or in the Python path")
+                suggestions.append("Verify the module name spelling")
+            
+            result['suggestions'] = suggestions
+        
+        return result
+    
+    def _extract_module_names(self, module_path: Path) -> List[str]:
+        """Extract available names from a Python module"""
+        import ast
+        
+        names = []
+        
+        try:
+            with open(module_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            tree = ast.parse(content)
+            
+            for node in ast.walk(tree):
+                # Functions
+                if isinstance(node, ast.FunctionDef):
+                    if not node.name.startswith('_'):  # Skip private functions
+                        names.append(node.name)
+                
+                # Classes
+                elif isinstance(node, ast.ClassDef):
+                    if not node.name.startswith('_'):
+                        names.append(node.name)
+                
+                # Variables/Constants (assignments at module level)
+                elif isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            if not target.id.startswith('_'):
+                                names.append(target.id)
+                
+                # Imports (re-exported)
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        name = alias.asname or alias.name
+                        if not name.startswith('_'):
+                            names.append(name)
+                
+                elif isinstance(node, ast.ImportFrom):
+                    for alias in node.names:
+                        if alias.name != '*':
+                            name = alias.asname or alias.name
+                            if not name.startswith('_'):
+                                names.append(name)
+        
+        except Exception:
+            # If parsing fails, return empty list
+            pass
+        
+        return sorted(list(set(names)))  # Remove duplicates and sort
+    
+    def _find_similar_modules(self, target_module: str, search_paths: List[str]) -> List[str]:
+        """Find modules with similar names"""
+        import difflib
+        
+        found_modules = []
+        
+        for search_path in search_paths:
+            try:
+                search_dir = Path(search_path)
+                if not search_dir.exists():
+                    continue
+                
+                # Find Python files and packages
+                for item in search_dir.iterdir():
+                    if item.is_file() and item.suffix == '.py':
+                        module_name = item.stem
+                        found_modules.append(module_name)
+                    elif item.is_dir() and (item / '__init__.py').exists():
+                        found_modules.append(item.name)
+                        
+            except Exception:
+                continue
+        
+        # Find similar names using difflib
+        similar = difflib.get_close_matches(target_module, found_modules, n=5, cutoff=0.6)
+        return similar
     
     async def _get_import_stats(self, args: Dict[str, Any]) -> List[TextContent]:
         """Get import statistics for project"""
