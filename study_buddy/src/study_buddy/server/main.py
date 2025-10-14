@@ -75,46 +75,27 @@ async def main() -> None:
     setup_python_path()
     
     try:
-        # Import both old and new server implementations
-        logger.info("🔧 Loading SOLID-compliant server implementation...")
+        # Import the main server implementation
+        logger.info("🔧 Loading Study Buddy MCP Server...")
         
-        from study_buddy.server.solid_server import StudyBuddyMCPServer, StudyBuddyServerFactory
+        from study_buddy.server.server import StudyBuddyMCPServer
         
-        # Determine database path: CLI arg > env var > container default
+        # Determine database path: CLI arg > env var > default
         database_path = args.database_path or os.getenv("STUDY_BUDDY_DB_PATH")
         
-        # Create server using SOLID factory pattern
-        if args.test:
-            server = StudyBuddyServerFactory.create_test_server(database_path or ":memory:")
-        else:
-            server = StudyBuddyServerFactory.create_development_server(database_path)
+        # Create server instance
+        server = StudyBuddyMCPServer(database_path)
         
         if args.test:
-            logger.info("🧪 Running in test mode - verifying SOLID server setup")
+            logger.info("🧪 Running in test mode - verifying server setup")
             
             # Test initialization
             await server._initialize_dependencies()
             
-            # Test health check
-            health = server.get_health_status()
-            logger.info(f"📊 Health check: {health}")
-            
-            # Test container
-            container_health = server.container.health_check()
-            logger.info(f"� Container services: {container_health.get('services', [])}")
-            
-            # Test configuration
-            config_value = server.config_manager.get_value("database_path", "not_configured")
-            logger.info(f"⚙️ Configuration - Database path: {config_value}")
-            
-            # Test dependency injection
-            logger.info(f"� DI Container healthy: {container_health['healthy']}")
-            logger.info(f"🔗 Total services registered: {container_health['total_services']}")
-            
-            logger.info("✅ Test mode completed successfully - SOLID architecture verified")
+            logger.info("✅ Test mode completed successfully")
             return
         
-        logger.info("✅ SOLID-compliant Study Buddy MCP Server ready - starting stdio communication")
+        logger.info("✅ Study Buddy MCP Server ready - starting stdio communication")
         
         # Start the MCP server
         await server.run()

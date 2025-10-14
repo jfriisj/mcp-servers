@@ -87,13 +87,6 @@
         "ghcr.io/jfriisj/import-analysis-mcp-server:latest"
       ]
     },
-    "import-analysis-server": {
-      "command": "python",
-      "args": [
-        "import-analysis-server/src/main.py"
-      ],
-      "cwd": "${workspaceFolder}"
-    },
     "solid": {
       "command": "docker",
       "args": [

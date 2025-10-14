@@ -5,17 +5,14 @@ This module provides the main MCP server implementation using the mcp library
 and Clean Architecture principles with proper dependency injection.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import os
-import sys
 from typing import Any, Dict, List, Optional
 
 import mcp.server.stdio
 import mcp.types as types
-from mcp.server import NotificationOptions, Server
+from mcp.server import Server
 from mcp.server.models import InitializationOptions
 
 # Handle imports for both module and direct execution
