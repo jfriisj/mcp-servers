@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "slr-server-docker": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "C:/github/mcp-servers/slr-server:/app",
+        "-w", "/app",
+        "-e", "DATABASE_PATH=/app/slr_database.db",
+        "-e", "LOG_LEVEL=INFO",
+        "-e", "MAX_PAPERS_PER_ANALYSIS=100",
+        "-e", "ENABLE_CACHING=true",
+        "slr-mcp-server:latest",
+        "python", "-m", "src.main"
+      ],
+      "env": {}
+    }
+  }
+}

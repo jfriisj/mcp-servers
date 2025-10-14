@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "slr-server": {
+      "command": "python",
+      "args": ["-m", "src.main"],
+      "env": {
+        "DATABASE_PATH": "C:/github/mcp-servers/slr-server/slr_database.db",
+        "LOG_LEVEL": "INFO",
+        "MCP_PORT": "8080",
+        "MAX_PAPERS_PER_ANALYSIS": "100",
+        "ENABLE_CACHING": "true"
+      },
+      "working_directory": "C:/github/mcp-servers/slr-server"
+    }
+  }
+}

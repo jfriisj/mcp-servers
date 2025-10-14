@@ -110,6 +110,10 @@
         "mcp-study-buddy-${workspaceFolderBasename}",
         "-v",
         "${workspaceFolder}:/workspace",
+        "-v",
+        "${workspaceFolder}/study_buddy/data:/app/data",
+        "-e",
+        "STUDY_BUDDY_DB_PATH=/app/data/study_buddy.db",
         "ghcr.io/jfriisj/study-buddy-mcp-server:latest"
       ]
     }

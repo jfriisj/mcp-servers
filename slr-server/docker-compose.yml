@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  slr-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slr-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_PATH=/app/data/slr_database.db
+      - LOG_LEVEL=INFO
+      - MCP_PORT=8080
+      - MAX_PAPERS_PER_ANALYSIS=100
+      - ENABLE_CACHING=true
+    volumes:
+      - slr_data:/app/data
+      - slr_logs:/app/logs
+      - ./papers:/app/papers:ro  # Mount papers directory as read-only
+    networks:
+      - slr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: slr-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - slr-network
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
+
+  # Optional: PostgreSQL for production (uncomment if needed)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: slr-postgres
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: slr_database
+  #     POSTGRES_USER: slr_user
+  #     POSTGRES_PASSWORD: slr_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - slr-network
+  #   restart: unless-stopped
+
+  # Optional: Nginx reverse proxy (uncomment for production)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: slr-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - slr-network
+  #   depends_on:
+  #     - slr-server
+  #   restart: unless-stopped
+
+volumes:
+  slr_data:
+    driver: local
+  slr_logs:
+    driver: local
+  # redis_data:
+  #   driver: local
+  # postgres_data:
+  #   driver: local
+
+networks:
+  slr-network:
+    driver: bridge

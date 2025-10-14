@@ -1,0 +1,838 @@
+"""
+Research Document Service for academic paper lifecycle orchestration.
+
+This module implements the ResearchDocumentService class following Clean Architecture
+Layer 2 principles, orchestrating academic document operations while remaining
+framework-agnostic and focusing on systematic literature review workflows.
+"""
+
+import os
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, Set
+from pathlib import Path
+
+from ..models import ResearchPaper, Author, Journal, Citation
+from ..repositories.paper_repository import PaperRepository
+
+
+class ResearchDocumentService:
+    """
+    Research document business logic service for systematic literature reviews.
+
+    Orchestrates academic paper operations including upload, metadata extraction,
+    citation analysis, paper classification, and research corpus management while
+    enforcing academic research business rules and coordinating between repositories.
+
+    Follows Clean Architecture Layer 2 principles:
+    - Framework-agnostic business logic
+    - Depends on abstractions (repositories)
+    - Contains reusable academic research rules
+    - Validates academic input and enforces constraints
+    - Coordinates operations across academic components
+
+    SOLID Principles:
+    - SRP: Single responsibility for research document business logic
+    - OCP: Open for extension via academic strategy patterns
+    - LSP: Can be substituted with other research document services
+    - ISP: Focused interface for academic document operations only
+    - DIP: Depends on repository abstractions
+
+    Academic Research Focus:
+    - PRISMA compliance for systematic reviews
+    - Academic metadata extraction and validation
+    - Citation network analysis and management
+    - Research corpus organization and filtering
+    - Quality assessment integration
+    """
+
+    # Academic business rule constants
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit for academic papers
+    ACADEMIC_EXTENSIONS = {'.pdf', '.docx', '.tex', '.bib'}
+    MIN_ABSTRACT_LENGTH = 50  # Minimum abstract length for quality papers
+    MAX_AUTHORS = 50  # Reasonable limit for author list
+    VALID_STUDY_TYPES = {'experimental', 'observational', 'review', 'meta-analysis', 'case_study', 'survey'}
+    VALID_METHODOLOGIES = {'quantitative', 'qualitative', 'mixed_methods', 'theoretical', 'empirical'}
+
+    def __init__(self, paper_repository: PaperRepository):
+        """
+        Initialize ResearchDocumentService with required dependencies.
+
+        Args:
+            paper_repository: Repository for research paper persistence
+
+        Note:
+            Dependencies are injected to enable testing and flexibility.
+        """
+        self.paper_repository = paper_repository
+
+    def upload_paper(
+        self,
+        file_path: str,
+        title: Optional[str] = None,
+        authors: Optional[List[Author]] = None,
+        journal: Optional[Journal] = None,
+        publication_year: Optional[int] = None,
+        doi: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        auto_extract_metadata: bool = True
+    ) -> ResearchPaper:
+        """
+        Upload and process a new research paper with academic validation.
+
+        Academic Business Logic:
+        1. Validate file meets academic standards
+        2. Extract academic metadata (authors, citations, abstract)
+        3. Classify paper methodology and study type
+        4. Perform citation analysis
+        5. Create research paper entity with academic attributes
+        6. Persist in research corpus
+
+        Args:
+            file_path: Absolute path to academic paper file
+            title: Optional title override
+            authors: Optional author list
+            journal: Optional journal information
+            publication_year: Year of publication
+            doi: Digital Object Identifier
+            tags: Research topic tags
+            auto_extract_metadata: Whether to extract metadata from file
+
+        Returns:
+            Created ResearchPaper with populated academic metadata
+
+        Raises:
+            ValueError: If file validation fails or academic rules violated
+            FileNotFoundError: If file doesn't exist
+            ResearchDocumentError: If processing or persistence fails
+
+        Academic Rules Enforced:
+        - File must be academic format (PDF, DOCX, TEX, BIB)
+        - File size appropriate for academic papers
+        - No duplicate DOIs or file paths
+        - Abstract meets minimum quality standards
+        - Author count within reasonable limits
+        - Publication year is valid academic year
+        """
+        # Academic Rule: File must exist and be accessible
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Academic paper file not found: {file_path}")
+
+        if not os.path.isfile(file_path):
+            raise ValueError(f"Path is not a file: {file_path}")
+
+        # Academic Rule: File size appropriate for academic papers
+        file_size = os.path.getsize(file_path)
+        if file_size > self.MAX_FILE_SIZE:
+            raise ValueError(
+                f"Academic paper size {file_size} bytes exceeds maximum of {self.MAX_FILE_SIZE} bytes"
+            )
+
+        # Academic Rule: Must be academic document format
+        file_ext = os.path.splitext(file_path)[1].lower()
+        if file_ext not in self.ACADEMIC_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported academic format '{file_ext}'. Supported: {', '.join(self.ACADEMIC_EXTENSIONS)}"
+            )
+
+        # Academic Rule: No duplicate file paths
+        if self.paper_repository.get_by_file_path(file_path):
+            raise ValueError(f"Research paper already exists for file path: {file_path}")
+
+        # Academic Rule: DOI uniqueness if provided
+        if doi and self._is_duplicate_doi(doi):
+            raise ValueError(f"Research paper with DOI '{doi}' already exists")
+
+        # Extract academic metadata if requested
+        extracted_metadata = {}
+        if auto_extract_metadata:
+            try:
+                extracted_metadata = self.extract_metadata(file_path)
+            except Exception as e:
+                raise ResearchDocumentError(f"Failed to extract academic metadata: {str(e)}") from e
+
+        # Combine provided and extracted metadata with precedence to provided
+        paper_title = title or extracted_metadata.get("title") or Path(file_path).stem
+        paper_authors = authors or extracted_metadata.get("authors", [])
+        paper_journal = journal or extracted_metadata.get("journal")
+        paper_year = publication_year or extracted_metadata.get("publication_year")
+        paper_abstract = extracted_metadata.get("abstract", "")
+        paper_keywords = extracted_metadata.get("keywords", [])
+        
+        # Academic Rule: Title must be meaningful
+        if not paper_title.strip():
+            raise ValueError("Research paper title cannot be empty")
+
+        # Academic Rule: Author count within limits
+        if len(paper_authors) > self.MAX_AUTHORS:
+            raise ValueError(f"Author count ({len(paper_authors)}) exceeds maximum of {self.MAX_AUTHORS}")
+
+        # Academic Rule: Publication year validation
+        current_year = datetime.now().year
+        if paper_year and (paper_year < 1900 or paper_year > current_year + 1):
+            raise ValueError(f"Invalid publication year: {paper_year}")
+
+        # Academic Rule: Abstract quality standards
+        if paper_abstract and len(paper_abstract) < self.MIN_ABSTRACT_LENGTH:
+            raise ValueError(
+                f"Abstract too short ({len(paper_abstract)} chars). Minimum: {self.MIN_ABSTRACT_LENGTH}"
+            )
+
+        # Classify paper academic characteristics
+        classification = self._classify_paper(paper_title, paper_abstract, paper_keywords)
+
+        # Create research paper entity
+        research_paper = ResearchPaper(
+            title=paper_title.strip(),
+            file_path=file_path,
+            file_type=file_ext[1:],
+            authors=paper_authors,
+            journal=paper_journal,
+            publication_year=paper_year,
+            doi=doi,
+            abstract=paper_abstract,
+            keywords=paper_keywords,
+            methodology=classification.get("methodology"),
+            study_type=classification.get("study_type"),
+            sample_size=extracted_metadata.get("sample_size"),
+            citation_count=0,  # Will be updated by citation analysis
+            upload_date=datetime.now(),
+            file_size=file_size,
+            total_pages=extracted_metadata.get("total_pages"),
+            total_words=extracted_metadata.get("total_words"),
+            tags=tags or [],
+            indexed=False,
+            quality_assessed=False,
+            included_in_review=None,  # To be determined by quality assessment
+            notes=""
+        )
+
+        # Persist research paper
+        try:
+            created_paper = self.paper_repository.create(research_paper)
+            
+            # Perform citation analysis after creation
+            if auto_extract_metadata:
+                self._analyze_paper_citations(created_paper.id, file_path)
+            
+            return created_paper
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to create research paper: {str(e)}") from e
+
+    def extract_metadata(self, file_path: str) -> Dict[str, Any]:
+        """
+        Extract academic metadata from research paper file.
+
+        Academic metadata includes:
+        - Title and abstract
+        - Author information
+        - Journal and publication details
+        - Keywords and research topics
+        - Citations and references
+        - Document statistics
+
+        Args:
+            file_path: Path to academic paper file
+
+        Returns:
+            Dictionary containing extracted academic metadata
+
+        Raises:
+            ResearchDocumentError: If metadata extraction fails
+        """
+        try:
+            # Basic file information
+            file_stats = os.stat(file_path)
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            metadata = {
+                "file_type": file_ext[1:],
+                "file_size": file_stats.st_size,
+                "created_date": datetime.fromtimestamp(file_stats.st_ctime),
+                "modified_date": datetime.fromtimestamp(file_stats.st_mtime)
+            }
+
+            # Extract content-based metadata based on file type
+            if file_ext == '.pdf':
+                metadata.update(self._extract_pdf_metadata(file_path))
+            elif file_ext == '.docx':
+                metadata.update(self._extract_docx_metadata(file_path))
+            elif file_ext == '.tex':
+                metadata.update(self._extract_tex_metadata(file_path))
+            elif file_ext == '.bib':
+                metadata.update(self._extract_bib_metadata(file_path))
+            else:
+                # Fallback to basic text extraction
+                metadata.update(self._extract_text_metadata(file_path))
+
+            # Enhance metadata with academic analysis
+            metadata.update(self._enhance_academic_metadata(metadata))
+
+            return metadata
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to extract metadata: {str(e)}") from e
+
+    def analyze_citations(self, paper_id: int) -> Dict[str, Any]:
+        """
+        Perform comprehensive citation analysis for a research paper.
+
+        Academic Citation Analysis:
+        - Extract cited references
+        - Identify citation patterns and networks
+        - Calculate citation metrics
+        - Detect self-citations and citation clusters
+        - Analyze temporal citation patterns
+
+        Args:
+            paper_id: ID of research paper to analyze
+
+        Returns:
+            Dictionary containing citation analysis results
+
+        Raises:
+            ResearchDocumentError: If citation analysis fails
+        """
+        paper = self.paper_repository.get_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Research paper {paper_id} not found")
+
+        try:
+            return self._analyze_paper_citations(paper_id, paper.file_path)
+        except Exception as e:
+            raise ResearchDocumentError(f"Citation analysis failed: {str(e)}") from e
+
+    def classify_paper(self, paper_id: int) -> Dict[str, Any]:
+        """
+        Classify research paper by methodology and study type.
+
+        Academic Classification:
+        - Methodology: quantitative, qualitative, mixed methods, theoretical, empirical
+        - Study type: experimental, observational, review, meta-analysis, case study, survey
+        - Research domain and topic classification
+        - Quality indicators and research rigor assessment
+
+        Args:
+            paper_id: ID of research paper to classify
+
+        Returns:
+            Dictionary containing classification results
+
+        Raises:
+            ResearchDocumentError: If classification fails
+        """
+        paper = self.paper_repository.get_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Research paper {paper_id} not found")
+
+        try:
+            classification = self._classify_paper(paper.title, paper.abstract, paper.keywords)
+            
+            # Update paper with classification
+            if classification.get("methodology") and not paper.methodology:
+                paper.methodology = classification["methodology"]
+            if classification.get("study_type") and not paper.study_type:
+                paper.study_type = classification["study_type"]
+                
+            self.paper_repository.update(paper)
+            
+            return classification
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Paper classification failed: {str(e)}") from e
+
+    def get_research_corpus(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        sort_by: str = "publication_year",
+        sort_order: str = "desc",
+        limit: Optional[int] = None
+    ) -> List[ResearchPaper]:
+        """
+        Retrieve and manage research corpus with academic filtering.
+
+        Academic Corpus Management:
+        - Filter by research methodology and study type
+        - Filter by publication period and venue
+        - Filter by author, journal, and citation metrics
+        - Support systematic review inclusion/exclusion criteria
+        - Quality assessment status filtering
+
+        Args:
+            filters: Academic filter criteria
+            sort_by: Sort field (publication_year, citation_count, title)
+            sort_order: Sort order (asc, desc)
+            limit: Maximum papers to return
+
+        Returns:
+            List of research papers matching academic criteria
+
+        Raises:
+            ValueError: If filter parameters are invalid
+        """
+        # Academic Rule: Validate sort parameters
+        valid_sort_fields = {"publication_year", "citation_count", "title", "created_at", "upload_date"}
+        if sort_by not in valid_sort_fields:
+            raise ValueError(f"Invalid sort field '{sort_by}'. Valid: {', '.join(valid_sort_fields)}")
+
+        if sort_order.lower() not in {"asc", "desc"}:
+            raise ValueError("Sort order must be 'asc' or 'desc'")
+
+        # Academic Rule: Reasonable corpus size limits
+        if limit is not None and limit > 10000:
+            raise ValueError("Corpus limit cannot exceed 10,000 papers")
+
+        try:
+            # Apply academic filters
+            academic_filters = self._build_academic_filters(filters or {})
+            
+            # Get filtered papers
+            papers = self.paper_repository.list_all(academic_filters)
+            
+            # Apply sorting
+            papers = self._sort_research_papers(papers, sort_by, sort_order)
+            
+            # Apply limit
+            if limit is not None:
+                papers = papers[:limit]
+            
+            return papers
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to retrieve research corpus: {str(e)}") from e
+
+    def search_papers(
+        self,
+        query: str,
+        search_fields: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 20
+    ) -> List[ResearchPaper]:
+        """
+        Academic search across research papers with field-specific searching.
+
+        Academic Search Features:
+        - Full-text search across title, abstract, and content
+        - Author and journal-specific searches
+        - Citation-aware searching
+        - Research methodology and topic searches
+        - Boolean and phrase search support
+
+        Args:
+            query: Academic search query
+            search_fields: Specific fields to search (title, abstract, authors, keywords)
+            filters: Additional academic filters
+            limit: Maximum results to return
+
+        Returns:
+            List of matching research papers ordered by relevance
+
+        Raises:
+            ValueError: If search parameters are invalid
+        """
+        # Academic Rule: Valid search query
+        if not query or not query.strip():
+            raise ValueError("Academic search query cannot be empty")
+
+        query = query.strip()
+        if len(query) > 1000:
+            raise ValueError("Search query cannot exceed 1000 characters")
+
+        # Academic Rule: Reasonable search limits
+        if limit > 200:
+            raise ValueError("Search limit cannot exceed 200 results")
+
+        try:
+            # If search fields specified, perform targeted search
+            if search_fields:
+                return self._targeted_academic_search(query, search_fields, filters, limit)
+            else:
+                # Perform full-text academic search
+                return self.paper_repository.search_papers(query, limit)
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Academic search failed: {str(e)}") from e
+
+    def update_paper_status(
+        self,
+        paper_id: int,
+        included_in_review: Optional[bool] = None,
+        exclusion_reason: Optional[str] = None,
+        quality_assessed: Optional[bool] = None,
+        notes: Optional[str] = None
+    ) -> ResearchPaper:
+        """
+        Update research paper review status for systematic literature review.
+
+        Systematic Review Status Management:
+        - Include/exclude papers based on criteria
+        - Track exclusion reasons following PRISMA guidelines
+        - Mark quality assessment completion
+        - Maintain review audit trail
+
+        Args:
+            paper_id: Research paper to update
+            included_in_review: Whether paper is included in review
+            exclusion_reason: Reason for exclusion (if excluded)
+            quality_assessed: Whether quality assessment is complete
+            notes: Review notes and comments
+
+        Returns:
+            Updated research paper
+
+        Raises:
+            ValueError: If paper not found or status invalid
+        """
+        paper = self.paper_repository.get_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Research paper {paper_id} not found")
+
+        # Academic Rule: Exclusion reason required if excluded
+        if included_in_review is False and not exclusion_reason:
+            raise ValueError("Exclusion reason required when excluding paper from review")
+
+        # Academic Rule: Clear exclusion reason if included
+        if included_in_review is True and exclusion_reason:
+            exclusion_reason = None
+
+        # Update paper status
+        if included_in_review is not None:
+            paper.included_in_review = included_in_review
+        if exclusion_reason is not None:
+            paper.exclusion_reason = exclusion_reason
+        if quality_assessed is not None:
+            paper.quality_assessed = quality_assessed
+        if notes is not None:
+            paper.notes = notes
+
+        try:
+            return self.paper_repository.update(paper)
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to update paper status: {str(e)}") from e
+
+    def get_corpus_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics about the research corpus.
+
+        Academic Corpus Statistics:
+        - Total papers and distribution by type
+        - Publication year distribution
+        - Author and journal statistics
+        - Citation metrics and patterns
+        - Review status distribution
+        - Quality assessment progress
+
+        Returns:
+            Dictionary containing comprehensive corpus statistics
+        """
+        try:
+            all_papers = self.paper_repository.list_all()
+            
+            stats = {
+                "total_papers": len(all_papers),
+                "review_status": {
+                    "included": sum(1 for p in all_papers if p.included_in_review is True),
+                    "excluded": sum(1 for p in all_papers if p.included_in_review is False),
+                    "pending": sum(1 for p in all_papers if p.included_in_review is None)
+                },
+                "quality_assessed": sum(1 for p in all_papers if p.quality_assessed),
+                "methodologies": {},
+                "study_types": {},
+                "publication_years": {},
+                "journals": {},
+                "authors": {},
+                "citation_statistics": {
+                    "total_citations": sum(p.citation_count for p in all_papers if p.citation_count),
+                    "average_citations": 0,
+                    "max_citations": 0,
+                    "papers_with_citations": 0
+                },
+                "file_types": {},
+                "total_size_mb": sum(p.file_size for p in all_papers if p.file_size) / (1024 * 1024),
+                "indexed_papers": sum(1 for p in all_papers if p.indexed)
+            }
+
+            # Calculate detailed statistics
+            citation_counts = [p.citation_count for p in all_papers if p.citation_count]
+            if citation_counts:
+                stats["citation_statistics"]["average_citations"] = sum(citation_counts) / len(citation_counts)
+                stats["citation_statistics"]["max_citations"] = max(citation_counts)
+                stats["citation_statistics"]["papers_with_citations"] = len(citation_counts)
+
+            # Aggregate by categories
+            for paper in all_papers:
+                # Methodology distribution
+                if paper.methodology:
+                    stats["methodologies"][paper.methodology] = stats["methodologies"].get(paper.methodology, 0) + 1
+
+                # Study type distribution
+                if paper.study_type:
+                    stats["study_types"][paper.study_type] = stats["study_types"].get(paper.study_type, 0) + 1
+
+                # Publication year distribution
+                if paper.publication_year:
+                    year = str(paper.publication_year)
+                    stats["publication_years"][year] = stats["publication_years"].get(year, 0) + 1
+
+                # Journal distribution (top 10)
+                if paper.journal and paper.journal.name:
+                    journal_name = paper.journal.name
+                    stats["journals"][journal_name] = stats["journals"].get(journal_name, 0) + 1
+
+                # File type distribution
+                file_type = paper.file_type or "unknown"
+                stats["file_types"][file_type] = stats["file_types"].get(file_type, 0) + 1
+
+                # Author statistics (unique authors)
+                if paper.authors:
+                    for author in paper.authors:
+                        author_name = author.name
+                        stats["authors"][author_name] = stats["authors"].get(author_name, 0) + 1
+
+            # Limit to top entries for readability
+            stats["journals"] = dict(sorted(stats["journals"].items(), key=lambda x: x[1], reverse=True)[:10])
+            stats["authors"] = dict(sorted(stats["authors"].items(), key=lambda x: x[1], reverse=True)[:20])
+
+            return stats
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to get corpus statistics: {str(e)}") from e
+
+    # Private helper methods for academic processing
+
+    def _is_duplicate_doi(self, doi: str) -> bool:
+        """Check if DOI already exists in corpus."""
+        # This would be implemented with a repository query for DOI
+        # For now, return False as placeholder
+        return False
+
+    def _extract_pdf_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract metadata from PDF files using academic parsing."""
+        # Placeholder for PDF metadata extraction
+        # In real implementation, would use libraries like PyPDF2, pdfplumber
+        return {
+            "title": Path(file_path).stem,
+            "total_pages": None,
+            "authors": [],
+            "abstract": "",
+            "keywords": []
+        }
+
+    def _extract_docx_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract metadata from DOCX files using academic parsing."""
+        # Placeholder for DOCX metadata extraction
+        # In real implementation, would use python-docx library
+        return {
+            "title": Path(file_path).stem,
+            "authors": [],
+            "abstract": "",
+            "keywords": []
+        }
+
+    def _extract_tex_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract metadata from LaTeX files using academic parsing."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract title
+            title_match = re.search(r'\\title\{([^}]+)\}', content)
+            title = title_match.group(1) if title_match else Path(file_path).stem
+            
+            # Extract authors
+            author_matches = re.findall(r'\\author\{([^}]+)\}', content)
+            authors = [Author(name=author.strip()) for author in author_matches]
+            
+            # Extract abstract
+            abstract_match = re.search(r'\\begin\{abstract\}(.*?)\\end\{abstract\}', content, re.DOTALL)
+            abstract = abstract_match.group(1).strip() if abstract_match else ""
+            
+            return {
+                "title": title,
+                "authors": authors,
+                "abstract": abstract,
+                "keywords": [],
+                "total_words": len(content.split())
+            }
+            
+        except Exception:
+            return {"title": Path(file_path).stem}
+
+    def _extract_bib_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract metadata from BibTeX files."""
+        # Placeholder for BibTeX parsing
+        return {"title": Path(file_path).stem, "keywords": []}
+
+    def _extract_text_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract basic metadata from text files."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            return {
+                "title": Path(file_path).stem,
+                "total_words": len(content.split()),
+                "abstract": "",
+                "keywords": []
+            }
+        except Exception:
+            return {"title": Path(file_path).stem}
+
+    def _enhance_academic_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhance metadata with academic analysis."""
+        enhanced = {}
+        
+        # Estimate sample size from abstract/title
+        title = metadata.get("title", "")
+        abstract = metadata.get("abstract", "")
+        text = f"{title} {abstract}".lower()
+        
+        # Look for sample size indicators
+        sample_patterns = [
+            r'n\s*=\s*(\d+)',
+            r'n\s*=\s*(\d+)',
+            r'sample.*?(\d+)',
+            r'participants.*?(\d+)',
+            r'subjects.*?(\d+)'
+        ]
+        
+        for pattern in sample_patterns:
+            match = re.search(pattern, text)
+            if match:
+                enhanced["sample_size"] = int(match.group(1))
+                break
+        
+        return enhanced
+
+    def _classify_paper(self, title: str, abstract: str, keywords: List[str]) -> Dict[str, Any]:
+        """Classify paper by methodology and study type using text analysis."""
+        text = f"{title} {abstract} {' '.join(keywords)}".lower()
+        
+        classification = {}
+        
+        # Methodology classification
+        methodology_indicators = {
+            "quantitative": ["statistical", "analysis", "data", "quantitative", "numerical", "measurement"],
+            "qualitative": ["qualitative", "interview", "thematic", "content analysis", "ethnographic"],
+            "mixed_methods": ["mixed methods", "mixed-methods", "both qualitative and quantitative"],
+            "theoretical": ["theoretical", "conceptual", "framework", "model", "theory"],
+            "empirical": ["empirical", "experiment", "study", "evidence", "findings"]
+        }
+        
+        methodology_scores = {}
+        for methodology, indicators in methodology_indicators.items():
+            score = sum(1 for indicator in indicators if indicator in text)
+            if score > 0:
+                methodology_scores[methodology] = score
+        
+        if methodology_scores:
+            classification["methodology"] = max(methodology_scores, key=methodology_scores.get)
+        
+        # Study type classification
+        study_type_indicators = {
+            "experimental": ["experiment", "controlled", "randomized", "trial", "intervention"],
+            "observational": ["observational", "cohort", "cross-sectional", "longitudinal"],
+            "review": ["systematic review", "literature review", "meta-analysis", "review"],
+            "meta-analysis": ["meta-analysis", "meta analysis", "pooled analysis"],
+            "case_study": ["case study", "case series", "case report"],
+            "survey": ["survey", "questionnaire", "poll", "cross-sectional survey"]
+        }
+        
+        study_type_scores = {}
+        for study_type, indicators in study_type_indicators.items():
+            score = sum(1 for indicator in indicators if indicator in text)
+            if score > 0:
+                study_type_scores[study_type] = score
+        
+        if study_type_scores:
+            classification["study_type"] = max(study_type_scores, key=study_type_scores.get)
+        
+        return classification
+
+    def _analyze_paper_citations(self, paper_id: int, file_path: str) -> Dict[str, Any]:
+        """Perform citation analysis for a research paper."""
+        # Placeholder for comprehensive citation analysis
+        # Would extract references, analyze networks, calculate metrics
+        return {
+            "total_references": 0,
+            "citation_patterns": {},
+            "reference_types": {},
+            "temporal_distribution": {},
+            "network_metrics": {}
+        }
+
+    def _build_academic_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        """Build repository filters from academic filter criteria."""
+        academic_filters = {}
+        
+        # Map academic filters to repository filters
+        field_mappings = {
+            "methodology": "methodology",
+            "study_type": "study_type",
+            "publication_year": "publication_year",
+            "included_in_review": "included_in_review",
+            "quality_assessed": "quality_assessed",
+            "authors": "authors",
+            "tags": "tags"
+        }
+        
+        for academic_field, repo_field in field_mappings.items():
+            if academic_field in filters:
+                academic_filters[repo_field] = filters[academic_field]
+        
+        return academic_filters
+
+    def _sort_research_papers(
+        self,
+        papers: List[ResearchPaper],
+        sort_by: str,
+        sort_order: str
+    ) -> List[ResearchPaper]:
+        """Sort research papers by specified field and order."""
+        reverse = sort_order.lower() == "desc"
+        
+        if sort_by == "publication_year":
+            return sorted(papers, key=lambda p: p.publication_year or 0, reverse=reverse)
+        elif sort_by == "citation_count":
+            return sorted(papers, key=lambda p: p.citation_count or 0, reverse=reverse)
+        elif sort_by == "title":
+            return sorted(papers, key=lambda p: p.title.lower(), reverse=reverse)
+        elif sort_by == "created_at":
+            return sorted(papers, key=lambda p: p.created_at or datetime.min, reverse=reverse)
+        elif sort_by == "upload_date":
+            return sorted(papers, key=lambda p: p.upload_date or datetime.min, reverse=reverse)
+        else:
+            return papers
+
+    def _targeted_academic_search(
+        self,
+        query: str,
+        search_fields: List[str],
+        filters: Optional[Dict[str, Any]],
+        limit: int
+    ) -> List[ResearchPaper]:
+        """Perform targeted search in specific academic fields."""
+        # Placeholder for field-specific academic search
+        # Would implement searches in title, abstract, authors, keywords
+        return self.paper_repository.search_papers(query, limit)
+
+
+class ResearchDocumentError(Exception):
+    """
+    Business logic exception for research document operations.
+
+    Raised when academic document operations fail due to business rule violations,
+    academic metadata extraction errors, or research-specific persistence failures.
+    """
+
+    def __init__(self, message: str, cause: Optional[Exception] = None):
+        """
+        Initialize ResearchDocumentError.
+
+        Args:
+            message: Human-readable error description
+            cause: Optional underlying exception that caused this error
+        """
+        super().__init__(message)
+        self.cause = cause
