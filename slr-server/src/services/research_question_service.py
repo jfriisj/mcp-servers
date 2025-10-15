@@ -914,7 +914,87 @@ class ResearchQuestionService:
 
     def _generate_boolean_query(self, decomposition, database):
         """Generate boolean search query."""
-        return "placeholder query"
+        # Extract key components from PICO/SPIDER decomposition
+        population = decomposition.get('population', [])
+        intervention = decomposition.get('intervention', [])
+        comparison = decomposition.get('comparison', [])
+        outcome = decomposition.get('outcome', [])
+        context = decomposition.get('context', [])
+        
+        # Build boolean query based on database type
+        if database.lower() in ['pubmed', 'medline']:
+            query_parts = []
+            
+            # Population terms
+            if population:
+                pop_terms = [f'"{term}"[MeSH Terms] OR "{term}"[Title/Abstract]' for term in population]
+                query_parts.append(f"({' OR '.join(pop_terms)})")
+            
+            # Intervention terms
+            if intervention:
+                int_terms = [f'"{term}"[MeSH Terms] OR "{term}"[Title/Abstract]' for term in intervention]
+                query_parts.append(f"({' OR '.join(int_terms)})")
+            
+            # Outcome terms
+            if outcome:
+                out_terms = [f'"{term}"[MeSH Terms] OR "{term}"[Title/Abstract]' for term in outcome]
+                query_parts.append(f"({' OR '.join(out_terms)})")
+            
+            # Combine with AND
+            boolean_query = ' AND '.join(query_parts)
+            
+        elif database.lower() in ['scopus', 'web of science']:
+            query_parts = []
+            
+            # Use TITLE-ABS-KEY for Scopus
+            if population:
+                pop_terms = [f'TITLE-ABS-KEY("{term}")' for term in population]
+                query_parts.append(f"({' OR '.join(pop_terms)})")
+            
+            if intervention:
+                int_terms = [f'TITLE-ABS-KEY("{term}")' for term in intervention]
+                query_parts.append(f"({' OR '.join(int_terms)})")
+            
+            if outcome:
+                out_terms = [f'TITLE-ABS-KEY("{term}")' for term in outcome]
+                query_parts.append(f"({' OR '.join(out_terms)})")
+            
+            boolean_query = ' AND '.join(query_parts)
+            
+        elif database.lower() in ['ieee', 'acm']:
+            # Computer science databases
+            query_parts = []
+            
+            if population:
+                pop_terms = [f'"{term}"' for term in population]
+                query_parts.append(f"({' OR '.join(pop_terms)})")
+            
+            if intervention:
+                int_terms = [f'"{term}"' for term in intervention]
+                query_parts.append(f"({' OR '.join(int_terms)})")
+            
+            if outcome:
+                out_terms = [f'"{term}"' for term in outcome]
+                query_parts.append(f"({' OR '.join(out_terms)})")
+            
+            boolean_query = ' AND '.join(query_parts)
+            
+        else:
+            # Generic boolean query
+            all_terms = population + intervention + comparison + outcome + context
+            unique_terms = list(set(all_terms))
+            
+            if len(unique_terms) > 0:
+                # Create OR groups for similar concepts, AND between different concepts
+                boolean_query = ' AND '.join([f'"{term}"' for term in unique_terms[:5]])  # Limit complexity
+            else:
+                boolean_query = '("systematic review" OR "literature review")'
+        
+        # Ensure query is not empty
+        if not boolean_query.strip():
+            boolean_query = '("systematic review" OR "literature review")'
+        
+        return boolean_query
 
     def _generate_search_filters(self, validation, database):
         """Generate search filters."""

@@ -199,17 +199,43 @@ Key Activities: {result['phase_status']['key_activities']}
     async def handle_create_screening_workflow(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle create screening workflow MCP tool call."""
         try:
-            # TODO: Implement screening workflow service method
-            # For now, return a placeholder response
+            # Extract parameters
+            project_id = arguments.get("project_id", 1)
+            inclusion_criteria = arguments.get("inclusion_criteria", [])
+            exclusion_criteria = arguments.get("exclusion_criteria", [])
+            reviewers = arguments.get("reviewers", ["reviewer_1", "reviewer_2"])
+            screening_stages = arguments.get("screening_stages", ["title_abstract", "full_text"])
             
-            workflow_name = arguments["workflow_name"]
-            stages = arguments.get("stages", ["title_abstract", "full_text"])
+            # Create screening workflow using service
+            workflow_service = self.container.get_slr_workflow_service()
+            workflow_result = await workflow_service.create_screening_workflow(
+                project_id=project_id,
+                inclusion_criteria=inclusion_criteria,
+                exclusion_criteria=exclusion_criteria,
+                reviewers=reviewers,
+                screening_stages=screening_stages
+            )
             
             response_text = f"""
-📋 Screening Workflow Created: {workflow_name}
+📋 Screening Workflow Created Successfully
+
+🆔 Workflow ID: {workflow_result['workflow_id']}
+📊 Status: {workflow_result['status'].title()}
 
 🔄 Screening Stages:
-{chr(10).join(f"• Stage {i+1}: {stage.replace('_', ' ').title()}" for i, stage in enumerate(stages))}
+{chr(10).join(f"• Stage {i+1}: {stage.replace('_', ' ').title()}" for i, stage in enumerate(screening_stages))}
+
+👥 Assigned Reviewers:
+{chr(10).join(f"• {reviewer}" for reviewer in reviewers)}
+
+📋 Inclusion Criteria:
+{chr(10).join(f"• {criterion}" for criterion in inclusion_criteria) if inclusion_criteria else "• No specific criteria defined"}
+
+❌ Exclusion Criteria:
+{chr(10).join(f"• {criterion}" for criterion in exclusion_criteria) if exclusion_criteria else "• No specific criteria defined"}
+
+🎯 Next Actions:
+{chr(10).join(f"• {action}" for action in workflow_result['next_actions'])}
 
 👥 Setup Instructions:
 • Assign at least 2 reviewers per stage
@@ -243,36 +269,79 @@ Key Activities: {result['phase_status']['key_activities']}
     async def handle_screen_paper(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle individual paper screening MCP tool call."""
         try:
-            # TODO: Implement paper screening service method
-            # For now, return a placeholder response
-            
+            # Extract parameters
+            project_id = arguments.get("project_id", 1)
             paper_id = arguments["paper_id"]
             decision = arguments["decision"]
             stage = arguments.get("stage", "title_abstract")
-            reviewer = arguments.get("reviewer_id", "reviewer_1")
-            reasons = arguments.get("exclusion_reasons", [])
+            reviewer_id = arguments.get("reviewer_id", "reviewer_1")
+            reason = arguments.get("reason")
+            exclusion_criteria = arguments.get("exclusion_criteria", [])
+            confidence_level = arguments.get("confidence_level")
+            
+            # Record screening decision using service
+            workflow_service = self.container.get_slr_workflow_service()
+            screening_result = await workflow_service.screen_paper(
+                project_id=project_id,
+                paper_id=paper_id,
+                reviewer_id=reviewer_id,
+                stage=stage,
+                decision=decision,
+                reason=reason,
+                exclusion_criteria=exclusion_criteria,
+                confidence_level=confidence_level
+            )
             
             decision_emoji = "✅" if decision == "include" else "❌"
             
             response_text = f"""
 {decision_emoji} Paper Screening Recorded
 
-📄 Paper ID: {paper_id}
-👤 Reviewer: {reviewer}
+🆔 Screening ID: {screening_result['screening_id']}
+� Status: {screening_result['status'].title()}
+
+�📄 Paper ID: {paper_id}
+👤 Reviewer: {reviewer_id}
 🔍 Stage: {stage.replace('_', ' ').title()}
 🎯 Decision: {decision.upper()}
-            """
+"""
             
-            if decision == "exclude" and reasons:
+            # Add reason if provided
+            if reason:
                 response_text += f"""
-📝 Exclusion Reasons:
-{chr(10).join(f"• {reason}" for reason in reasons)}
-                """
+📝 Reason: {reason}
+"""
             
-            response_text += """
-✅ Screening decision saved successfully!
+            # Add exclusion criteria if provided
+            if exclusion_criteria:
+                response_text += f"""
+❌ Exclusion Criteria:
+{chr(10).join(f"• {criterion}" for criterion in exclusion_criteria)}
+"""
+            
+            # Add confidence level if provided
+            if confidence_level:
+                response_text += f"""
+🎯 Confidence Level: {confidence_level:.2f}
+"""
+            
+            # Add statistics
+            if screening_result['statistics']['agreement_score'] is not None:
+                response_text += f"""
+📊 Agreement Score: {screening_result['statistics']['agreement_score']:.2f}
+"""
+            
+            if screening_result['statistics']['conflict_detected']:
+                response_text += """
+⚠️ Conflict detected with other reviewer!
+"""
+            
+            # Add next actions
+            response_text += f"""
+🎯 Next Actions:
+{chr(10).join(f"• {action}" for action in screening_result['next_actions'])}
 
-📊 Next Steps:
+✅ Screening decision saved successfully!
 • Ensure second reviewer completes screening for this paper
 • Check for conflicts if decisions differ
 • Update overall screening progress

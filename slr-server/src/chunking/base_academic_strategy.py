@@ -296,16 +296,16 @@ class BaseAcademicStrategy(ABC):
         if chunk.section_type in ['abstract', 'introduction', 'methods', 'results', 'discussion', 'conclusion']:
             score += 0.2
 
-        if chunk.has_citations:
+        if hasattr(chunk, 'citation_count') and chunk.citation_count and chunk.citation_count > 0:
             score += 0.1
 
-        if chunk.research_elements:
+        if hasattr(chunk, 'research_elements') and chunk.research_elements:
             score += 0.1 * min(len(chunk.research_elements), 3) / 3
 
-        if chunk.semantic_tags:
+        if hasattr(chunk, 'semantic_tags') and chunk.semantic_tags:
             score += 0.1 * min(len(chunk.semantic_tags), 2) / 2
 
-        return min(score, 1.0)
+        return min(max(score, 0.0), 1.0)  # Ensure score is between 0 and 1
 
     def _calculate_word_count(self, text: str) -> int:
         """Calculate word count for a text chunk."""

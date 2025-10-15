@@ -10,10 +10,13 @@ from typing import Any, Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass
 import re
+import logging
 
 from ..models import ResearchPaper, AcademicChunk
 from ..repositories.paper_repository import PaperRepository
 from ..chunking.strategy_factory import AcademicChunkingStrategyFactory
+
+logger = logging.getLogger(__name__)
 
 
 class IndexingStrategy(Enum):
@@ -144,7 +147,7 @@ class AcademicChunkingService:
         )
 
         # Perform initial chunking
-        raw_chunks = chunking_strategy.chunk(content, paper)
+        raw_chunks = chunking_strategy.chunk(paper, content)
 
         # Apply academic enhancements
         enhanced_chunks = self._apply_academic_enhancements(
@@ -269,15 +272,16 @@ class AcademicChunkingService:
             paper_id=chunk.paper_id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
-            chunk_type=chunk.chunk_type,
-            start_position=chunk.start_position,
-            end_position=chunk.end_position,
+            section_type=chunk.section_type,
+            title=chunk.title,
             word_count=chunk.word_count,
-            section_title=chunk.section_title,
-            academic_context=chunk.academic_context,
-            citations=chunk.citations,
+            citation_count=chunk.citation_count,
+            figure_count=chunk.figure_count,
+            table_count=chunk.table_count,
+            research_elements=chunk.research_elements,
+            semantic_tags=chunk.semantic_tags,
             metadata=enhanced_metadata,
-            quality_score=chunk.quality_score + 0.1,  # Boost for enhancement
+            confidence_score=min(1.0, (chunk.confidence_score or 0.0) + 0.1),  # Boost for enhancement, capped at 1.0
             created_at=chunk.created_at
         )
 
@@ -286,7 +290,7 @@ class AcademicChunkingService:
     def optimize_chunks_for_qa(
         self,
         chunks: List[AcademicChunk],
-        question_types: List[str] = None
+        question_types: Optional[List[str]] = None
     ) -> List[AcademicChunk]:
         """
         Optimize chunks specifically for question-answering tasks.
@@ -359,7 +363,7 @@ class AcademicChunkingService:
 
     def generate_indexing_report(
         self,
-        paper_ids: List[int] = None,
+        paper_ids: Optional[List[int]] = None,
         include_metrics: bool = True
     ) -> Dict[str, Any]:
         """
@@ -437,11 +441,9 @@ class AcademicChunkingService:
 
         # Check if reindexing is necessary
         if paper.indexed and not force:
-            # Check last indexing time (would be stored in paper metadata)
-            last_indexed = paper.metadata.get("last_indexed")
-            if last_indexed:
-                # If indexed recently, skip unless forced
-                pass
+            # Check last indexing time (could be stored in notes or other field)
+            # For now, just proceed with reindexing if requested
+            pass
 
         # Clear previous indexing status
         paper.indexed = False
@@ -457,21 +459,21 @@ class AcademicChunkingService:
     def _initialize_optimization_configs(self) -> Dict[str, Any]:
         """Initialize agent optimization configurations."""
         return {
-            OptimizationLevel.BASIC: {
+            "basic": {
                 "chunk_size_range": (200, 800),
                 "overlap": 50,
                 "semantic_enhancement": False,
                 "citation_preservation": True,
                 "context_expansion": False
             },
-            OptimizationLevel.INTERMEDIATE: {
+            "intermediate": {
                 "chunk_size_range": (300, 1200),
                 "overlap": 100,
                 "semantic_enhancement": True,
                 "citation_preservation": True,
                 "context_expansion": True
             },
-            OptimizationLevel.ADVANCED: {
+            "advanced": {
                 "chunk_size_range": (400, 1500),
                 "overlap": 150,
                 "semantic_enhancement": True,
@@ -479,7 +481,7 @@ class AcademicChunkingService:
                 "context_expansion": True,
                 "cross_reference": True
             },
-            OptimizationLevel.EXPERT: {
+            "expert": {
                 "chunk_size_range": (500, 2000),
                 "overlap": 200,
                 "semantic_enhancement": True,
@@ -502,16 +504,113 @@ class AcademicChunkingService:
 
     def _extract_paper_content(self, paper: ResearchPaper) -> str:
         """Extract content from paper file."""
-        # Placeholder - would read actual file content
-        # For now, use abstract + title as content
+        import os
+        import PyPDF2
+        import fitz  # pymupdf
+        from pathlib import Path
+        
+        # Start with basic metadata
         content = f"Title: {paper.title}\n\n"
         if paper.abstract:
             content += f"Abstract: {paper.abstract}\n\n"
         
-        # Would add full text extraction here
-        content += "Full paper content would be extracted here..."
+        # Try to extract from actual file if available
+        if paper.file_path and os.path.exists(paper.file_path):
+            try:
+                file_path = Path(paper.file_path)
+                file_extension = file_path.suffix.lower()
+                
+                if file_extension == '.pdf':
+                    content += self._extract_from_pdf(paper.file_path)
+                elif file_extension in ['.txt', '.md']:
+                    content += self._extract_from_text_file(paper.file_path)
+                elif file_extension in ['.doc', '.docx']:
+                    content += self._extract_from_word_doc(paper.file_path)
+                else:
+                    # Fallback for unknown file types
+                    content += f"[Note: File type {file_extension} not fully supported, using metadata only]"
+                    
+            except Exception as e:
+                # If file extraction fails, log the error and continue with metadata
+                content += f"[Note: Could not extract full text from file: {str(e)}]"
+        else:
+            # No file available, use metadata only
+            if paper.keywords:
+                content += f"Keywords: {', '.join(paper.keywords)}\n\n"
+            
+            content += "[Note: Full text not available, using metadata only]"
         
-        return content
+        return content.strip()
+    
+    def _extract_from_pdf(self, file_path: str) -> str:
+        """Extract text content from PDF file."""
+        try:
+            # Try pymupdf first (better text extraction)
+            import fitz
+            doc = fitz.open(file_path)
+            text = ""
+            for page in doc:
+                text += page.get_text() + "\n"
+            doc.close()
+            return text.strip()
+            
+        except ImportError:
+            # Fallback to PyPDF2 if pymupdf not available
+            try:
+                import PyPDF2
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                    return text.strip()
+            except Exception as e:
+                return f"[PDF extraction failed: {str(e)}]"
+        except Exception as e:
+            # If pymupdf fails, try PyPDF2
+            try:
+                import PyPDF2
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                    return text.strip()
+            except Exception as e2:
+                return f"[PDF extraction failed: {str(e)} / {str(e2)}]"
+    
+    def _extract_from_text_file(self, file_path: str) -> str:
+        """Extract content from text file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read().strip()
+        except UnicodeDecodeError:
+            # Try different encodings
+            encodings = ['latin-1', 'cp1252', 'iso-8859-1']
+            for encoding in encodings:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as file:
+                        return file.read().strip()
+                except UnicodeDecodeError:
+                    continue
+            return "[Text file encoding not supported]"
+        except Exception as e:
+            return f"[Text extraction failed: {str(e)}]"
+    
+    def _extract_from_word_doc(self, file_path: str) -> str:
+        """Extract content from Word document."""
+        try:
+            # Try to import python-docx if available
+            import docx
+            doc = docx.Document(file_path)
+            text = []
+            for paragraph in doc.paragraphs:
+                text.append(paragraph.text)
+            return '\n'.join(text).strip()
+        except ImportError:
+            return "[Word document extraction requires python-docx package]"
+        except Exception as e:
+            return f"[Word document extraction failed: {str(e)}]"
 
     def _select_chunking_strategy(
         self,
@@ -541,7 +640,7 @@ class AcademicChunkingService:
     ) -> List[AcademicChunk]:
         """Apply academic-specific enhancements to chunks."""
         enhanced_chunks = []
-        config = self._optimization_configs[optimization_level]
+        config = self._optimization_configs[optimization_level.value]
 
         for chunk in chunks:
             enhanced_chunk = chunk
@@ -550,8 +649,8 @@ class AcademicChunkingService:
             if config.get("semantic_enhancement"):
                 enhanced_chunk = self.enhance_chunk_semantically(chunk)
 
-            # Add academic context
-            enhanced_chunk.academic_context.update({
+            # Add academic metadata to chunk metadata
+            enhanced_chunk.metadata.update({
                 "paper_methodology": paper.methodology,
                 "paper_study_type": paper.study_type,
                 "publication_year": paper.publication_year,
@@ -569,7 +668,7 @@ class AcademicChunkingService:
         agent_context: Optional[str]
     ) -> List[AcademicChunk]:
         """Optimize chunks for AI agent processing."""
-        config = self._optimization_configs[optimization_level]
+        config = self._optimization_configs[optimization_level.value]
         optimized_chunks = []
 
         for chunk in chunks:
@@ -604,7 +703,7 @@ class AcademicChunkingService:
             quality_score = self._calculate_chunk_quality_score(chunk, paper)
             
             # Update chunk with quality score
-            chunk.quality_score = quality_score
+            chunk.confidence_score = quality_score
 
             # Only include chunks above quality threshold
             if quality_score >= 0.6:  # Configurable threshold
@@ -714,15 +813,16 @@ class AcademicChunkingService:
             paper_id=chunk.paper_id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
-            chunk_type=chunk.chunk_type,
-            start_position=chunk.start_position,
-            end_position=chunk.end_position,
+            section_type=chunk.section_type,
+            title=chunk.title,
             word_count=chunk.word_count,
-            section_title=chunk.section_title,
-            academic_context=chunk.academic_context,
-            citations=chunk.citations,
+            citation_count=chunk.citation_count,
+            figure_count=chunk.figure_count,
+            table_count=chunk.table_count,
+            research_elements=chunk.research_elements,
+            semantic_tags=chunk.semantic_tags,
             metadata=qa_metadata,
-            quality_score=chunk.quality_score,
+            confidence_score=chunk.confidence_score,
             created_at=chunk.created_at
         )
         
@@ -738,7 +838,7 @@ class AcademicChunkingService:
         
         # Type-specific scoring
         if summary_type == "comprehensive":
-            if chunk.section_title and "introduction" in chunk.section_title.lower():
+            if chunk.title and "introduction" in chunk.title.lower():
                 summarization_score += 0.2
             if "conclusion" in chunk.content.lower() or "findings" in chunk.content.lower():
                 summarization_score += 0.3
@@ -772,15 +872,16 @@ class AcademicChunkingService:
             paper_id=chunk.paper_id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
-            chunk_type=chunk.chunk_type,
-            start_position=chunk.start_position,
-            end_position=chunk.end_position,
+            section_type=chunk.section_type,
+            title=chunk.title,
             word_count=chunk.word_count,
-            section_title=chunk.section_title,
-            academic_context=chunk.academic_context,
-            citations=chunk.citations,
+            citation_count=chunk.citation_count,
+            figure_count=chunk.figure_count,
+            table_count=chunk.table_count,
+            research_elements=chunk.research_elements,
+            semantic_tags=chunk.semantic_tags,
             metadata=summary_metadata,
-            quality_score=chunk.quality_score,
+            confidence_score=chunk.confidence_score,
             created_at=chunk.created_at
         )
         
@@ -789,47 +890,455 @@ class AcademicChunkingService:
     # Placeholder methods for additional functionality
     def _store_batch_processing_stats(self, stats):
         """Store batch processing statistics."""
-        pass
+        # Store processing statistics for performance monitoring
+        if not hasattr(self, '_batch_stats'):
+            self._batch_stats = []
+        
+        # Add timestamp and standardize stats format
+        batch_stats = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'total_papers': stats.get('total_papers', 0),
+            'successful_papers': stats.get('successful_papers', 0),
+            'failed_papers': stats.get('failed_papers', 0),
+            'total_chunks': stats.get('total_chunks', 0),
+            'processing_time': stats.get('processing_time', 0),
+            'average_chunks_per_paper': stats.get('average_chunks_per_paper', 0),
+            'errors': stats.get('errors', [])
+        }
+        
+        self._batch_stats.append(batch_stats)
+        
+        # Keep only last 100 batch statistics to prevent memory bloat
+        if len(self._batch_stats) > 100:
+            self._batch_stats = self._batch_stats[-100:]
+        
+        # Log significant statistics
+        if batch_stats['failed_papers'] > 0:
+            logger.warning(f"Batch processing completed with {batch_stats['failed_papers']} failures")
+        
+        if batch_stats['processing_time'] > 300:  # 5 minutes
+            logger.info(f"Long batch processing completed: {batch_stats['processing_time']}s for {batch_stats['total_papers']} papers")
 
     def _calculate_chunk_quality_score(self, chunk, paper):
         """Calculate overall quality score for chunk."""
-        return 0.8  # Placeholder
+        score = 0.0
+        
+        # Content length score (0.0-0.2)
+        word_count = chunk.word_count or 0
+        if 50 <= word_count <= 500:
+            score += 0.2
+        elif word_count > 20:
+            score += 0.1
+        
+        # Citation score (0.0-0.2)
+        citation_count = chunk.citation_count or 0
+        if citation_count > 0:
+            score += min(0.2, citation_count * 0.05)
+        
+        # Research elements score (0.0-0.2)
+        if chunk.research_elements:
+            score += min(0.2, len(chunk.research_elements) * 0.04)
+        
+        # Semantic tags score (0.0-0.2)
+        if chunk.semantic_tags:
+            score += min(0.2, len(chunk.semantic_tags) * 0.03)
+        
+        # Section type score (0.0-0.2)
+        if chunk.section_type in ['methods', 'results', 'discussion']:
+            score += 0.2
+        elif chunk.section_type in ['introduction', 'conclusion']:
+            score += 0.15
+        elif chunk.section_type in ['abstract', 'references']:
+            score += 0.1
+        
+        return min(1.0, score)
 
     def _identify_academic_domain(self, content, concepts):
         """Identify academic domain from content."""
-        return "general"  # Placeholder
+        content_lower = content.lower()
+        concepts_text = ' '.join(concepts).lower() if concepts else ''
+        combined_text = content_lower + ' ' + concepts_text
+        
+        # Define domain keywords
+        domain_keywords = {
+            'medicine': ['patient', 'clinical', 'medical', 'health', 'diagnosis', 'treatment', 'therapy'],
+            'computer_science': ['algorithm', 'software', 'computing', 'data', 'machine learning', 'ai'],
+            'engineering': ['system', 'design', 'architecture', 'performance', 'optimization'],
+            'psychology': ['behavior', 'cognitive', 'mental', 'psychological', 'participants'],
+            'education': ['learning', 'students', 'teaching', 'curriculum', 'academic'],
+            'biology': ['biological', 'species', 'genetic', 'molecular', 'cells'],
+            'physics': ['physical', 'quantum', 'energy', 'matter', 'particles'],
+            'chemistry': ['chemical', 'molecules', 'reactions', 'compounds'],
+            'mathematics': ['statistical', 'mathematical', 'equations', 'proof', 'theorem'],
+            'social_science': ['social', 'society', 'cultural', 'community', 'demographic']
+        }
+        
+        # Score each domain
+        domain_scores = {}
+        for domain, keywords in domain_keywords.items():
+            score = sum(1 for keyword in keywords if keyword in combined_text)
+            if score > 0:
+                domain_scores[domain] = score
+        
+        # Return domain with highest score
+        if domain_scores:
+            return max(domain_scores.keys(), key=lambda x: domain_scores[x])
+        
+        return "general"
 
     def _extract_methodology_context(self, content):
         """Extract methodology context."""
-        return None  # Placeholder
+        content_lower = content.lower()
+        
+        methodology_indicators = {
+            'quantitative': ['statistical', 'regression', 'analysis', 'survey', 'questionnaire', 'sample size'],
+            'qualitative': ['interview', 'thematic', 'grounded theory', 'phenomenological', 'ethnographic'],
+            'mixed_methods': ['mixed methods', 'triangulation', 'convergent', 'sequential'],
+            'experimental': ['experiment', 'randomized', 'control group', 'intervention', 'treatment'],
+            'systematic_review': ['systematic review', 'meta-analysis', 'prisma', 'cochrane'],
+            'case_study': ['case study', 'single case', 'multiple cases'],
+            'longitudinal': ['longitudinal', 'follow-up', 'time series', 'cohort'],
+            'cross_sectional': ['cross-sectional', 'cross sectional', 'snapshot']
+        }
+        
+        detected_methods = []
+        for method_type, indicators in methodology_indicators.items():
+            if any(indicator in content_lower for indicator in indicators):
+                detected_methods.append(method_type)
+        
+        if detected_methods:
+            primary_method = detected_methods[0]
+            additional_info = []
+            
+            if any(method in detected_methods for method in ['quantitative', 'qualitative', 'experimental']):
+                additional_info.append('empirical')
+            if 'systematic_review' in detected_methods:
+                additional_info.append('review')
+            
+            context = primary_method
+            if len(detected_methods) > 1:
+                context += f" with {', '.join(detected_methods[1:])}"
+            if additional_info:
+                context += f" ({', '.join(additional_info)})"
+            
+            return context
+        
+        return None
 
     def _extract_research_context(self, content):
         """Extract research context."""
-        return None  # Placeholder
+        content_lower = content.lower()
+        
+        context_indicators = {
+            'hypothesis_testing': ['hypothesis', 'hypothesize', 'predict', 'expect'],
+            'problem_solving': ['problem', 'challenge', 'issue', 'difficulty'],
+            'literature_review': ['previous studies', 'prior research', 'literature shows'],
+            'data_analysis': ['data', 'results', 'findings', 'analysis'],
+            'methodology': ['method', 'approach', 'procedure', 'technique'],
+            'theoretical': ['theory', 'theoretical', 'framework', 'model'],
+            'practical': ['application', 'implementation', 'practice', 'real-world'],
+            'comparative': ['compare', 'comparison', 'versus', 'contrast'],
+            'evaluation': ['evaluate', 'assessment', 'performance', 'effectiveness']
+        }
+        
+        detected_contexts = []
+        for context_type, indicators in context_indicators.items():
+            if any(indicator in content_lower for indicator in indicators):
+                detected_contexts.append(context_type)
+        
+        if detected_contexts:
+            primary_context = detected_contexts[0]
+            if len(detected_contexts) > 1:
+                return f"{primary_context} with {', '.join(detected_contexts[1:3])}"  # Limit to 3 contexts
+            return primary_context
+        
+        return None
 
     def _find_related_terms(self, concepts):
         """Find related terms for concepts."""
-        return []  # Placeholder
+        if not concepts:
+            return []
+        
+        # Simple related terms mapping (in a full implementation, this could use word embeddings)
+        related_terms_map = {
+            # Research methods
+            'statistical': ['quantitative', 'analysis', 'significance', 'correlation'],
+            'qualitative': ['interview', 'thematic', 'narrative', 'phenomenological'],
+            'experimental': ['control', 'treatment', 'randomized', 'intervention'],
+            
+            # Computer science
+            'algorithm': ['computational', 'optimization', 'efficiency', 'complexity'],
+            'machine learning': ['ai', 'neural network', 'training', 'prediction'],
+            'software': ['development', 'programming', 'coding', 'implementation'],
+            
+            # Medicine
+            'clinical': ['patient', 'treatment', 'diagnosis', 'medical'],
+            'therapy': ['treatment', 'intervention', 'healing', 'rehabilitation'],
+            'diagnosis': ['clinical', 'symptoms', 'medical', 'assessment'],
+            
+            # General research
+            'analysis': ['examination', 'evaluation', 'assessment', 'investigation'],
+            'methodology': ['approach', 'method', 'technique', 'procedure'],
+            'findings': ['results', 'outcomes', 'conclusions', 'discoveries']
+        }
+        
+        related_terms = []
+        for concept in concepts:
+            concept_lower = concept.lower()
+            for key_term, related in related_terms_map.items():
+                if key_term in concept_lower:
+                    related_terms.extend(related)
+        
+        # Remove duplicates and return unique related terms
+        return list(set(related_terms))[:10]  # Limit to 10 related terms
 
     def _generate_processing_hints(self, chunk, config):
         """Generate processing hints for agents."""
-        return {}  # Placeholder
+        hints = {}
+        
+        # Content-based hints
+        if chunk.citation_count and chunk.citation_count > 3:
+            hints['high_citation_density'] = True
+            hints['good_for_reference_extraction'] = True
+        
+        if chunk.section_type == 'methods':
+            hints['contains_methodology'] = True
+            hints['good_for_reproducibility'] = True
+        elif chunk.section_type == 'results':
+            hints['contains_findings'] = True
+            hints['good_for_data_extraction'] = True
+        elif chunk.section_type == 'discussion':
+            hints['contains_interpretation'] = True
+            hints['good_for_implications'] = True
+        
+        # Research elements hints
+        if chunk.research_elements:
+            if any('hypothesis' in element.lower() for element in chunk.research_elements):
+                hints['contains_hypotheses'] = True
+            if any('conclusion' in element.lower() for element in chunk.research_elements):
+                hints['contains_conclusions'] = True
+        
+        # Semantic tags hints
+        if chunk.semantic_tags:
+            if 'quantitative' in chunk.semantic_tags:
+                hints['numerical_analysis_possible'] = True
+            if 'qualitative' in chunk.semantic_tags:
+                hints['thematic_analysis_possible'] = True
+        
+        # Quality hints based on confidence score
+        if hasattr(chunk, 'confidence_score') and chunk.confidence_score:
+            if chunk.confidence_score > 0.8:
+                hints['high_quality_content'] = True
+            elif chunk.confidence_score < 0.4:
+                hints['requires_careful_processing'] = True
+        
+        # Size-based hints
+        word_count = chunk.word_count or 0
+        if word_count > 300:
+            hints['long_content'] = True
+            hints['may_need_subdivision'] = True
+        elif word_count < 50:
+            hints['short_content'] = True
+            hints['may_need_context'] = True
+        
+        return hints
 
     def _identify_content_types(self, content):
         """Identify types of content in chunk."""
-        return []  # Placeholder
+        content_lower = content.lower()
+        content_types = []
+        
+        # Text-based content types
+        if any(word in content_lower for word in ['table', 'row', 'column', 'data']):
+            content_types.append('tabular_data')
+        
+        if any(word in content_lower for word in ['figure', 'graph', 'chart', 'plot']):
+            content_types.append('visual_data')
+        
+        if any(word in content_lower for word in ['equation', 'formula', 'mathematical']):
+            content_types.append('mathematical')
+        
+        if any(word in content_lower for word in ['code', 'algorithm', 'programming']):
+            content_types.append('computational')
+        
+        if any(word in content_lower for word in ['quote', 'citation', 'reference']):
+            content_types.append('referenced_content')
+        
+        if any(word in content_lower for word in ['hypothesis', 'theory', 'theoretical']):
+            content_types.append('theoretical')
+        
+        if any(word in content_lower for word in ['experiment', 'test', 'trial', 'study']):
+            content_types.append('empirical')
+        
+        if any(word in content_lower for word in ['conclusion', 'summary', 'findings']):
+            content_types.append('conclusive')
+        
+        if any(word in content_lower for word in ['method', 'procedure', 'approach']):
+            content_types.append('methodological')
+        
+        if any(word in content_lower for word in ['result', 'outcome', 'finding']):
+            content_types.append('results')
+        
+        # Default to text if no specific types identified
+        if not content_types:
+            content_types.append('text')
+        
+        return content_types
 
     def _assess_answer_potential(self, content):
         """Assess potential for answering questions."""
-        return 0.5  # Placeholder
+        content_lower = content.lower()
+        score = 0.0
+        
+        # High-value question answering indicators
+        high_value_indicators = [
+            'results show', 'findings indicate', 'conclude that', 'demonstrate that',
+            'evidence suggests', 'study found', 'analysis revealed', 'data shows'
+        ]
+        
+        for indicator in high_value_indicators:
+            if indicator in content_lower:
+                score += 0.2
+        
+        # Medium-value indicators
+        medium_value_indicators = [
+            'method', 'approach', 'technique', 'procedure',
+            'definition', 'concept', 'theory', 'framework'
+        ]
+        
+        for indicator in medium_value_indicators:
+            if indicator in content_lower:
+                score += 0.1
+        
+        # Question words and patterns that suggest Q&A potential
+        question_patterns = [
+            'what', 'how', 'why', 'when', 'where', 'which',
+            'can be', 'is defined as', 'refers to', 'means that'
+        ]
+        
+        for pattern in question_patterns:
+            if pattern in content_lower:
+                score += 0.05
+        
+        # Factual content indicators
+        factual_indicators = [
+            'significant', 'p <', 'correlation', 'coefficient',
+            'percentage', '%', 'ratio', 'rate', 'frequency'
+        ]
+        
+        for indicator in factual_indicators:
+            if indicator in content_lower:
+                score += 0.05
+        
+        return min(1.0, score)
 
     def _assess_content_importance(self, chunk):
         """Assess importance of chunk content."""
-        return 0.5  # Placeholder
+        importance_score = 0.0
+        
+        # Section type importance
+        section_importance = {
+            'abstract': 0.9,
+            'introduction': 0.7,
+            'methods': 0.8,
+            'results': 0.9,
+            'discussion': 0.8,
+            'conclusion': 0.9,
+            'references': 0.3,
+            'appendix': 0.4
+        }
+        
+        if chunk.section_type:
+            importance_score += section_importance.get(chunk.section_type, 0.5)
+        
+        # Citation density importance
+        word_count = chunk.word_count or 1
+        citation_density = (chunk.citation_count or 0) / word_count
+        if citation_density > 0.1:  # High citation density
+            importance_score += 0.2
+        elif citation_density > 0.05:
+            importance_score += 0.1
+        
+        # Research elements importance
+        if chunk.research_elements:
+            element_count = len(chunk.research_elements)
+            importance_score += min(0.2, element_count * 0.05)
+        
+        # Semantic tags importance
+        if chunk.semantic_tags:
+            high_importance_tags = ['hypothesis', 'conclusion', 'methodology', 'results']
+            important_tags = [tag for tag in chunk.semantic_tags if any(important in tag.lower() for important in high_importance_tags)]
+            importance_score += min(0.2, len(important_tags) * 0.1)
+        
+        # Confidence score influence
+        if hasattr(chunk, 'confidence_score') and chunk.confidence_score:
+            importance_score += chunk.confidence_score * 0.1
+        
+        # Length consideration (very short or very long might be less important)
+        if word_count < 20:
+            importance_score *= 0.7  # Short chunks are often less important
+        elif word_count > 1000:
+            importance_score *= 0.8  # Very long chunks might be diluted
+        
+        return min(1.0, importance_score)
 
     def _determine_summary_role(self, chunk, summary_type):
         """Determine role in summary."""
-        return "supporting"  # Placeholder
+        # Assess importance first
+        importance = self._assess_content_importance(chunk)
+        
+        # Section-based role determination
+        if chunk.section_type in ['abstract', 'conclusion']:
+            if importance > 0.7:
+                return "primary"
+            else:
+                return "key"
+        
+        elif chunk.section_type in ['results', 'findings']:
+            if importance > 0.8:
+                return "primary"
+            elif importance > 0.6:
+                return "key"
+            else:
+                return "supporting"
+        
+        elif chunk.section_type in ['methods', 'methodology']:
+            if summary_type == "methodology_focused":
+                return "primary" if importance > 0.7 else "key"
+            else:
+                return "supporting"
+        
+        elif chunk.section_type in ['introduction', 'background']:
+            if summary_type == "comprehensive":
+                return "supporting"
+            else:
+                return "background"
+        
+        elif chunk.section_type in ['discussion']:
+            if importance > 0.8:
+                return "key"
+            else:
+                return "supporting"
+        
+        # Content-based role determination
+        if chunk.research_elements:
+            key_elements = ['hypothesis', 'objective', 'conclusion', 'finding']
+            if any(elem.lower() in chunk.research_elements for elem in key_elements):
+                return "key" if importance > 0.6 else "supporting"
+        
+        # Citation-heavy chunks
+        word_count = chunk.word_count or 1
+        citation_density = (chunk.citation_count or 0) / word_count
+        if citation_density > 0.1:
+            return "reference" if summary_type == "detailed" else "supporting"
+        
+        # High-confidence, high-importance chunks
+        if (hasattr(chunk, 'confidence_score') and chunk.confidence_score and 
+            chunk.confidence_score > 0.8 and importance > 0.7):
+            return "key"
+        
+        # Default role
+        return "supporting"
 
     def _calculate_indexing_summary(self, papers):
         """Calculate indexing summary statistics."""

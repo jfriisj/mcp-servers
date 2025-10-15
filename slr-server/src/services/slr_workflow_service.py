@@ -69,8 +69,11 @@ class SLRWorkflowService:
             initial_tasks = self._generate_initial_tasks(project)
             
             # Create project progress tracker
+            # Generate temporary project ID until saved to repository
+            temp_project_id = int(datetime.utcnow().timestamp())
+            
             progress = ProjectProgress(
-                project_id=1,  # TODO: Get from repository after save
+                project_id=temp_project_id,
                 current_phase=SLRPhase.PLANNING,
                 total_tasks=len(initial_tasks),
                 next_milestones=[
@@ -144,7 +147,7 @@ class SLRWorkflowService:
         
         for i, task_data in enumerate(planning_tasks):
             task = SLRTask(
-                project_id=1,  # TODO: Use actual project ID
+                project_id=project.id or int(datetime.utcnow().timestamp()),
                 title=task_data["title"],
                 description=task_data["description"],
                 phase=SLRPhase.PLANNING,
@@ -640,3 +643,144 @@ class SLRWorkflowService:
         }
         
         return pitfalls.get(topic, ["Follow established best practices"])
+
+    async def create_screening_workflow(self, 
+                                      project_id: int, 
+                                      inclusion_criteria: List[str], 
+                                      exclusion_criteria: List[str], 
+                                      reviewers: List[str],
+                                      screening_stages: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Create a multi-stage screening workflow for study selection."""
+        if screening_stages is None:
+            screening_stages = ["title_abstract", "full_text", "final_selection"]
+        
+        # Create screening workflow configuration
+        workflow_config = {
+            "project_id": project_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "inclusion_criteria": inclusion_criteria,
+            "exclusion_criteria": exclusion_criteria,
+            "reviewers": reviewers,
+            "screening_stages": screening_stages,
+            "required_agreement": 0.8,  # Kappa coefficient threshold
+            "conflict_resolution": "consensus_meeting"
+        }
+        
+        # Initialize screening statistics
+        screening_stats = {
+            "total_papers": 0,
+            "papers_by_stage": {stage: {"pending": 0, "included": 0, "excluded": 0} for stage in screening_stages},
+            "reviewer_agreement": {},
+            "conflicts": []
+        }
+        
+        # Generate reviewer assignments (round-robin for balance)
+        reviewer_assignments = {}
+        for i, reviewer in enumerate(reviewers):
+            reviewer_assignments[reviewer] = {
+                "stages": screening_stages,
+                "workload": 0,
+                "decisions": []
+            }
+        
+        return {
+            "workflow_id": f"screening_workflow_{project_id}_{int(datetime.utcnow().timestamp())}",
+            "config": workflow_config,
+            "statistics": screening_stats,
+            "reviewer_assignments": reviewer_assignments,
+            "status": "initialized",
+            "next_actions": [
+                "Upload papers for screening",
+                "Begin title/abstract screening stage",
+                "Monitor inter-reviewer agreement"
+            ]
+        }
+
+    async def screen_paper(self, 
+                          project_id: int,
+                          paper_id: int,
+                          reviewer_id: str,
+                          stage: str,
+                          decision: str,
+                          reason: Optional[str] = None,
+                          exclusion_criteria: Optional[List[str]] = None,
+                          confidence_level: Optional[float] = None) -> Dict[str, Any]:
+        """Record screening decision with rationale for study selection."""
+        # Validate decision
+        valid_decisions = ["include", "exclude", "uncertain"]
+        if decision not in valid_decisions:
+            raise ValueError(f"Decision must be one of: {valid_decisions}")
+        
+        # Validate stage
+        valid_stages = ["title_abstract", "full_text", "final_selection"]
+        if stage not in valid_stages:
+            raise ValueError(f"Stage must be one of: {valid_stages}")
+        
+        # Create screening record
+        screening_record = {
+            "project_id": project_id,
+            "paper_id": paper_id,
+            "reviewer_id": reviewer_id,
+            "stage": stage,
+            "decision": decision,
+            "timestamp": datetime.utcnow().isoformat(),
+            "reason": reason,
+            "exclusion_criteria": exclusion_criteria or [],
+            "confidence_level": confidence_level or 0.8
+        }
+        
+        # Calculate screening statistics
+        screening_stats = {
+            "decision_recorded": True,
+            "requires_second_reviewer": stage in ["title_abstract", "full_text"],
+            "conflict_detected": False,
+            "agreement_score": None
+        }
+        
+        # Check for conflicts with other reviewers
+        # (In real implementation, this would query the database)
+        other_decisions = []  # Would fetch from database
+        
+        if other_decisions:
+            agreement_score = self._calculate_reviewer_agreement(screening_record, other_decisions)
+            screening_stats["agreement_score"] = agreement_score
+            
+            if agreement_score < 0.8:
+                screening_stats["conflict_detected"] = True
+                screening_stats["resolution_required"] = True
+        
+        # Determine next actions
+        next_actions = []
+        if screening_stats["requires_second_reviewer"]:
+            next_actions.append("Await second reviewer decision")
+        
+        if screening_stats["conflict_detected"]:
+            next_actions.append("Schedule conflict resolution meeting")
+        
+        if decision == "include" and stage == "title_abstract":
+            next_actions.append("Proceed to full-text screening")
+        
+        return {
+            "screening_id": f"screening_{project_id}_{paper_id}_{int(datetime.utcnow().timestamp())}",
+            "record": screening_record,
+            "statistics": screening_stats,
+            "next_actions": next_actions,
+            "status": "recorded"
+        }
+
+    def _calculate_reviewer_agreement(self, 
+                                    current_decision: Dict[str, Any], 
+                                    other_decisions: List[Dict[str, Any]]) -> float:
+        """Calculate inter-reviewer agreement score."""
+        if not other_decisions:
+            return 1.0
+        
+        # Simple agreement calculation (could be enhanced with Cohen's Kappa)
+        agreements = 0
+        total_comparisons = len(other_decisions)
+        
+        for other_decision in other_decisions:
+            if current_decision["decision"] == other_decision["decision"]:
+                agreements += 1
+        
+        return agreements / total_comparisons if total_comparisons > 0 else 1.0

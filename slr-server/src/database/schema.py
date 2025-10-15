@@ -94,7 +94,7 @@ class SchemaManager:
         """
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS papers (
+            CREATE TABLE IF NOT EXISTS research_papers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 doi TEXT UNIQUE,
@@ -115,6 +115,9 @@ class SchemaManager:
                     file_type IS NULL OR 
                     file_type IN ('pdf', 'txt', 'html', 'xml', 'docx')
                 ),
+                file_size INTEGER CHECK (file_size IS NULL OR file_size >= 0),
+                total_pages INTEGER CHECK (total_pages IS NULL OR total_pages >= 0),
+                total_words INTEGER CHECK (total_words IS NULL OR total_words >= 0),
                 language TEXT DEFAULT 'en',
                 keywords TEXT DEFAULT '[]',  -- JSON array of strings
                 research_areas TEXT DEFAULT '[]',  -- JSON array of research areas
@@ -139,6 +142,7 @@ class SchemaManager:
                 supplementary_materials TEXT,  -- JSON array of supplementary file paths
                 notes TEXT,
                 tags TEXT DEFAULT '[]',  -- JSON array of user tags
+                citation_count INTEGER DEFAULT 0 CHECK (citation_count >= 0),
                 indexed BOOLEAN DEFAULT 0,
                 quality_assessed BOOLEAN DEFAULT 0,
                 included_in_review BOOLEAN DEFAULT 1,
@@ -214,7 +218,7 @@ class SchemaManager:
                 contribution_statement TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (paper_id) REFERENCES research_papers(id) ON DELETE CASCADE,
                 FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE,
                 
                 -- Unique constraint for paper-author-position combination
@@ -305,8 +309,8 @@ class SchemaManager:
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (citing_paper_id) REFERENCES papers(id) ON DELETE CASCADE,
-                FOREIGN KEY (cited_paper_id) REFERENCES papers(id) ON DELETE SET NULL,
+                FOREIGN KEY (citing_paper_id) REFERENCES research_papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (cited_paper_id) REFERENCES research_papers(id) ON DELETE SET NULL,
 
                 -- Ensure either internal or external citation information
                 CHECK (
@@ -356,7 +360,7 @@ class SchemaManager:
                 indexed_for_search BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (paper_id) REFERENCES research_papers(id) ON DELETE CASCADE,
                 UNIQUE(paper_id, chunk_index),
 
                 -- Ensure valid page numbers
@@ -417,7 +421,7 @@ class SchemaManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (paper_id) REFERENCES research_papers(id) ON DELETE CASCADE,
                 
                 -- Allow multiple assessments by different reviewers for same paper
                 UNIQUE(paper_id, reviewer_id, framework)
@@ -602,7 +606,7 @@ class SchemaManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (paper_id) REFERENCES research_papers(id) ON DELETE CASCADE,
                 FOREIGN KEY (hypothesis_id) REFERENCES research_hypotheses(id) ON DELETE SET NULL,
                 FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE SET NULL
             )
@@ -686,7 +690,7 @@ class SchemaManager:
         # FTS5 index for papers (title, abstract, keywords)
         cursor.execute(
             """
-            CREATE VIRTUAL TABLE IF NOT EXISTS papers_fts USING fts5(
+            CREATE VIRTUAL TABLE IF NOT EXISTS research_papers_fts USING fts5(
                 paper_id UNINDEXED,
                 title,
                 abstract,
@@ -756,9 +760,9 @@ class SchemaManager:
         # Papers FTS triggers
         cursor.execute(
             """
-            CREATE TRIGGER IF NOT EXISTS papers_fts_insert AFTER INSERT ON papers
+            CREATE TRIGGER IF NOT EXISTS papers_fts_insert AFTER INSERT ON research_papers
             BEGIN
-                INSERT INTO papers_fts(paper_id, title, abstract, keywords)
+                INSERT INTO research_papers_fts(paper_id, title, abstract, keywords)
                 VALUES (NEW.id, NEW.title, NEW.abstract, NEW.keywords);
             END
         """
@@ -766,18 +770,18 @@ class SchemaManager:
 
         cursor.execute(
             """
-            CREATE TRIGGER IF NOT EXISTS papers_fts_delete AFTER DELETE ON papers
+            CREATE TRIGGER IF NOT EXISTS papers_fts_delete AFTER DELETE ON research_papers
             BEGIN
-                DELETE FROM papers_fts WHERE paper_id = OLD.id;
+                DELETE FROM research_papers_fts WHERE paper_id = OLD.id;
             END
         """
         )
 
         cursor.execute(
             """
-            CREATE TRIGGER IF NOT EXISTS papers_fts_update AFTER UPDATE ON papers
+            CREATE TRIGGER IF NOT EXISTS papers_fts_update AFTER UPDATE ON research_papers
             BEGIN
-                UPDATE papers_fts
+                UPDATE research_papers_fts
                 SET title = NEW.title, abstract = NEW.abstract, keywords = NEW.keywords
                 WHERE paper_id = NEW.id;
             END
@@ -888,27 +892,27 @@ class SchemaManager:
         Args:
             cursor: Database cursor for executing statements
         """
-        # Paper indexes
+        # Research paper indexes
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_doi ON papers(doi)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_doi ON research_papers(doi)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_year ON papers(publication_year)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_year ON research_papers(publication_year)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_journal ON papers(journal_id)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_journal ON research_papers(journal_id)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_study_type ON papers(study_type)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_study_type ON research_papers(study_type)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_indexed ON papers(indexed)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_indexed ON research_papers(indexed)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_included ON papers(included_in_review)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_included ON research_papers(included_in_review)"
         )
         cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_papers_upload_date ON papers(upload_date)"
+            "CREATE INDEX IF NOT EXISTS idx_research_papers_upload_date ON research_papers(upload_date)"
         )
 
         # Author indexes
@@ -1113,7 +1117,7 @@ class SchemaManager:
         """
         try:
             required_tables = [
-                "papers",
+                "research_papers",
                 "authors", 
                 "paper_authors",
                 "journals",
@@ -1127,7 +1131,7 @@ class SchemaManager:
                 "schema_metadata",
             ]
             required_fts_tables = [
-                "papers_fts",
+                "research_papers_fts",
                 "chunks_fts",
                 "authors_fts",
                 "research_questions_fts",
@@ -1179,7 +1183,7 @@ class SchemaManager:
                 cursor = conn.cursor()
 
                 # Drop FTS tables first
-                fts_tables = ["papers_fts", "chunks_fts", "authors_fts", "research_questions_fts"]
+                fts_tables = ["research_papers_fts", "chunks_fts", "authors_fts", "research_questions_fts"]
                 for table in fts_tables:
                     cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
@@ -1193,7 +1197,7 @@ class SchemaManager:
                     "chunks",
                     "citations",
                     "paper_authors",
-                    "papers",
+                    "research_papers",
                     "authors",
                     "journals",
                     "schema_metadata",

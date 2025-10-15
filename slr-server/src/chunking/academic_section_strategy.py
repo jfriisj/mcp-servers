@@ -199,7 +199,8 @@ class AcademicSectionStrategy(BaseAcademicStrategy):
             )
 
             # Calculate and set confidence score
-            chunk.confidence_score = self._calculate_confidence_score(chunk)
+            confidence_score = self._calculate_confidence_score(chunk)
+            chunk.confidence_score = max(0.0, min(1.0, confidence_score))  # Ensure within valid range
             
             chunks.append(chunk)
 

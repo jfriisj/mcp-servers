@@ -417,49 +417,64 @@ class SLRMCPServer:
                 if self.mcp_handler is None:
                     await self._initialize_dependencies()
 
-                # Get the handler method
-                handler_method = getattr(self.mcp_handler, name, None)
+                # Map tool names to handler method names
+                handler_method_name = f"handle_{name}" if not hasattr(self.mcp_handler, name) else name
+                handler_method = getattr(self.mcp_handler, handler_method_name, None)
+                
+                if handler_method is None:
+                    # Check if it's a workflow tool (these don't have handle_ prefix)
+                    workflow_tools = ['create_slr_project', 'get_slr_progress', 'get_next_steps', 
+                                    'create_screening_workflow', 'screen_paper', 'get_slr_guide']
+                    if name in workflow_tools:
+                        handler_method = getattr(self.mcp_handler, name, None)
+                    
                 if handler_method is None:
                     raise ValueError(f"Unknown SLR tool: {name}")
 
                 # Debug logging
-                logger.debug(f"SLR tool {name} handler type: {type(handler_method)}")
+                logger.debug(f"SLR tool {name} -> {handler_method_name} handler type: {type(handler_method)}")
                 
                 if not callable(handler_method):
                     raise ValueError(f"SLR tool {name} is not callable: {type(handler_method)}")
 
-                # Call the handler
+                # Call the handler (handle async properly)
                 if arguments is None:
                     arguments = {}
 
-                result = handler_method(**arguments)
+                if asyncio.iscoroutinefunction(handler_method):
+                    result = await handler_method(arguments)
+                else:
+                    result = handler_method(arguments)
 
                 # Debug logging
                 logger.debug(f"SLR handler {name} returned: {type(result)} - {result}")
 
-                # Ensure result is a dictionary
-                if not isinstance(result, dict):
-                    logger.error(f"SLR handler {name} returned non-dict: {type(result)}")
+                # Handle different result types
+                if hasattr(result, 'content') and hasattr(result, 'isError'):
+                    # CallToolResult object
+                    if getattr(result, 'isError', False):
+                        content = result.content[0].text if result.content else "Unknown error"
+                        return [types.TextContent(type="text", text=f"❌ Error: {name}\n\n{content}")]
+                    else:
+                        content = result.content[0].text if result.content else "Success"
+                        return [types.TextContent(type="text", text=f"✅ Success: {name}\n\n{content}")]
+                elif isinstance(result, dict):
+                    # Dictionary result (workflow tools)
+                    if result.get("success", False):
+                        content = f"✅ Success: {name}\n\n"
+                        for key, value in result.items():
+                            if key != "success":
+                                content += f"**{key}**: {value}\n"
+                        return [types.TextContent(type="text", text=content)]
+                    else:
+                        error_msg = result.get("error", "Unknown error")
+                        return [types.TextContent(type="text", text=f"❌ Error: {name}\n\n{error_msg}")]
+                else:
+                    logger.error(f"SLR handler {name} returned unexpected type: {type(result)}")
                     return [types.TextContent(
                         type="text", 
-                        text=f"❌ Error: {name} handler returned {type(result)} instead of dict"
+                        text=f"❌ Error: {name} handler returned {type(result)} instead of expected format"
                     )]
-
-                # Format response as MCP TextContent
-                if result.get("success", False):
-                    content = f"✅ Success: {name}\n\n"
-
-                    # Add result data
-                    for key, value in result.items():
-                        if key != "success":
-                            content += f"**{key}**: {value}\n"
-
-                    return [types.TextContent(type="text", text=content)]
-                else:
-                    # Error response
-                    error_msg = result.get("error", "Unknown error")
-                    content = f"❌ Error: {name}\n\n{error_msg}"
-                    return [types.TextContent(type="text", text=content)]
 
             except Exception as e:
                 logger.error(f"Error calling SLR tool {name}: {e}", exc_info=True)
@@ -541,8 +556,8 @@ class SLRMCPServer:
 async def main() -> None:
     """Main entry point for SLR MCP Server."""
     # Get configuration from environment
-    database_path = os.getenv("SLR_DB_PATH")
-    project_root_env = os.getenv("SLR_PROJECT_ROOT")
+    database_path = os.getenv("DATABASE_PATH") or os.getenv("SLR_DB_PATH")
+    project_root_env = os.getenv("PROJECT_ROOT") or os.getenv("SLR_PROJECT_ROOT")
     project_root = Path(project_root_env) if project_root_env else None
 
     # Create and run server

@@ -401,6 +401,87 @@ class ResearchDocumentService:
 
         except Exception as e:
             raise ResearchDocumentError(f"Failed to retrieve research corpus: {str(e)}") from e
+    
+    def process_document(
+        self,
+        file_path: str,
+        title: Optional[str] = None,
+        authors: Optional[List[str]] = None,
+        publication_year: Optional[int] = None,
+        doi: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> ResearchPaper:
+        """
+        Process document upload (adapter method for MCP interface).
+        
+        This method adapts the MCP interface to the upload_paper business logic.
+        
+        Args:
+            file_path: Path to document file
+            title: Optional title override
+            authors: List of author names (will be converted to Author objects)
+            publication_year: Year of publication
+            doi: Digital Object Identifier
+            tags: Research topic tags
+        
+        Returns:
+            Created ResearchPaper instance
+        
+        Raises:
+            ResearchDocumentError: If processing fails
+        """
+        try:
+            # Convert author names to Author objects
+            author_objects = []
+            if authors:
+                for author_name in authors:
+                    from ..models import Author
+                    author_objects.append(Author(name=author_name))
+            
+            # Call the main upload_paper method
+            return self.upload_paper(
+                file_path=file_path,
+                title=title,
+                authors=author_objects,
+                publication_year=publication_year,
+                doi=doi,
+                tags=tags or []
+            )
+            
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to process document: {str(e)}") from e
+    
+    def search_documents(
+        self,
+        query: str,
+        search_type: str = "semantic",
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 20
+    ) -> List[ResearchPaper]:
+        """
+        Search documents (adapter method for MCP interface).
+        
+        This method adapts the MCP search interface to the paper search business logic.
+        
+        Args:
+            query: Search query string
+            search_type: Type of search (semantic, keyword, citation)
+            filters: Optional search filters
+            limit: Maximum results to return
+        
+        Returns:
+            List of matching ResearchPaper instances
+        
+        Raises:
+            ResearchDocumentError: If search fails
+        """
+        try:
+            # For now, use the existing search_papers method
+            # In future versions, different search_type values could trigger different search strategies
+            return self.search_papers(query, limit=limit)
+            
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to search documents: {str(e)}") from e
 
     def search_papers(
         self,
@@ -449,10 +530,86 @@ class ResearchDocumentService:
                 return self._targeted_academic_search(query, search_fields, filters, limit)
             else:
                 # Perform full-text academic search
-                return self.paper_repository.search_papers(query, limit)
-
+                return self.paper_repository.search_papers(query, limit=limit)
+                
         except Exception as e:
             raise ResearchDocumentError(f"Academic search failed: {str(e)}") from e
+    
+    def _extract_authors_from_text(self, text: str) -> List['Author']:
+        """Extract author names from text content."""
+        from ..models import Author
+        authors = []
+        
+        # Common patterns for author extraction
+        patterns = [
+            r'(?:Authors?|By):?\s*([A-Z][^\n]*?)(?:\n|$)',
+            r'([A-Z][a-z]+ [A-Z][a-z]+(?:,? and [A-Z][a-z]+ [A-Z][a-z]+)*)',
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, text[:1000])  # Check first 1000 chars
+            for match in matches:
+                # Split by common separators
+                names = re.split(r',\s*(?:and\s+)?|\s+and\s+', match)
+                for name in names:
+                    clean_name = re.sub(r'[^a-zA-Z\s.-]', '', name.strip())
+                    if clean_name and len(clean_name.split()) >= 2:
+                        authors.append(Author(name=clean_name))
+                        if len(authors) >= 10:  # Limit to reasonable number
+                            return authors
+        
+        return authors[:10]  # Return max 10 authors
+    
+    def _extract_abstract_from_text(self, text: str) -> str:
+        """Extract abstract from text content."""
+        # Common abstract patterns
+        patterns = [
+            r'(?:Abstract|ABSTRACT)[:\s]+(.*?)(?:\n\s*\n|Keywords?|Introduction|1\.|$)',
+            r'(?:Summary|SUMMARY)[:\s]+(.*?)(?:\n\s*\n|Keywords?|Introduction|1\.|$)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text[:5000], re.DOTALL | re.IGNORECASE)
+            if match:
+                abstract = match.group(1).strip()
+                # Clean up common formatting issues
+                abstract = re.sub(r'\s+', ' ', abstract)
+                abstract = abstract.replace('\n', ' ')
+                if 50 <= len(abstract) <= 2000:  # Reasonable abstract length
+                    return abstract
+        
+        return ""
+    
+    def _extract_keywords_from_text(self, text: str) -> List[str]:
+        """Extract keywords from text content."""
+        # Common keyword patterns
+        patterns = [
+            r'(?:Keywords?|KEY WORDS?)[:\s]+(.*?)(?:\n\s*\n|Introduction|1\.|$)',
+            r'(?:Index terms?|Terms?)[:\s]+(.*?)(?:\n\s*\n|Introduction|1\.|$)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text[:3000], re.DOTALL | re.IGNORECASE)
+            if match:
+                keywords_text = match.group(1).strip()
+                # Split by common separators
+                keywords = re.split(r'[;,]|\s*—\s*|\s*-\s*', keywords_text)
+                keywords = [kw.strip() for kw in keywords if kw.strip()]
+                keywords = [kw for kw in keywords if 2 <= len(kw) <= 50]  # Reasonable length
+                return keywords[:20]  # Limit to 20 keywords
+        
+        return []
+    
+    def _basic_file_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Return basic file metadata when specialized extraction fails."""
+        return {
+            "title": Path(file_path).stem,
+            "authors": [],
+            "abstract": "",
+            "keywords": [],
+            "total_pages": None,
+            "total_words": None
+        }
 
     def update_paper_status(
         self,
@@ -603,32 +760,95 @@ class ResearchDocumentService:
 
     def _is_duplicate_doi(self, doi: str) -> bool:
         """Check if DOI already exists in corpus."""
-        # This would be implemented with a repository query for DOI
-        # For now, return False as placeholder
-        return False
+        try:
+            all_papers = self.paper_repository.list_all()
+            return any(paper.doi == doi for paper in all_papers if paper.doi)
+        except Exception:
+            # If query fails, assume no duplicate to avoid blocking uploads
+            return False
 
     def _extract_pdf_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract metadata from PDF files using academic parsing."""
-        # Placeholder for PDF metadata extraction
-        # In real implementation, would use libraries like PyPDF2, pdfplumber
-        return {
-            "title": Path(file_path).stem,
-            "total_pages": None,
-            "authors": [],
-            "abstract": "",
-            "keywords": []
-        }
+        try:
+            import PyPDF2
+            with open(file_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                
+                # Extract metadata from PDF properties
+                metadata = pdf_reader.metadata if pdf_reader.metadata else {}
+                
+                # Extract text from first few pages for title/abstract detection
+                text_content = ""
+                max_pages = min(3, len(pdf_reader.pages))  # Read first 3 pages
+                
+                for i in range(max_pages):
+                    try:
+                        text_content += pdf_reader.pages[i].extract_text()
+                    except:
+                        continue
+                
+                # Extract title - try PDF metadata first, then text analysis
+                title = metadata.get('/Title', '').strip()
+                if not title and text_content:
+                    # Simple heuristic: first non-empty line is often the title
+                    lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+                    title = lines[0] if lines else Path(file_path).stem
+                
+                if not title:
+                    title = Path(file_path).stem
+                
+                return {
+                    "title": title,
+                    "total_pages": len(pdf_reader.pages),
+                    "authors": self._extract_authors_from_text(text_content),
+                    "abstract": self._extract_abstract_from_text(text_content),
+                    "keywords": self._extract_keywords_from_text(text_content),
+                    "total_words": len(text_content.split()) if text_content else 0
+                }
+                
+        except ImportError:
+            # Fallback if PyPDF2 not available
+            return self._basic_file_metadata(file_path)
+        except Exception:
+            # Fallback for any PDF parsing errors
+            return self._basic_file_metadata(file_path)
 
     def _extract_docx_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract metadata from DOCX files using academic parsing."""
-        # Placeholder for DOCX metadata extraction
-        # In real implementation, would use python-docx library
-        return {
-            "title": Path(file_path).stem,
-            "authors": [],
-            "abstract": "",
-            "keywords": []
-        }
+        try:
+            from docx import Document
+            doc = Document(file_path)
+            
+            # Extract metadata from document properties
+            props = doc.core_properties
+            title = props.title if props.title else ""
+            
+            # Extract text content from document
+            text_content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            
+            # If no title from properties, extract from first paragraph
+            if not title and doc.paragraphs:
+                first_para = doc.paragraphs[0].text.strip()
+                if first_para and len(first_para) < 200:  # Reasonable title length
+                    title = first_para
+            
+            if not title:
+                title = Path(file_path).stem
+            
+            return {
+                "title": title,
+                "authors": self._extract_authors_from_text(text_content),
+                "abstract": self._extract_abstract_from_text(text_content),
+                "keywords": self._extract_keywords_from_text(text_content),
+                "total_words": len(text_content.split()) if text_content else 0
+            }
+            
+        except ImportError:
+            # Fallback if python-docx not available
+            return self._basic_file_metadata(file_path)
+        except Exception:
+            # Fallback for any DOCX parsing errors
+            return self._basic_file_metadata(file_path)
 
     def _extract_tex_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract metadata from LaTeX files using academic parsing."""
@@ -661,8 +881,40 @@ class ResearchDocumentService:
 
     def _extract_bib_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract metadata from BibTeX files."""
-        # Placeholder for BibTeX parsing
-        return {"title": Path(file_path).stem, "keywords": []}
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract first entry's title as main title
+            title_match = re.search(r'title\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            title = title_match.group(1).strip() if title_match else Path(file_path).stem
+            
+            # Extract authors from first entry
+            author_match = re.search(r'author\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            authors = []
+            if author_match:
+                author_text = author_match.group(1)
+                # Simple author parsing - split by 'and'
+                author_names = [name.strip() for name in author_text.split(' and ')]
+                from ..models import Author
+                authors = [Author(name=name) for name in author_names if name]
+            
+            # Extract keywords if present
+            keywords_match = re.search(r'keywords\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            keywords = []
+            if keywords_match:
+                keywords_text = keywords_match.group(1)
+                keywords = [kw.strip() for kw in keywords_text.split(',') if kw.strip()]
+            
+            return {
+                "title": title,
+                "authors": authors,
+                "keywords": keywords,
+                "total_words": len(content.split())
+            }
+            
+        except Exception:
+            return self._basic_file_metadata(file_path)
 
     def _extract_text_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract basic metadata from text files."""
@@ -816,6 +1068,255 @@ class ResearchDocumentService:
         # Placeholder for field-specific academic search
         # Would implement searches in title, abstract, authors, keywords
         return self.paper_repository.search_papers(query, limit)
+
+    def get_paper_structure(self, paper_id: int) -> Dict[str, Any]:
+        """
+        Extract and analyze the structure of a research paper.
+
+        This method provides comprehensive structural analysis of academic papers
+        including section detection, content organization, and academic features.
+
+        Args:
+            paper_id: ID of the paper to analyze
+
+        Returns:
+            Dictionary containing detailed structure information:
+            - title, authors, basic metadata
+            - sections with titles, types, word counts, page numbers
+            - subsections and hierarchical structure
+            - analysis metrics (citations, figures, tables)
+            - content complexity and academic features
+
+        Raises:
+            ResearchDocumentError: If paper not found or structure extraction fails
+        """
+        try:
+            # Get the paper from repository
+            paper = self.paper_repository.get_by_id(paper_id)
+            if not paper:
+                return {"error": f"Paper with ID {paper_id} not found"}
+
+            # Extract content from the paper file
+            content = self._extract_paper_content(paper)
+            if not content:
+                return {"error": "Could not extract content from paper file"}
+
+            # Build basic structure information
+            structure = {
+                "paper_id": paper_id,
+                "title": paper.title,
+                "authors": [author.name for author in paper.authors] if paper.authors else [],
+                "publication_year": paper.publication_year,
+                "total_pages": paper.total_pages,
+                "total_words": paper.total_words or len(content.split()),
+                "file_type": paper.file_type,
+                "sections": [],
+                "analysis": {}
+            }
+
+            # Detect and extract sections
+            sections = self._extract_document_sections(content)
+            structure["sections"] = sections
+
+            # Perform content analysis
+            analysis = self._analyze_document_content(content, sections)
+            structure["analysis"] = analysis
+
+            return structure
+
+        except Exception as e:
+            return {"error": f"Failed to extract paper structure: {str(e)}"}
+
+    def _extract_paper_content(self, paper: ResearchPaper) -> str:
+        """Extract content from paper file."""
+        import os
+        import PyPDF2
+        
+        if not paper.file_path or not os.path.exists(paper.file_path):
+            # Use available metadata if no file
+            content = f"Title: {paper.title}\n\n"
+            if paper.abstract:
+                content += f"Abstract: {paper.abstract}\n\n"
+            return content
+
+        try:
+            file_extension = Path(paper.file_path).suffix.lower()
+            
+            if file_extension == '.pdf':
+                return self._extract_from_pdf(paper.file_path)
+            elif file_extension in ['.txt', '.md']:
+                return self._extract_from_text_file(paper.file_path)
+            elif file_extension in ['.doc', '.docx']:
+                return self._extract_from_word_doc(paper.file_path)
+            else:
+                return f"Title: {paper.title}\n\n[File type {file_extension} not supported]"
+                
+        except Exception as e:
+            return f"Title: {paper.title}\n\n[Error extracting content: {str(e)}]"
+
+    def _extract_from_pdf(self, file_path: str) -> str:
+        """Extract text from PDF file."""
+        try:
+            # Try pymupdf first
+            import fitz
+            doc = fitz.open(file_path)
+            text = ""
+            for page in doc:
+                text += page.get_text() + "\n"
+            doc.close()
+            return text.strip()
+        except ImportError:
+            # Fallback to PyPDF2
+            try:
+                import PyPDF2
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                    return text.strip()
+            except Exception as e:
+                return f"[PDF extraction failed: {str(e)}]"
+        except Exception as e:
+            return f"[PDF extraction failed: {str(e)}]"
+
+    def _extract_from_text_file(self, file_path: str) -> str:
+        """Extract content from text file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read().strip()
+        except UnicodeDecodeError:
+            # Try different encodings
+            for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as file:
+                        return file.read().strip()
+                except UnicodeDecodeError:
+                    continue
+            return "[Text file encoding not supported]"
+        except Exception as e:
+            return f"[Text extraction failed: {str(e)}]"
+
+    def _extract_from_word_doc(self, file_path: str) -> str:
+        """Extract content from Word document."""
+        try:
+            import docx
+            doc = docx.Document(file_path)
+            text = []
+            for paragraph in doc.paragraphs:
+                text.append(paragraph.text)
+            return '\n'.join(text).strip()
+        except ImportError:
+            return "[Word document extraction requires python-docx package]"
+        except Exception as e:
+            return f"[Word document extraction failed: {str(e)}]"
+
+    def _extract_document_sections(self, content: str) -> List[Dict[str, Any]]:
+        """Extract sections from document content."""
+        sections = []
+        
+        # Academic section patterns
+        section_patterns = [
+            (r'^\s*(?:Abstract|ABSTRACT)\s*$', 'abstract'),
+            (r'^\s*(?:I|1)\.\s*(?:Introduction|INTRODUCTION)', 'introduction'),
+            (r'^\s*(?:Introduction|INTRODUCTION)\s*$', 'introduction'),
+            (r'^\s*(?:Methods?|METHODS?|Methodology|METHODOLOGY)\s*$', 'methods'),
+            (r'^\s*(?:II|III|2|3)\.\s*(?:Methods?|Methodology)', 'methods'),
+            (r'^\s*(?:Results?|RESULTS?|Findings?|FINDINGS?)\s*$', 'results'),
+            (r'^\s*(?:III|IV|V|3|4|5)\.\s*(?:Results?|Findings?)', 'results'),
+            (r'^\s*(?:Discussion|DISCUSSION)\s*$', 'discussion'),
+            (r'^\s*(?:IV|V|VI|4|5|6)\.\s*(?:Discussion)', 'discussion'),
+            (r'^\s*(?:Conclusion|CONCLUSION|Conclusions|CONCLUSIONS)\s*$', 'conclusion'),
+            (r'^\s*(?:V|VI|VII|5|6|7)\.\s*(?:Conclusion)', 'conclusion'),
+            (r'^\s*(?:References?|REFERENCES?|Bibliography|BIBLIOGRAPHY)\s*$', 'references'),
+        ]
+        
+        lines = content.split('\n')
+        section_markers = []
+        
+        # Find section markers
+        for i, line in enumerate(lines):
+            for pattern, section_type in section_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    section_markers.append((i, line.strip(), section_type))
+                    break
+        
+        # Extract sections between markers
+        for j, (line_num, title, section_type) in enumerate(section_markers):
+            start_line = line_num
+            
+            # Find end line (next section or end of document)
+            if j + 1 < len(section_markers):
+                end_line = section_markers[j + 1][0]
+            else:
+                end_line = len(lines)
+            
+            # Extract section content
+            section_lines = lines[start_line + 1:end_line]
+            section_content = '\n'.join(section_lines).strip()
+            
+            if section_content and len(section_content.split()) >= 5:  # Minimum content
+                word_count = len(section_content.split())
+                
+                sections.append({
+                    "title": title,
+                    "type": section_type,
+                    "word_count": word_count,
+                    "line_start": start_line,
+                    "line_end": end_line,
+                    "content_preview": section_content[:200] + "..." if len(section_content) > 200 else section_content
+                })
+        
+        return sections
+
+    def _analyze_document_content(self, content: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze document content for academic features."""
+        analysis = {}
+        
+        # Count citations
+        citation_patterns = [
+            r'\([^)]*\d{4}[^)]*\)',  # (Author, 2023)
+            r'\[\d+\]',              # [1]
+            r'\b[A-Z][a-z]+\s+et\s+al\.\s+\(\d{4}\)',  # Author et al. (2023)
+        ]
+        
+        citation_count = 0
+        for pattern in citation_patterns:
+            matches = re.findall(pattern, content)
+            citation_count += len(matches)
+        
+        analysis["citation_count"] = citation_count
+        
+        # Count figures and tables
+        figure_count = len(re.findall(r'\bfigure\s+\d+\b', content.lower()))
+        table_count = len(re.findall(r'\btable\s+\d+\b', content.lower()))
+        
+        analysis["figure_count"] = figure_count
+        analysis["table_count"] = table_count
+        
+        # Calculate complexity score
+        words = content.split()
+        sentences = re.split(r'[.!?]+\s+', content)
+        avg_sentence_length = len(words) / max(1, len(sentences))
+        complex_words = [word for word in words if len(word) > 6]
+        complexity_score = min(1.0, (avg_sentence_length / 30 + len(complex_words) / len(words)) / 2)
+        
+        analysis["complexity_score"] = complexity_score
+        
+        # Academic features
+        academic_features = {
+            "has_abstract": any(s["type"] == "abstract" for s in sections),
+            "has_methodology": any(s["type"] == "methods" for s in sections),
+            "has_results": any(s["type"] == "results" for s in sections),
+            "has_discussion": any(s["type"] == "discussion" for s in sections),
+            "has_conclusion": any(s["type"] == "conclusion" for s in sections),
+            "has_references": any(s["type"] == "references" for s in sections),
+            "sections": [s["type"] for s in sections]
+        }
+        
+        analysis["academic_features"] = academic_features
+        
+        return analysis
 
 
 class ResearchDocumentError(Exception):

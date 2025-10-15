@@ -130,8 +130,7 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                 SELECT rp.*, j.name as journal_name, j.issn, j.publisher, 
                        j.impact_factor, j.quartile, j.open_access
                 FROM research_papers rp
-                LEFT JOIN paper_journals pj ON rp.id = pj.paper_id
-                LEFT JOIN journals j ON pj.journal_id = j.id
+                LEFT JOIN journals j ON rp.journal_id = j.id
                 WHERE rp.id = ?
                 """,
                 (paper_id,)
@@ -146,14 +145,14 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
             # Parse journal if present
             journal = None
-            if row[24]:  # journal_name
+            if row[43]:  # journal_name
                 journal = Journal(
-                    name=row[24],
-                    issn=row[25],
-                    publisher=row[26],
-                    impact_factor=row[27],
-                    quartile=row[28],
-                    open_access=bool(row[29])
+                    name=row[43],
+                    issn=row[44],
+                    publisher=row[45],
+                    impact_factor=row[46],
+                    quartile=row[47],
+                    open_access=bool(row[48])
                 )
 
             return self._row_to_paper(row, authors, journal)
@@ -292,8 +291,7 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                 SELECT DISTINCT rp.*, j.name as journal_name, j.issn, j.publisher, 
                        j.impact_factor, j.quartile, j.open_access
                 FROM research_papers rp
-                LEFT JOIN paper_journals pj ON rp.id = pj.paper_id
-                LEFT JOIN journals j ON pj.journal_id = j.id
+                LEFT JOIN journals j ON rp.journal_id = j.id
                 LEFT JOIN paper_authors pa ON rp.id = pa.paper_id
                 LEFT JOIN authors a ON pa.author_id = a.id
             """
@@ -351,14 +349,14 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
                 # Parse journal if present
                 journal = None
-                if row[24]:  # journal_name
+                if row[43]:  # journal_name
                     journal = Journal(
-                        name=row[24],
-                        issn=row[25],
-                        publisher=row[26],
-                        impact_factor=row[27],
-                        quartile=row[28],
-                        open_access=bool(row[29]) if row[29] is not None else False
+                        name=row[43],
+                        issn=row[44],
+                        publisher=row[45],
+                        impact_factor=row[46],
+                        quartile=row[47],
+                        open_access=bool(row[48]) if row[48] is not None else False
                     )
 
                 paper = self._row_to_paper(row, authors, journal)
@@ -390,8 +388,7 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                        j.impact_factor, j.quartile, j.open_access
                 FROM research_papers_fts fts
                 JOIN research_papers rp ON fts.paper_id = rp.id
-                LEFT JOIN paper_journals pj ON rp.id = pj.paper_id
-                LEFT JOIN journals j ON pj.journal_id = j.id
+                LEFT JOIN journals j ON rp.journal_id = j.id
                 WHERE research_papers_fts MATCH ?
                 ORDER BY bm25(research_papers_fts)
                 LIMIT ?
@@ -406,14 +403,14 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                 authors = self._get_paper_authors(row[0])  # row[0] is paper ID
                 
                 journal = None
-                if row[24]:  # journal_name
+                if row[43]:  # journal_name
                     journal = Journal(
-                        name=row[24],
-                        issn=row[25],
-                        publisher=row[26],
-                        impact_factor=row[27],
-                        quartile=row[28],
-                        open_access=bool(row[29]) if row[29] is not None else False
+                        name=row[43],
+                        issn=row[44],
+                        publisher=row[45],
+                        impact_factor=row[46],
+                        quartile=row[47],
+                        open_access=bool(row[48]) if row[48] is not None else False
                     )
 
                 paper = self._row_to_paper(row, authors, journal)
@@ -482,6 +479,28 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
         except sqlite3.Error as e:
             raise RepositoryError(f"Failed to count papers by year: {e}", e)
+    
+    def list_papers(self, filters: Optional[Dict[str, Any]] = None, limit: int = 20, offset: int = 0) -> List[ResearchPaper]:
+        """
+        List papers with pagination support (MCP interface method).
+        
+        Args:
+            filters: Optional filter criteria
+            limit: Maximum number of papers to return
+            offset: Number of papers to skip
+            
+        Returns:
+            List of ResearchPaper instances
+        """
+        try:
+            papers = self.list_all(filters)
+            # Apply pagination
+            start_idx = max(0, offset)
+            end_idx = start_idx + limit
+            return papers[start_idx:end_idx]
+            
+        except Exception as e:
+            raise RepositoryError(f"Failed to list papers: {e}", e)
 
     # Private helper methods
 
@@ -512,7 +531,7 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                 FROM authors a
                 JOIN paper_authors pa ON a.id = pa.author_id
                 WHERE pa.paper_id = ?
-                ORDER BY pa.author_order
+                ORDER BY pa.author_position
                 """,
                 (paper_id,)
             )
@@ -540,13 +559,13 @@ class PaperRepository(BaseRepository[ResearchPaper]):
     def _create_paper_authors(self, paper_id: int, authors: List[Author]) -> None:
         """Create author relationships for a paper."""
         try:
-            for order, author in enumerate(authors):
+            for order, author in enumerate(authors, start=1):  # Start from 1 to satisfy CHECK constraint
                 # Create or get author
                 author_id = self._create_or_get_author(author)
                 
                 # Link author to paper
                 self.db.execute(
-                    "INSERT INTO paper_authors (paper_id, author_id, author_order) VALUES (?, ?, ?)",
+                    "INSERT INTO paper_authors (paper_id, author_id, author_position) VALUES (?, ?, ?)",
                     (paper_id, author_id, order)
                 )
 
@@ -640,10 +659,10 @@ class PaperRepository(BaseRepository[ResearchPaper]):
                 )
                 journal_id = cursor.lastrowid
 
-            # Link journal to paper
+            # Update paper with journal_id
             self.db.execute(
-                "INSERT OR REPLACE INTO paper_journals (paper_id, journal_id) VALUES (?, ?)",
-                (paper_id, journal_id)
+                "UPDATE research_papers SET journal_id = ? WHERE id = ?",
+                (journal_id, paper_id)
             )
 
             self.db.commit()
@@ -653,35 +672,68 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
     def _row_to_paper(self, row: tuple, authors: List[Author], journal: Optional[Journal]) -> ResearchPaper:
         """Convert database row to ResearchPaper instance."""
-        upload_date = datetime.fromisoformat(row[11]) if row[11] else None
-        created_at = datetime.fromisoformat(row[21]) if row[21] else None
-        updated_at = datetime.fromisoformat(row[22]) if row[22] else None
+        # DEBUG: Log the row structure to help debug field positions
+        if len(row) != 49:
+            print(f"Warning: Expected 49 fields, got {len(row)}")
+            
+        # Use a more defensive approach with try-catch and defaults
+        try:
+            # Field positions for: SELECT rp.*, j.name, j.issn, j.publisher, j.impact_factor, j.quartile, j.open_access
+            upload_date = None
+            created_at = None
+            updated_at = None
+            
+            if len(row) > 40 and row[40]:
+                upload_date = datetime.fromisoformat(row[40])
+            if len(row) > 41 and row[41]:
+                created_at = datetime.fromisoformat(row[41])
+            if len(row) > 42 and row[42]:
+                updated_at = datetime.fromisoformat(row[42])
 
-        return ResearchPaper(
-            id=row[0],
-            title=row[1],
-            file_path=row[2],
-            file_type=row[3],
-            authors=authors,
-            journal=journal,
-            publication_year=row[4],
-            doi=row[5],
-            abstract=row[6],
-            keywords=json.loads(row[7]) if row[7] else [],
-            methodology=row[8],
-            study_type=row[9],
-            sample_size=row[10],
-            citation_count=row[12],
-            upload_date=upload_date,
-            file_size=row[13],
-            total_pages=row[14],
-            total_words=row[15],
-            tags=json.loads(row[16]) if row[16] else [],
-            indexed=bool(row[17]),
-            quality_assessed=bool(row[18]),
-            included_in_review=row[19],
-            exclusion_reason=row[20],
-            notes=row[23],
-            created_at=created_at,
-            updated_at=updated_at
-        )
+            # Parse JSON fields defensively
+            keywords = []
+            if len(row) > 18 and row[18] and isinstance(row[18], str):
+                try:
+                    keywords = json.loads(row[18])
+                except (json.JSONDecodeError, TypeError):
+                    keywords = []
+                    
+            tags = []
+            if len(row) > 34 and row[34] and isinstance(row[34], str):
+                try:
+                    tags = json.loads(row[34])
+                except (json.JSONDecodeError, TypeError):
+                    tags = []
+
+            return ResearchPaper(
+                id=row[0] if len(row) > 0 else None,
+                title=row[1] if len(row) > 1 else "Unknown",
+                file_path=row[12] if len(row) > 12 else "",
+                file_type=row[13] if len(row) > 13 else "pdf",
+                authors=authors,
+                journal=journal,
+                publication_year=row[4] if len(row) > 4 else None,
+                doi=row[2] if len(row) > 2 else None,
+                abstract=row[3] if len(row) > 3 else None,
+                keywords=keywords,
+                methodology=row[20] if len(row) > 20 else None,
+                study_type=row[21] if len(row) > 21 else None,
+                sample_size=row[22] if len(row) > 22 else None,
+                citation_count=row[35] if len(row) > 35 else 0,
+                upload_date=upload_date,
+                file_size=row[14] if len(row) > 14 else None,
+                total_pages=row[15] if len(row) > 15 else None,
+                total_words=row[16] if len(row) > 16 else None,
+                tags=tags,
+                indexed=bool(row[36]) if len(row) > 36 else False,
+                quality_assessed=bool(row[37]) if len(row) > 37 else False,
+                included_in_review=row[38] if len(row) > 38 else None,
+                exclusion_reason=row[39] if len(row) > 39 else None,
+                notes=row[33] if len(row) > 33 else None,
+                created_at=created_at,
+                updated_at=updated_at
+            )
+        except Exception as e:
+            # More detailed error for debugging
+            raise RepositoryError(f"Failed to parse database row: {e}. Row length: {len(row)}, Row sample: {row[:5] if row else 'None'}")
+    

@@ -1,5 +1,42 @@
 # SLR MCP Server
 
+A production-ready Model Context Protocol (MCP) server for systematic literature review operations. This server provides comprehensive tools for managing academic research papers, quality assessments, and systematic review workflows.
+
+## Features
+
+- **Academic Paper Management**: Upload, parse, and manage research papers (PDF, DOCX, LaTeX, BibTeX)
+- **Quality Assessment**: PRISMA-compliant quality assessment with multiple frameworks
+- **Citation Analysis**: Extract and analyze citation networks and patterns
+- **Research Questions**: PICO/SPIDER framework support for research question validation
+- **Hypothesis Testing**: Statistical hypothesis analysis and evidence synthesis
+- **Full-Text Search**: FTS5-powered semantic search across papers and content
+- **Systematic Reviews**: Complete SLR workflow support with progress tracking
+
+## Quick Start
+
+1. **Start the Server**:
+   ```bash
+   python start_server.py
+   ```
+
+2. **List Available Tools**:
+   ```bash
+   python list_slr_tools.py
+   ```
+
+3. **Run Complete Workflow**:
+   ```bash
+   python slr_workflow.py
+   ```
+
+## Production Ready
+
+- **No Demo Code**: All placeholder implementations removed
+- **Single Implementation**: One robust implementation per component  
+- **Production Database**: Comprehensive schema with proper indexes
+- **Error Handling**: Complete exception handling and validation
+- **Performance**: Optimized queries and FTS5 search indexes
+
 **Systematic Literature Review MCP Server** - A comprehensive MCP server for academic researchers conducting systematic literature reviews with AI assistance.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)

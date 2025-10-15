@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   slr-server:
     build:
@@ -22,7 +20,7 @@ services:
       - slr-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "from src.main import SLRMCPServer; print('Production server ready')"]
       interval: 30s
       timeout: 10s
       retries: 3

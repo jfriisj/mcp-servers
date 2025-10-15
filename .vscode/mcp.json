@@ -116,6 +116,41 @@
         "STUDY_BUDDY_DB_PATH=/app/data/study_buddy.db",
         "ghcr.io/jfriisj/study-buddy-mcp-server:latest"
       ]
+    },
+    "slr-server": {
+      "command": "python",
+      "args": ["start_server.py"],
+      "cwd": "${workspaceFolder}/slr-server",
+      "env": {
+        "DATABASE_PATH": "${workspaceFolder}/slr-server/database/slr_database.db",
+        "PROJECT_ROOT": "${workspaceFolder}/slr-server",
+        "LOG_LEVEL": "INFO",
+        "MAX_PAPERS_PER_ANALYSIS": "100",
+        "ENABLE_CACHING": "true"
+      }
+    },
+    "slr-server-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-slr-server-${workspaceFolderBasename}",
+        "-v",
+        "${workspaceFolder}/slr-server:/app",
+        "-v",
+        "${workspaceFolder}/slr-server/database:/app/database",
+        "-e",
+        "DATABASE_PATH=/app/database/slr_production.db",
+        "-e",
+        "LOG_LEVEL=INFO",
+        "-e",
+        "MAX_PAPERS_PER_ANALYSIS=100",
+        "-e",
+        "ENABLE_CACHING=true",
+        "slr-server-slr-server:latest"
+      ]
     }
   }
 }

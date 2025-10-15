@@ -1,16 +1,32 @@
 {
-  "mcpServers": {
+  "servers": {
     "slr-server": {
       "command": "python",
-      "args": ["-m", "src.main"],
-      "cwd": "${workspaceRoot}",
+      "args": ["start_server.py"],
+      "cwd": "C:/github/mcp-servers/slr-server",
       "env": {
-        "DATABASE_PATH": "${workspaceRoot}/slr_database.db",
+        "DATABASE_PATH": "C:/github/mcp-servers/slr-server/slr_production.db",
         "LOG_LEVEL": "INFO",
-        "MCP_PORT": "8080",
         "MAX_PAPERS_PER_ANALYSIS": "100",
         "ENABLE_CACHING": "true"
       }
+    },
+    "slr-server-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--name",
+        "mcp-slr-server-${workspaceFolderBasename}",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "-v",
+        "${workspaceFolder}/slr-server/data:/app/data",
+        "-e",
+        "DATABASE_PATH=/app/data/slr_production.db",
+        "slr-server-slr-server:latest"
+      ]
     }
   },
   "tools": {

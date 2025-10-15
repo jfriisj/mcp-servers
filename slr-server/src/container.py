@@ -17,6 +17,9 @@ from .services.quality_assessment_service import QualityAssessmentService
 from .services.research_question_service import ResearchQuestionService
 from .services.hypothesis_analysis_service import HypothesisAnalysisService
 from .services.academic_chunking_service import AcademicChunkingService
+from .services.citation_analysis_service import CitationAnalysisService
+from .services.evidence_synthesis_service import EvidenceSynthesisService
+from .services.slr_report_generation_service import SLRReportGenerator
 from .services.slr_workflow_service import SLRWorkflowService
 
 logger = logging.getLogger(__name__)
@@ -44,6 +47,9 @@ class Container:
         self._question_service: Optional[ResearchQuestionService] = None
         self._hypothesis_service: Optional[HypothesisAnalysisService] = None
         self._chunking_service: Optional[AcademicChunkingService] = None
+        self._citation_service: Optional[CitationAnalysisService] = None
+        self._evidence_service: Optional[EvidenceSynthesisService] = None
+        self._report_generator: Optional[SLRReportGenerator] = None
         self._slr_workflow_service: Optional[SLRWorkflowService] = None
         
         # Handlers
@@ -93,8 +99,7 @@ class Container:
         """Get research document service instance."""
         if self._document_service is None:
             self._document_service = ResearchDocumentService(
-                paper_repository=self.get_paper_repository(),
-                project_root=self.project_root
+                paper_repository=self.get_paper_repository()
             )
         return self._document_service
     
@@ -102,7 +107,6 @@ class Container:
         """Get quality assessment service instance."""
         if self._quality_service is None:
             self._quality_service = QualityAssessmentService(
-                quality_repository=self.get_quality_repository(),
                 paper_repository=self.get_paper_repository()
             )
         return self._quality_service
@@ -131,6 +135,32 @@ class Container:
                 paper_repository=self.get_paper_repository()
             )
         return self._chunking_service
+    
+    def get_citation_service(self) -> CitationAnalysisService:
+        """Get citation analysis service instance."""
+        if self._citation_service is None:
+            self._citation_service = CitationAnalysisService(
+                paper_repository=self.get_paper_repository()
+            )
+        return self._citation_service
+    
+    def get_evidence_service(self) -> EvidenceSynthesisService:
+        """Get evidence synthesis service instance."""
+        if self._evidence_service is None:
+            self._evidence_service = EvidenceSynthesisService(
+                paper_repository=self.get_paper_repository()
+            )
+        return self._evidence_service
+    
+    def get_report_generator(self) -> SLRReportGenerator:
+        """Get SLR report generator instance."""
+        if self._report_generator is None:
+            self._report_generator = SLRReportGenerator(
+                paper_repository=self.get_paper_repository(),
+                citation_service=self.get_citation_service(),
+                evidence_service=self.get_evidence_service()
+            )
+        return self._report_generator
     
     def get_slr_workflow_service(self) -> SLRWorkflowService:
         """Get SLR workflow service instance."""

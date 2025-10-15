@@ -257,6 +257,16 @@ class DatabaseConnection:
         cursor.executescript(script)
         conn.commit()
 
+    def commit(self) -> None:
+        """
+        Commit the current transaction.
+        
+        Note: It's recommended to use the transaction() context manager
+        for proper transaction handling instead of manual commits.
+        """
+        conn = self.connect()
+        conn.commit()
+
     def __enter__(self):
         """Context manager entry."""
         return self

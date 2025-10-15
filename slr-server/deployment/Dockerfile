@@ -38,14 +38,12 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Copy source code
+# Copy source code and production scripts
 COPY src/ src/
-COPY tests/ tests/
-COPY pyproject.toml .
+COPY start_server.py .
+COPY list_slr_tools.py .
+COPY slr_workflow.py .
 COPY README.md .
-
-# Install the package
-RUN pip install -e .
 
 # Create data directory with proper permissions
 RUN mkdir -p /app/data /app/logs && \
@@ -54,9 +52,9 @@ RUN mkdir -p /app/data /app/logs && \
 # Switch to non-root user
 USER slrserver
 
-# Health check (test if server can start)
+# Health check (test if server components can be imported)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "from src.main import SLRMCPServer; print('Server can be imported')" || exit 1
+    CMD python -c "from src.main import SLRMCPServer; print('Production server ready')" || exit 1
 
-# Default command
-CMD ["python", "-m", "src.main"]
+# Default command - start production server
+CMD ["python", "start_server.py"]
