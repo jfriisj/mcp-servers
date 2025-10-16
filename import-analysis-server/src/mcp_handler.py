@@ -457,7 +457,7 @@ class MCPHandler:
             # Set up analysis options
             options = ImportAnalysisOptions(
                 include_test_files=args.get("include_test_files", True),
-                max_files=args.get("max_files", 100),
+                max_files=int(args.get("max_files", 100)),
                 exclude_patterns=args.get("exclude_patterns", ["__pycache__", "*.pyc", ".git", ".venv"])
             )
             
@@ -1347,7 +1347,7 @@ class MCPHandler:
         
         try:
             format_type = args.get("format", "text")
-            max_depth = args.get("max_depth", 5)
+            max_depth = int(args.get("max_depth", 5))
             include_external = args.get("include_external", False)
             root_module = args.get("root_module")
             
