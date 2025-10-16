@@ -5,15 +5,23 @@ Single responsibility: Generate prioritized refactoring suggestions.
 """
 
 from typing import List, Dict, Any
-from dataclasses import dataclass
 from domain.models import SolidReport, SolidPrinciple, SolidViolation
 
 
-@dataclass
 class RefactoringOptions:
     """Options for refactoring suggestions"""
-    max_suggestions: int = 10
-    priority_filter: str = "all"  # "all", "high", "medium", "low"
+    
+    def __init__(self, max_suggestions=10, priority_filter="all"):
+        # Ensure max_suggestions is always an integer
+        if isinstance(max_suggestions, str):
+            try:
+                self.max_suggestions = int(max_suggestions)
+            except (ValueError, TypeError):
+                self.max_suggestions = 10
+        else:
+            self.max_suggestions = max_suggestions
+            
+        self.priority_filter = priority_filter
 
 
 class SuggestRefactoringUseCase:

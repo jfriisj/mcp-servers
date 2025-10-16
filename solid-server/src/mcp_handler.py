@@ -63,6 +63,15 @@ class MCPHandler:
         """Factory method for creating TextContent objects to eliminate DIP violations."""
         return TextContent(type="text", text=text)
     
+    def _safe_int(self, value, default: int) -> int:
+        """Safely convert value to integer, handling string inputs from MCP protocol."""
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+    
     def get_tools(self) -> List[Tool]:
         """Return list of available SOLID analysis tools"""
         return [
@@ -915,7 +924,7 @@ VIOLATIONS BY PRINCIPLE:
     ) -> List[TextContent]:
         """Generate prioritized refactoring suggestions"""
         path = args["path"]
-        max_suggestions = args.get("max_suggestions", 10)
+        max_suggestions = self._safe_int(args.get("max_suggestions", 10), 10)
         priority = args.get("priority", "all")
 
         path_obj = Path(path)
@@ -951,17 +960,10 @@ VIOLATIONS BY PRINCIPLE:
         )
         suggestions = self.suggest_refactoring_uc.execute(reports, options)
         
-        # Generate simple output (since we don't have formatter access here)
-        output = f"""🔧 REFACTORING SUGGESTIONS (Top {len(suggestions)})
-{'=' * 60}
-
-Found {len(suggestions)} refactoring opportunities.
-Use detailed analysis tools for specific recommendations.
-"""
+        if not suggestions:
+            return [self._create_text_content("✅ No refactoring suggestions needed! Your code follows SOLID principles well.")]
         
-        return [self._create_text_content(output)]
-
-        # Format output
+        # Format detailed output
         output = f"""
 🔧 REFACTORING SUGGESTIONS (Top {len(suggestions)})
 {'=' * 60}
@@ -992,7 +994,7 @@ Priority Score Calculation:
 {sugg['code']}
 {'─' * 60}
 """
-        return [TextContent(type="text", text=output.strip())]
+        return [self._create_text_content(output.strip())]
 
     def _calculate_priority_score(
         self, violation: SolidViolation
@@ -1212,8 +1214,8 @@ Priority Score Calculation:
     ) -> List[TextContent]:
         """Analyze inheritance hierarchies"""
         path = args["path"]
-        max_depth = args.get("max_depth", 5)
-        include_methods = args.get("include_methods", True)
+        max_depth = self._safe_int(args.get("max_depth", 5), 5)
+        include_methods = args.get("show_methods", True)
 
         path_obj = Path(path)
         if not path_obj.exists():
