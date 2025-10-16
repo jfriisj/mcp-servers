@@ -58,6 +58,43 @@ class SLRMCPHandler:
                 isError=True
             )
     
+    async def handle_upload_bibliography_batch(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle batch bibliography upload MCP tool call."""
+        try:
+            document_service = self.container.get_document_service()
+            
+            # Use the new batch upload method
+            papers = document_service.upload_bibliography_batch(
+                file_path=arguments["file_path"],
+                tags=arguments.get("tags", []),
+                auto_extract_metadata=arguments.get("auto_extract_metadata", True)
+            )
+            
+            # Format results
+            titles = [paper.title for paper in papers[:5]]  # Show first 5 titles
+            if len(papers) > 5:
+                titles.append(f"... and {len(papers) - 5} more papers")
+            
+            result_text = f"✅ Successfully uploaded {len(papers)} papers from bibliography file:\n"
+            result_text += "\n".join([f"• {title}" for title in titles])
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=result_text
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error uploading bibliography batch: {e}")
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error uploading bibliography batch: {str(e)}"
+                )],
+                isError=True
+            )
+    
     async def handle_get_paper(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle get paper MCP tool call."""
         try:
@@ -149,7 +186,7 @@ class SLRMCPHandler:
             return CallToolResult(
                 content=[TextContent(
                     type="text",
-                    text=f"Quality assessment completed. Overall score: {assessment.overall_score:.2f}\nFramework: {assessment.framework}"
+                    text=f"Quality assessment completed. Overall rating: {assessment.overall_rating.value}\nFramework: {assessment.framework.value}"
                 )]
             )
             
@@ -159,6 +196,74 @@ class SLRMCPHandler:
                 content=[TextContent(
                     type="text",
                     text=f"Error in quality assessment: {str(e)}"
+                )],
+                isError=True
+            )
+    
+    async def handle_get_quality_assessment(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle get quality assessment MCP tool call."""
+        try:
+            # Get the quality assessment service
+            quality_service = self.container.get_quality_service()
+            
+            # Get paper repository to find assessments
+            paper_repo = self.container.get_paper_repository()
+            
+            paper_id = arguments["paper_id"]
+            reviewer_id = arguments.get("reviewer_id")
+            
+            # For now, return a simple message since the quality service
+            # doesn't have a direct get_assessment method yet
+            paper = paper_repo.get_by_id(paper_id)
+            if not paper:
+                return CallToolResult(
+                    content=[TextContent(
+                        type="text",
+                        text=f"❌ Paper with ID {paper_id} not found"
+                    )],
+                    isError=True
+                )
+            
+            # Check if paper has been quality assessed
+            if not paper.quality_assessed:
+                return CallToolResult(
+                    content=[TextContent(
+                        type="text",
+                        text=f"📝 Paper '{paper.title}' has not been quality assessed yet.\nUse assess_quality tool first."
+                    )]
+                )
+            
+            # Return basic quality assessment info
+            assessment_info = f"""✅ Quality Assessment for Paper ID {paper_id}
+
+📄 **Paper:** {paper.title}
+👥 **Authors:** {', '.join(paper.author_names) if paper.author_names else 'Unknown'}
+📅 **Year:** {paper.publication_year or 'Unknown'}
+
+🔍 **Assessment Status:** Quality Assessed ✓
+📊 **Review Status:** {paper.review_status}
+
+💡 **Assessment Details:**
+• Paper has been quality assessed
+• Included in review: {'Yes' if paper.included_in_review else 'No' if paper.included_in_review is False else 'Pending'}
+• Exclusion reason: {paper.exclusion_reason or 'N/A'}
+
+📝 **Notes:** {paper.notes or 'No additional notes'}
+"""
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=assessment_info
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error retrieving quality assessment: {e}")
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error retrieving quality assessment: {str(e)}"
                 )],
                 isError=True
             )
@@ -650,6 +755,116 @@ class SLRMCPHandler:
     async def get_slr_guide(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle get SLR guide tool call."""
         return await self.workflow_handler.handle_get_slr_guide(arguments)
+
+    async def validate_research_question(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle validate research question tool call."""
+        try:
+            from ..services.research_question_service import QuestionFramework, ResearchQuestionService
+            
+            # Extract parameters from arguments
+            question_text = arguments.get("research_question")
+            if not question_text:
+                return CallToolResult(
+                    content=[TextContent(
+                        type="text",
+                        text="❌ Error: Missing required parameter: research_question"
+                    )],
+                    isError=True
+                )
+            
+            framework_str = arguments.get("framework", "PICO").lower()
+            framework_enum = QuestionFramework(framework_str)
+            
+            # Get research question service from container
+            research_question_service = ResearchQuestionService()
+            
+            validation = research_question_service.validate_research_question(
+                question_text, framework_enum
+            )
+            
+            result_text = f"""✅ Research Question Validation Complete
+
+📊 **Overall Score**: {validation.overall_score:.2f}
+🎯 **Validation Level**: {validation.validation_level.value.title()}
+📝 **Framework**: {framework_enum.value.upper()}
+
+💪 **Strengths**:
+{chr(10).join(f"• {strength}" for strength in validation.strengths)}
+
+⚠️ **Areas for Improvement**:
+{chr(10).join(f"• {weakness}" for weakness in validation.weaknesses)}
+
+🔧 **Suggestions**:
+{chr(10).join(f"• {suggestion}" for suggestion in validation.improvement_suggestions)}
+
+🔍 **Searchability Score**: {validation.searchability_score:.2f}
+
+🧩 **Component Analysis**:
+{chr(10).join(f"• {comp.component.value}: {'✓' if comp.present else '✗'} (Clarity: {comp.clarity_score:.2f}, Specificity: {comp.specificity_score:.2f})" for comp in validation.component_analyses)}
+"""
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=result_text
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error validating research question: {e}", exc_info=True)
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error validating research question: {str(e)}"
+                )],
+                isError=True
+            )
+
+    async def handle_detect_remove_duplicates(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle duplicate detection and removal MCP tool call."""
+        try:
+            document_service = self.container.get_document_service()
+            
+            result = document_service.detect_and_remove_duplicates(
+                similarity_threshold=arguments.get("similarity_threshold", 0.85),
+                dry_run=arguments.get("dry_run", True)
+            )
+            
+            # Format the result for display
+            duplicates_found = result.get("duplicates_detected", 0)
+            removed_count = result.get("duplicates_removed", 0)
+            remaining_count = result.get("remaining_papers", 0)
+            
+            if result.get("dry_run", True):
+                result_text = f"🔍 **Duplicate Detection Analysis (Dry Run)**\n\n"
+                result_text += f"• **Duplicates Found**: {duplicates_found}\n"
+                result_text += f"• **Total Papers**: {result.get('total_papers', 0)}\n"
+                result_text += f"• **Unique Papers**: {remaining_count}\n"
+                if duplicates_found > 0:
+                    result_text += f"\n**Duplicate Groups Found**: {result.get('duplicate_groups', 0)}\n"
+                    result_text += "⚠️  Run with dry_run=false to remove duplicates"
+            else:
+                result_text = f"✅ **Duplicate Removal Completed**\n\n"
+                result_text += f"• **Duplicates Removed**: {removed_count}\n"
+                result_text += f"• **Papers Remaining**: {remaining_count}\n"
+                result_text += f"• **Reduction**: {result.get('reduction_percentage', 0):.1f}%"
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=result_text
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error detecting/removing duplicates: {e}")
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error detecting/removing duplicates: {str(e)}"
+                )],
+                isError=True
+            )
 
     def _convert_call_result_to_dict(self, call_result: CallToolResult) -> dict:
         """Convert CallToolResult to dict format expected by main server."""

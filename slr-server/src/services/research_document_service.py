@@ -48,7 +48,7 @@ class ResearchDocumentService:
 
     # Academic business rule constants
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit for academic papers
-    ACADEMIC_EXTENSIONS = {'.pdf', '.docx', '.tex', '.bib'}
+    ACADEMIC_EXTENSIONS = {'.pdf', '.docx', '.tex', '.bib', '.ris'}
     MIN_ABSTRACT_LENGTH = 50  # Minimum abstract length for quality papers
     MAX_AUTHORS = 50  # Reasonable limit for author list
     VALID_STUDY_TYPES = {'experimental', 'observational', 'review', 'meta-analysis', 'case_study', 'survey'}
@@ -262,6 +262,8 @@ class ResearchDocumentService:
                 metadata.update(self._extract_tex_metadata(file_path))
             elif file_ext == '.bib':
                 metadata.update(self._extract_bib_metadata(file_path))
+            elif file_ext == '.ris':
+                metadata.update(self._extract_ris_metadata(file_path))
             else:
                 # Fallback to basic text extraction
                 metadata.update(self._extract_text_metadata(file_path))
@@ -767,6 +769,206 @@ class ResearchDocumentService:
             # If query fails, assume no duplicate to avoid blocking uploads
             return False
 
+    def detect_and_remove_duplicates(self, 
+                                   similarity_threshold: float = 0.85,
+                                   dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Detect and optionally remove duplicate papers from the corpus.
+        
+        Args:
+            similarity_threshold: Title similarity threshold for duplicate detection (0.0-1.0)
+            dry_run: If True, only detect duplicates without removing them
+            
+        Returns:
+            Dictionary with duplicate detection results and actions taken
+        """
+        try:
+            # Get all papers
+            all_papers = self.paper_repository.list_all()
+            
+            if len(all_papers) < 2:
+                return {
+                    "success": True,
+                    "message": "Not enough papers to detect duplicates",
+                    "duplicates_found": 0,
+                    "papers_removed": 0,
+                    "total_papers": len(all_papers)
+                }
+            
+            # Group papers by potential duplicates
+            duplicate_groups = self._identify_duplicate_groups(all_papers, similarity_threshold)
+            
+            # Count total duplicates
+            total_duplicates = sum(len(group) - 1 for group in duplicate_groups if len(group) > 1)
+            
+            removed_count = 0
+            duplicate_details = []
+            
+            if not dry_run and total_duplicates > 0:
+                # Remove duplicates (keep first paper in each group)
+                for group in duplicate_groups:
+                    if len(group) > 1:
+                        # Keep the first paper (usually the one uploaded first)
+                        papers_to_keep = group[0]
+                        papers_to_remove = group[1:]
+                        
+                        # Remove duplicate papers
+                        for paper in papers_to_remove:
+                            try:
+                                if paper.id is not None:
+                                    self.paper_repository.delete(paper.id)
+                                    removed_count += 1
+                            except Exception as e:
+                                print(f"Warning: Could not remove paper {paper.id}: {e}")
+                        
+                        # Record details
+                        duplicate_details.append({
+                            "kept_paper": {
+                                "id": papers_to_keep.id,
+                                "title": papers_to_keep.title,
+                                "authors": [author.name for author in papers_to_keep.authors] if papers_to_keep.authors else []
+                            },
+                            "removed_papers": [
+                                {
+                                    "id": paper.id,
+                                    "title": paper.title,
+                                    "similarity": self._calculate_title_similarity(papers_to_keep.title, paper.title)
+                                }
+                                for paper in papers_to_remove
+                            ]
+                        })
+            else:
+                # Dry run - just collect information
+                for group in duplicate_groups:
+                    if len(group) > 1:
+                        papers_to_keep = group[0]
+                        papers_to_remove = group[1:]
+                        
+                        duplicate_details.append({
+                            "would_keep_paper": {
+                                "id": papers_to_keep.id,
+                                "title": papers_to_keep.title,
+                                "authors": [author.name for author in papers_to_keep.authors] if papers_to_keep.authors else []
+                            },
+                            "would_remove_papers": [
+                                {
+                                    "id": paper.id,
+                                    "title": paper.title,
+                                    "similarity": self._calculate_title_similarity(papers_to_keep.title, paper.title)
+                                }
+                                for paper in papers_to_remove
+                            ]
+                        })
+            
+            return {
+                "success": True,
+                "dry_run": dry_run,
+                "duplicates_found": total_duplicates,
+                "papers_removed": removed_count,
+                "total_papers_before": len(all_papers),
+                "total_papers_after": len(all_papers) - removed_count,
+                "duplicate_groups": len([g for g in duplicate_groups if len(g) > 1]),
+                "similarity_threshold": similarity_threshold,
+                "duplicate_details": duplicate_details[:10],  # Limit to first 10 for readability
+                "message": f"{'Would remove' if dry_run else 'Removed'} {total_duplicates} duplicate papers" if total_duplicates > 0 else "No duplicates found"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error during duplicate detection: {str(e)}",
+                "duplicates_found": 0,
+                "papers_removed": 0
+            }
+
+    def _identify_duplicate_groups(self, papers: List[ResearchPaper], similarity_threshold: float) -> List[List[ResearchPaper]]:
+        """
+        Group papers by similarity to identify duplicates.
+        
+        Args:
+            papers: List of research papers to analyze
+            similarity_threshold: Minimum similarity score to consider papers duplicates
+            
+        Returns:
+            List of paper groups, where each group contains similar papers
+        """
+        groups = []
+        processed_papers = set()
+        
+        for i, paper1 in enumerate(papers):
+            if paper1.id in processed_papers:
+                continue
+                
+            # Start a new group with this paper
+            current_group = [paper1]
+            processed_papers.add(paper1.id)
+            
+            # Find all similar papers
+            for j, paper2 in enumerate(papers[i+1:], i+1):
+                if paper2.id in processed_papers:
+                    continue
+                
+                # Check multiple similarity criteria
+                is_duplicate = False
+                
+                # 1. Exact DOI match
+                if (paper1.doi and paper2.doi and 
+                    paper1.doi.strip().lower() == paper2.doi.strip().lower()):
+                    is_duplicate = True
+                
+                # 2. Title similarity
+                elif self._calculate_title_similarity(paper1.title, paper2.title) >= similarity_threshold:
+                    is_duplicate = True
+                
+                # 3. Same title + same first author + same year
+                elif (paper1.title.strip().lower() == paper2.title.strip().lower() and
+                      paper1.publication_year == paper2.publication_year and
+                      self._same_first_author(paper1, paper2)):
+                    is_duplicate = True
+                
+                if is_duplicate:
+                    current_group.append(paper2)
+                    processed_papers.add(paper2.id)
+            
+            groups.append(current_group)
+        
+        return groups
+
+    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
+        """Calculate similarity between two paper titles."""
+        if not title1 or not title2:
+            return 0.0
+        
+        # Normalize titles
+        t1 = title1.strip().lower()
+        t2 = title2.strip().lower()
+        
+        # Exact match
+        if t1 == t2:
+            return 1.0
+        
+        # Simple word-based similarity (Jaccard similarity)
+        words1 = set(t1.split())
+        words2 = set(t2.split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+
+    def _same_first_author(self, paper1: ResearchPaper, paper2: ResearchPaper) -> bool:
+        """Check if two papers have the same first author."""
+        if not paper1.authors or not paper2.authors:
+            return False
+        
+        author1 = paper1.authors[0].name.strip().lower()
+        author2 = paper2.authors[0].name.strip().lower()
+        
+        return author1 == author2
+
     def _extract_pdf_metadata(self, file_path: str) -> Dict[str, Any]:
         """Extract metadata from PDF files using academic parsing."""
         try:
@@ -880,38 +1082,132 @@ class ResearchDocumentService:
             return {"title": Path(file_path).stem}
 
     def _extract_bib_metadata(self, file_path: str) -> Dict[str, Any]:
-        """Extract metadata from BibTeX files."""
+        """Extract metadata from BibTeX files - handles multiple entries."""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Extract first entry's title as main title
-            title_match = re.search(r'title\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            # Parse all BibTeX entries
+            entries = re.findall(r'@\w+\{[^,]+,\s*(.*?)\n\}', content, re.DOTALL | re.IGNORECASE)
+            
+            if not entries:
+                return self._basic_file_metadata(file_path)
+            
+            # Use first entry for main metadata (for single paper upload)
+            first_entry = entries[0]
+            
+            # Extract title from first entry
+            title_match = re.search(r'title\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE | re.DOTALL)
             title = title_match.group(1).strip() if title_match else Path(file_path).stem
             
             # Extract authors from first entry
-            author_match = re.search(r'author\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            author_match = re.search(r'author\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE | re.DOTALL)
             authors = []
             if author_match:
                 author_text = author_match.group(1)
-                # Simple author parsing - split by 'and'
                 author_names = [name.strip() for name in author_text.split(' and ')]
                 from ..models import Author
                 authors = [Author(name=name) for name in author_names if name]
             
-            # Extract keywords if present
-            keywords_match = re.search(r'keywords\s*=\s*[{"](.*?)[}"]', content, re.IGNORECASE | re.DOTALL)
+            # Extract abstract from first entry
+            abstract_match = re.search(r'abstract\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE | re.DOTALL)
+            abstract = abstract_match.group(1).strip() if abstract_match else ""
+            
+            # Extract keywords from first entry
+            keywords_match = re.search(r'keywords\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE | re.DOTALL)
             keywords = []
             if keywords_match:
                 keywords_text = keywords_match.group(1)
                 keywords = [kw.strip() for kw in keywords_text.split(',') if kw.strip()]
             
-            return {
+            # Extract year from first entry
+            year_match = re.search(r'year\s*=\s*[{"]*(\d{4})[}"]', first_entry, re.IGNORECASE)
+            publication_year = int(year_match.group(1)) if year_match else None
+            
+            # Extract DOI from first entry
+            doi_match = re.search(r'doi\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE)
+            doi = doi_match.group(1).strip() if doi_match else None
+            
+            # Extract journal from first entry
+            journal_match = re.search(r'journal\s*=\s*[{"](.*?)[}"]', first_entry, re.IGNORECASE)
+            journal_name = journal_match.group(1).strip() if journal_match else None
+            
+            metadata = {
                 "title": title,
                 "authors": authors,
+                "abstract": abstract,
                 "keywords": keywords,
-                "total_words": len(content.split())
+                "total_words": len(content.split()),
+                "publication_year": publication_year,
+                "doi": doi,
+                "total_entries": len(entries)  # Track how many entries in file
             }
+            
+            if journal_name:
+                from ..models import Journal
+                metadata["journal"] = Journal(name=journal_name)
+            
+            return metadata
+            
+        except Exception:
+            return self._basic_file_metadata(file_path)
+
+    def _extract_ris_metadata(self, file_path: str) -> Dict[str, Any]:
+        """Extract metadata from RIS (Research Information Systems) files."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract title from first entry
+            title_match = re.search(r'^TI\s*-\s*(.+?)$', content, re.MULTILINE)
+            title = title_match.group(1).strip() if title_match else Path(file_path).stem
+            
+            # Extract authors from first entry
+            authors = []
+            author_matches = re.findall(r'^AU\s*-\s*(.+?)$', content, re.MULTILINE)
+            if author_matches:
+                from ..models import Author
+                authors = [Author(name=name.strip()) for name in author_matches if name.strip()]
+            
+            # Extract abstract
+            abstract_match = re.search(r'^AB\s*-\s*(.+?)(?=^[A-Z]{2}\s*-|\Z)', content, 
+                                     re.MULTILINE | re.DOTALL)
+            abstract = abstract_match.group(1).strip() if abstract_match else ""
+            
+            # Extract keywords
+            keywords = []
+            keyword_matches = re.findall(r'^KW\s*-\s*(.+?)$', content, re.MULTILINE)
+            if keyword_matches:
+                for kw_line in keyword_matches:
+                    keywords.extend([kw.strip() for kw in kw_line.split(';') if kw.strip()])
+            
+            # Extract publication year
+            year_match = re.search(r'^PY\s*-\s*(\d{4})', content, re.MULTILINE)
+            publication_year = int(year_match.group(1)) if year_match else None
+            
+            # Extract journal/venue
+            journal_match = re.search(r'^JO\s*-\s*(.+?)$', content, re.MULTILINE)
+            journal_name = journal_match.group(1).strip() if journal_match else None
+            
+            # Extract DOI
+            doi_match = re.search(r'^DO\s*-\s*(.+?)$', content, re.MULTILINE)
+            doi = doi_match.group(1).strip() if doi_match else None
+            
+            metadata = {
+                "title": title,
+                "authors": authors,
+                "abstract": abstract,
+                "keywords": keywords,
+                "total_words": len(content.split()),
+                "publication_year": publication_year,
+                "doi": doi
+            }
+            
+            if journal_name:
+                from ..models import Journal
+                metadata["journal"] = Journal(name=journal_name)
+            
+            return metadata
             
         except Exception:
             return self._basic_file_metadata(file_path)
@@ -1317,6 +1613,253 @@ class ResearchDocumentService:
         analysis["academic_features"] = academic_features
         
         return analysis
+
+    def upload_bibliography_batch(self, file_path: str, tags: Optional[List[str]] = None, auto_extract_metadata: bool = True) -> List[ResearchPaper]:
+        """
+        Upload and process a bibliography file containing multiple papers.
+        
+        This method extracts all entries from BibTeX/RIS files and creates separate
+        ResearchPaper objects for each entry.
+        
+        Args:
+            file_path: Path to bibliography file (.bib or .ris)
+            tags: Optional tags to apply to all papers
+            auto_extract_metadata: Whether to extract metadata automatically
+            
+        Returns:
+            List of created ResearchPaper objects
+            
+        Raises:
+            ResearchDocumentError: If batch processing fails
+        """
+        try:
+            file_path = str(Path(file_path).resolve())
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            if file_ext not in ['.bib', '.ris']:
+                raise ResearchDocumentError(f"Unsupported bibliography format: {file_ext}")
+            
+            if not os.path.exists(file_path):
+                raise ResearchDocumentError(f"File not found: {file_path}")
+            
+            # Extract all entries from bibliography file
+            if file_ext == '.bib':
+                entries_metadata = self._extract_all_bib_entries(file_path)
+            else:  # .ris
+                entries_metadata = self._extract_all_ris_entries(file_path)
+            
+            created_papers = []
+            
+            for i, entry_metadata in enumerate(entries_metadata):
+                try:
+                    # Create unique virtual file path for each entry
+                    base_name = Path(file_path).stem
+                    file_dir = Path(file_path).parent
+                    entry_filename = f"{base_name}_entry_{i+1}{file_ext}"
+                    virtual_file_path = str(file_dir / entry_filename)
+                    
+                    # Get file stats from original file
+                    file_stats = os.stat(file_path)
+                    file_size = file_stats.st_size
+                    
+                    # Create ResearchPaper object
+                    research_paper = ResearchPaper(
+                        title=entry_metadata.get("title", f"Paper {i+1} from {base_name}"),
+                        authors=entry_metadata.get("authors", []),
+                        abstract=entry_metadata.get("abstract", ""),
+                        keywords=entry_metadata.get("keywords", []),
+                        journal=entry_metadata.get("journal"),
+                        publication_year=entry_metadata.get("publication_year"),
+                        doi=entry_metadata.get("doi"),
+                        file_path=virtual_file_path,  # Unique virtual file path
+                        file_type=file_ext[1:],
+                        file_size=file_size,
+                        total_pages=entry_metadata.get("total_pages"),
+                        total_words=entry_metadata.get("total_words"),
+                        tags=tags or [],
+                        indexed=False,
+                        quality_assessed=False,
+                        included_in_review=None,
+                        notes=f"Extracted from bibliography file: {Path(file_path).name}"
+                    )
+                    
+                    # Persist research paper
+                    created_paper = self.paper_repository.create(research_paper)
+                    created_papers.append(created_paper)
+                    
+                except Exception as e:
+                    # Log error but continue with other entries
+                    print(f"Warning: Failed to process entry {i+1}: {str(e)}")
+                    continue
+            
+            if not created_papers:
+                raise ResearchDocumentError("No papers could be extracted from bibliography file")
+            
+            return created_papers
+            
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to process bibliography file: {str(e)}") from e
+
+    def _extract_all_bib_entries(self, file_path: str) -> List[Dict[str, Any]]:
+        """Extract metadata from ALL BibTeX entries in a file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find all complete BibTeX entries
+            entry_pattern = r'(@\w+\{[^,]+,\s*.*?^\})'
+            entries = re.findall(entry_pattern, content, re.DOTALL | re.MULTILINE | re.IGNORECASE)
+            
+            if not entries:
+                return []
+            
+            entries_metadata = []
+            
+            for entry in entries:
+                try:
+                    # Extract the content between first comma and closing brace
+                    content_match = re.search(r'@\w+\{[^,]+,\s*(.*?)\s*\}$', entry, re.DOTALL | re.IGNORECASE)
+                    if not content_match:
+                        continue
+                    
+                    entry_content = content_match.group(1)
+                    
+                    # Extract title
+                    title_match = re.search(r'title\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    title = title_match.group(1).strip() if title_match else "Untitled"
+                    
+                    # Extract authors
+                    author_match = re.search(r'author\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    authors = []
+                    if author_match:
+                        author_text = author_match.group(1)
+                        author_names = [name.strip() for name in author_text.split(' and ')]
+                        from ..models import Author
+                        authors = [Author(name=name) for name in author_names if name]
+                    
+                    # Extract abstract
+                    abstract_match = re.search(r'abstract\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    abstract = abstract_match.group(1).strip() if abstract_match else ""
+                    
+                    # Extract keywords
+                    keywords_match = re.search(r'keywords\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    keywords = []
+                    if keywords_match:
+                        keywords_text = keywords_match.group(1)
+                        keywords = [kw.strip() for kw in keywords_text.split(',') if kw.strip()]
+                    
+                    # Extract year
+                    year_match = re.search(r'year\s*=\s*[{"]*(\d{4})[}"]', entry_content, re.IGNORECASE)
+                    publication_year = int(year_match.group(1)) if year_match else None
+                    
+                    # Extract DOI
+                    doi_match = re.search(r'doi\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE)
+                    doi = doi_match.group(1).strip() if doi_match else None
+                    
+                    # Extract journal
+                    journal_match = re.search(r'journal\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE)
+                    journal_name = journal_match.group(1).strip() if journal_match else None
+                    
+                    metadata = {
+                        "title": title,
+                        "authors": authors,
+                        "abstract": abstract,
+                        "keywords": keywords,
+                        "total_words": len(entry_content.split()),
+                        "publication_year": publication_year,
+                        "doi": doi
+                    }
+                    
+                    if journal_name:
+                        from ..models import Journal
+                        metadata["journal"] = Journal(name=journal_name)
+                    
+                    entries_metadata.append(metadata)
+                    
+                except Exception as e:
+                    # Skip malformed entries but log the error
+                    print(f"Warning: Failed to parse BibTeX entry: {str(e)}")
+                    continue
+            
+            return entries_metadata
+            
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to parse BibTeX file: {str(e)}") from e
+
+    def _extract_all_ris_entries(self, file_path: str) -> List[Dict[str, Any]]:
+        """Extract metadata from ALL RIS entries in a file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Split on ER (End Record) markers
+            entries = re.split(r'\nER\s*-\s*\n', content)
+            entries_metadata = []
+            
+            for entry in entries:
+                if not entry.strip():
+                    continue
+                
+                try:
+                    # Extract title
+                    title_match = re.search(r'^TI\s*-\s*(.+?)$', entry, re.MULTILINE)
+                    title = title_match.group(1).strip() if title_match else "Untitled"
+                    
+                    # Extract authors
+                    authors = []
+                    author_matches = re.findall(r'^AU\s*-\s*(.+?)$', entry, re.MULTILINE)
+                    if author_matches:
+                        from ..models import Author
+                        authors = [Author(name=name.strip()) for name in author_matches if name.strip()]
+                    
+                    # Extract abstract
+                    abstract_match = re.search(r'^AB\s*-\s*(.+?)(?=^[A-Z]{2}\s*-|\Z)', entry, 
+                                             re.MULTILINE | re.DOTALL)
+                    abstract = abstract_match.group(1).strip() if abstract_match else ""
+                    
+                    # Extract keywords
+                    keywords = []
+                    keyword_matches = re.findall(r'^KW\s*-\s*(.+?)$', entry, re.MULTILINE)
+                    if keyword_matches:
+                        for kw_line in keyword_matches:
+                            keywords.extend([kw.strip() for kw in kw_line.split(';') if kw.strip()])
+                    
+                    # Extract publication year
+                    year_match = re.search(r'^PY\s*-\s*(\d{4})', entry, re.MULTILINE)
+                    publication_year = int(year_match.group(1)) if year_match else None
+                    
+                    # Extract DOI
+                    doi_match = re.search(r'^DO\s*-\s*(.+?)$', entry, re.MULTILINE)
+                    doi = doi_match.group(1).strip() if doi_match else None
+                    
+                    # Extract journal
+                    journal_match = re.search(r'^JO\s*-\s*(.+?)$', entry, re.MULTILINE)
+                    journal_name = journal_match.group(1).strip() if journal_match else None
+                    
+                    metadata = {
+                        "title": title,
+                        "authors": authors,
+                        "abstract": abstract,
+                        "keywords": keywords,
+                        "total_words": len(entry.split()),
+                        "publication_year": publication_year,
+                        "doi": doi
+                    }
+                    
+                    if journal_name:
+                        from ..models import Journal
+                        metadata["journal"] = Journal(name=journal_name)
+                    
+                    entries_metadata.append(metadata)
+                    
+                except Exception as e:
+                    print(f"Warning: Failed to parse RIS entry: {str(e)}")
+                    continue
+            
+            return entries_metadata
+            
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to parse RIS file: {str(e)}") from e
 
 
 class ResearchDocumentError(Exception):

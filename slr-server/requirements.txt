@@ -6,6 +6,8 @@ typing-extensions>=4.0
 # Database
 sqlalchemy>=1.4.0
 aiosqlite>=0.17.0
+# PostgreSQL support (optional, for large projects)
+# psycopg2-binary>=2.9.0
 
 # PDF processing
 PyPDF2>=3.0.0

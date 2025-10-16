@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 from .database.connection import DatabaseConnection
+from .database.adapter import DatabaseFactory, DatabaseAdapter
 from .database.schema import create_tables
 from .repositories.paper_repository import PaperRepository
 from .repositories.quality_assessment_repository import QualityAssessmentRepository
@@ -34,6 +35,10 @@ class Container:
         
         # Core dependencies
         self._db_connection: Optional[DatabaseConnection] = None
+        self._db_adapter: Optional[DatabaseAdapter] = None
+        
+        # Store whether we're using PostgreSQL (connection string starts with postgresql://)
+        self._is_postgresql = database_path and (database_path.startswith('postgresql://') or database_path.startswith('postgres://'))
         
         # Repositories
         self._paper_repository: Optional[PaperRepository] = None
@@ -59,9 +64,9 @@ class Container:
         """Initialize the container and all dependencies."""
         logger.info("Initializing container...")
         
-        # Initialize database
-        db_connection = self.get_database_connection()
-        await create_tables(db_connection)
+        # Initialize database using adapter system
+        db_adapter = self.get_database_adapter()
+        db_adapter.create_tables_if_not_exist()
         
         logger.info("Container initialized successfully")
     
@@ -70,6 +75,14 @@ class Container:
         if self._db_connection is None:
             self._db_connection = DatabaseConnection(self.database_path)
         return self._db_connection
+    
+    def get_database_adapter(self) -> DatabaseAdapter:
+        """Get database adapter instance using environment variables directly."""
+        if self._db_adapter is None:
+            # Always use environment-based configuration - this will automatically
+            # detect PostgreSQL from POSTGRES_HOST env var and use correct Docker IPs
+            self._db_adapter = DatabaseFactory.create_adapter()
+        return self._db_adapter
     
     def get_paper_repository(self) -> PaperRepository:
         """Get paper repository instance."""

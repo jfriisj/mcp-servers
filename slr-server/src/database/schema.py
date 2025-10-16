@@ -113,7 +113,7 @@ class SchemaManager:
                 file_path TEXT,
                 file_type TEXT CHECK (
                     file_type IS NULL OR 
-                    file_type IN ('pdf', 'txt', 'html', 'xml', 'docx')
+                    file_type IN ('pdf', 'txt', 'html', 'xml', 'docx', 'bib', 'ris')
                 ),
                 file_size INTEGER CHECK (file_size IS NULL OR file_size >= 0),
                 total_pages INTEGER CHECK (total_pages IS NULL OR total_pages >= 0),

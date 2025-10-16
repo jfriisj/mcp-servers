@@ -7,11 +7,11 @@ guidelines and systematic review best practices for research quality assessment.
 
 import statistics
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from enum import Enum
 from dataclasses import dataclass
 
-from ..models import ResearchPaper, QualityAssessment
+from ..models import ResearchPaper, QualityAssessment, AssessmentFramework, QualityRating
 from ..repositories.paper_repository import PaperRepository
 
 
@@ -389,6 +389,66 @@ class QualityAssessmentService:
         )
 
         return assessment_results
+
+    async def assess_paper_quality(
+        self,
+        paper_id: int,
+        framework: str = "PRISMA",
+        reviewer_id: str = "system",
+        custom_criteria: Optional[Dict[str, Any]] = None
+    ) -> QualityAssessment:
+        """
+        Assess paper quality using specified framework (primary interface for MCP).
+
+        Args:
+            paper_id: ID of paper to assess
+            framework: Quality assessment framework to use
+            reviewer_id: Identifier of the reviewer
+            custom_criteria: Optional custom assessment criteria
+
+        Returns:
+            Quality assessment result
+
+        Raises:
+            ValueError: If paper not found or assessment fails
+        """
+        # Get paper from repository
+        paper = self.paper_repository.get_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Research paper {paper_id} not found")
+
+        # Simple automated assessment for now
+        # Calculate basic quality rating based on available metadata
+        overall_rating = QualityRating.UNCLEAR
+        
+        if paper.abstract and len(paper.abstract) > 100:
+            overall_rating = QualityRating.MEDIUM
+            
+        if paper.methodology and paper.sample_size and paper.sample_size > 50:
+            overall_rating = QualityRating.HIGH
+
+        # Basic criteria scores using QualityRating enum
+        criteria_scores: Dict[str, Union[QualityRating, int, float]] = {
+            "abstract_quality": QualityRating.MEDIUM if paper.abstract else QualityRating.LOW,
+            "methodology_clarity": QualityRating.HIGH if paper.methodology else QualityRating.LOW, 
+            "sample_adequacy": QualityRating.HIGH if paper.sample_size and paper.sample_size > 50 else QualityRating.MEDIUM
+        }
+
+        # Create QualityAssessment object using correct field names
+        quality_assessment = QualityAssessment(
+            paper_id=paper_id,
+            framework=AssessmentFramework.PRISMA,
+            reviewer_id=reviewer_id,
+            overall_rating=overall_rating,
+            criteria_scores=criteria_scores,
+            notes=f"Automated assessment using {framework} framework"
+        )
+
+        # Update paper quality assessment status
+        paper.quality_assessed = True
+        self.paper_repository.update(paper)
+
+        return quality_assessment
 
     def validate_assessment_completeness(
         self,

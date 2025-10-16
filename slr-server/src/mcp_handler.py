@@ -105,12 +105,18 @@ class SLRMCPHandler:
 
     def validate_research_question(
         self,
-        question_text: str,
-        framework: str = "pico"
+        arguments: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Validate research question using PICO/SPIDER framework."""
         try:
             from .services.research_question_service import QuestionFramework
+            
+            # Extract parameters from arguments
+            question_text = arguments.get("research_question")
+            if not question_text:
+                return self._create_error_response("Missing required parameter: research_question")
+            
+            framework = arguments.get("framework", "PICO").lower()
             framework_enum = QuestionFramework(framework)
             
             validation = self.research_question_service.validate_research_question(
@@ -253,5 +259,29 @@ class SLRMCPHandler:
                 "results": results,
                 "synthesis_report": report
             })
+        except Exception as e:
+            return self._create_error_response(str(e))
+
+    def detect_remove_duplicates(
+        self,
+        similarity_threshold: float = 0.85,
+        dry_run: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Detect and optionally remove duplicate papers from the corpus.
+        
+        Args:
+            similarity_threshold: Title similarity threshold for duplicate detection (0.0-1.0)
+            dry_run: If True, only detect duplicates without removing them
+            
+        Returns:
+            Dictionary with duplicate detection results and actions taken
+        """
+        try:
+            result = self.research_document_service.detect_and_remove_duplicates(
+                similarity_threshold=similarity_threshold,
+                dry_run=dry_run
+            )
+            return result
         except Exception as e:
             return self._create_error_response(str(e))

@@ -1,0 +1,445 @@
+@inproceedings{LeeAnn2022DSTW,
+abstract = {We present a direct speech-to-speech translation (S2ST) model that translates speech from one language to speech in another language without relying on intermediate text generation. We tackle the problem by first applying a self-supervised discrete speech encoder on the target speech and then training a sequence-to-sequence speech-to-unit translation (S2UT) model to predict the discrete representations of the target speech. When target text transcripts are available, we design a joint speech and text training framework that enables the model to generate dual modality output (speech and text) simultaneously in the same inference pass. Experiments on the Fisher Spanish-English dataset show that the proposed framework yields improvement of 6.7 BLEU compared with a baseline direct S2ST model that predicts spectrogram features. When trained without any text transcripts, our model performance is comparable to models that predict spectrograms and are trained with text supervision, showing the potential of our system for translation between unwritten languages(1).},
+author = {Lee, Ann and Chen, Peng-Jen and Wang, Changhan and Gu, Jiatao and Popuri, Sravya and Ma, Xutai and Polyak, Adam and Adi, Yossi and He, Qing and Tang, Yun and Pino, Juan and Hsu, Wei-Ning},
+address = {STROUDSBURG},
+booktitle = {PROCEEDINGS OF THE 60TH ANNUAL MEETING OF THE ASSOCIATION FOR COMPUTATIONAL LINGUISTICS (ACL 2022), VOL 1: (LONG PAPERS)},
+isbn = {9781955917216},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {3327-3339},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {Direct Speech-to-Speech Translation With Discrete Units},
+year = {2022},
+}
+
+@inproceedings{DengKeqi2022BSTf,
+abstract = {Although Transformers have gained success in several speech processing tasks like spoken language understanding (SLU) and speech translation (ST), achieving online processing while keeping competitive performance is still essential for real-world interaction. In this paper, we take the first step on streaming SLU and simultaneous ST using a blockwise streaming Transformer, which is based on contextual block processing and blockwise synchronous beam search. Furthermore, we design an automatic speech recognition (ASR)-based intermediate loss regularization for the streaming SLU task to improve the classification performance further. As for the simultaneous ST task, we propose a cross-lingual encoding method, which employs a CTC branch optimized with target language translations. In addition, the CTC translation output is also used to refine the search space with CTC prefix score, achieving joint CTC/attention simultaneous translation for the first time. Experiments for SLU are conducted on FSC and SLURP corpora, while the ST task is evaluated on Fisher-CallHome Spanish and MuST-C En-De corpora. Experimental results show that the blockwise streaming Transformer achieves competitive results compared to offline models, especially with our proposed methods that further yield a 2.4% accuracy gain on the SLU task and a 4.3 BLEU gain on the ST task over streaming baselines.},
+author = {Deng, Keqi and Watanabe, Shinji and Shi, Jiatong and Arora, Siddhant},
+address = {BAIXAS},
+booktitle = {INTERSPEECH 2022},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+issn = {2308-457X},
+keywords = {Acoustics ;  Audiology & Speech-Language Pathology ;  Computer Science ;  Computer Science Artificial Intelligence ;  Engineering ;  Engineering Electrical & Electronic ;  Life Sciences & Biomedicine ;  Science & Technology ;  speech translation ;  spoken language understanding ;  streaming Transformer ;  Technology},
+language = {eng},
+organization = {Int Speech Commun Assoc},
+pages = {1746-1750},
+publisher = {Isca-Int Speech Communication Assoc},
+title = {Blockwise Streaming Transformer for Spoken Language Understanding and Simultaneous Speech Translation},
+volume = {2022-},
+year = {2022},
+}
+
+@inproceedings{ShankarappaRashmiT.2022AFAF,
+abstract = {As the world is pacing towards globalization, the demand for automatic language translators is increasing rapidly. Traditional translation systems consist of multiple steps like speech recognition, text to text machine translation, and speech generation. Issue with these systems are, latency due to multiple steps and error propagation from first steps toward last steps. Another challenge is that many spoken languages do not have text representation, so traditional system involving speech to text and text to text translation do not work. In this paper, we are presenting a recurrent neural network (RNN) based translation system that can generate a direct waveform of target language audio. We have used the sparse coding technique for the extraction and inversion of audio features. An attention-based multi-layered sequence to sequence model is trained using a novel technique on a dataset of Spanish to English audio and no intermediate text representation is used while training or inference. We have done performance comparison of proposed approaches using latency, bilingual evaluation understudy (BLEU) score and Perceptual Evaluation of Speech Quality PESQ score analysis. The resulting system provides a very fast translation with good translation accuracy and audio quality.},
+author = {Shankarappa, Rashmi T. and Tiwari, Sourabh},
+address = {NEW YORK},
+booktitle = {2022 IEEE WOMEN IN TECHNOLOGY CONFERENCE (WINTECHCON): SMARTER TECHNOLOGIES FOR A SUSTAINABLE AND HYPER-CONNECTED WORLD},
+copyright = {Copyright 2022 Elsevier B.V., All rights reserved.},
+isbn = {9781665486743},
+keywords = {Codes ;  Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Hardware & Architecture ;  Encoder-Decoder ;  Feature extraction ;  Globalization ;  Machine Learning ;  Machine translation ;  Multilayers ;  Predictive models ;  Recurrent neural networks ;  Representations ;  Robotics ;  Science & Technology ;  Speech ;  Speech coding ;  Speech recognition ;  Speech Signal Processing ;  Technology ;  Training ;  Translation System ;  Waveforms},
+language = {eng},
+organization = {IEEE},
+pages = {1-6},
+publisher = {IEEE},
+title = {A Faster Approach For Direct Speech to Speech Translation},
+year = {2022},
+}
+
+@inproceedings{NguyenTuanNam2022ACuP,
+abstract = {Accent conversion (AC) aims to generate synthetic audios by changing the pronunciation pattern and prosody of source speakers (in source audios) while preserving voice quality and linguistic content. There has not been a parallel corpus that contains pairs of audios having the same contents yet coming from the same speakers in different accents, the authors hence work on a solution to synthesize one as training input. The training pipeline is conducted via two steps. First, a voice conversion (VC) model is constructed to synthesize a training data set, containing pairs of audios in the same voice but two different accents. Second, an AC model is trained with the synthesized data to convert a source accented speech to a target accented speech. Given the recognized success of self-supervised learning speech representation (wav2vec 2.0) on certain speech problems such as VC, speech recognition, speech translation, and speech-to-speech translation, we adopt this architecture with some customization to train the AC model in the second step. With just 9-hour synthesized training data, the encoder initialized by the weight of the pre-trained wav2vec 2.0 model outperforms the LSTM-based encoder.},
+author = {Nguyen, Tuan Nam and Pham, Ngoc Quan and Waibel, Alexander},
+address = {BAIXAS},
+booktitle = {INTERSPEECH 2022},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+issn = {2308-457X},
+keywords = {Accent Conversion ;  Acoustics ;  Audiology & Speech-Language Pathology ;  Computer Science ;  Computer Science Artificial Intelligence ;  Engineering ;  Engineering Electrical & Electronic ;  Life Sciences & Biomedicine ;  Science & Technology ;  seq2seq ;  Technology ;  Voice Conversion ;  wav2vec 2.0},
+language = {eng},
+organization = {Int Speech Commun Assoc},
+pages = {2583-2587},
+publisher = {Isca-Int Speech Communication Assoc},
+title = {Accent Conversion using Pre-trained Model and Synthesized Data from Voice Conversion},
+volume = {2022-},
+year = {2022},
+}
+
+@inproceedings{GuoBao2022TXTS,
+abstract = {This system paper describes the Xiaomi Translation System for the IWSLT 2022 Simultaneous Speech Translation (noted as SST) shared task. We participate in the Englishto-Mandarin Chinese Text-to-Text (noted as T2T) track. Our system is built based on the Transformer model with novel techniques borrowed from our recent research work. For the data filtering, language-model-based and rule-based methods are conducted to filter the data to obtain high-quality bilingual parallel corpora. We also strengthen our system with some dominating techniques related to data augmentation, such as knowledge distillation, tagged back-translation, and iterative backtranslation. We also incorporate novel training techniques such as R-drop, deep model, and large batch training which have been shown to be beneficial to the naive Transformer model. In the SST scenario, several variations of wait-k strategies are explored. Furthermore, in terms of robustness, both data-based and model-based ways are used to reduce the sensitivity of our system to Automatic Speech Recognition (ASR) outputs. We finally design some inference algorithms and use the adaptive-ensemble method based on multiple model variants to further improve the performance of the system. Compared with strong baselines, fusing all techniques can improve our system by 2-3 BLEU scores under different latency regimes.},
+author = {Guo, Bao and Liu, Mengge and Zhang, Wen and Chen, Hexuan and Mu, Chang and Li, Xiang and Cui, Jianwei and Wang, Bin and Guo, Yuhang},
+address = {STROUDSBURG},
+booktitle = {PROCEEDINGS OF THE 19TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2022)},
+isbn = {1955917418},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Cybernetics ;  Science & Technology ;  Technology},
+language = {eng},
+organization = {Associ Computat Linguist},
+pages = {216-224},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {The Xiaomi Text-to-Text Simultaneous Speech Translation System for IWSLT 2022},
+year = {2022},
+}
+
+@inproceedings{GengWenzhuo2022SIBo,
+abstract = {Simultaneous interpretation is a scarce skill which has only been performed by well-trained interpreters so far. The fast development and wide application of artificial intelligence stimulate us to think about its computer implementation. In this paper, we design and implement a system, in which original speech can be converted into translated speech through three steps: speech recognition, text translation and speech synthesis. We apply the newly-developed HiFi-GAN vocoder for speech synthesis, which provides a faster speed and better quality than previous vocoders. And we add the speaker's voice elements as a factor in the synthesis to make the synthesized speech much similar to the original speaker. As is demonstrated by an English to Chinese speech interpretation experiment, our purposed system outperforms a currently widely-used translation system, showing an exciting prospect for computer implementation of simultaneous interpretation.},
+author = {Geng, Wenzhuo and Wang, Hong and Nie, Yanqi and Zou, Xian and Yang, Hanlin and Toe, Teoh Teik},
+address = {Piscataway},
+booktitle = {2022 4th International Conference on Frontiers Technology of Information and Computer (ICFTIC)},
+copyright = {Copyright 2023 Elsevier B.V., All rights reserved.},
+isbn = {9798350321951},
+keywords = {speech to speech translation ;  Artificial intelligence ;  Costs ;  Deep learning ;  Hidden Markov models ;  HiFi-GAN ;  Machine learning ;  simultaneous interpretation ;  Speech ;  Speech recognition ;  speech synthesis ;  Technological innovation ;  Vocoders ;  Web and internet services},
+language = {eng},
+pages = {200-203},
+publisher = {IEEE},
+title = {Simultaneous Interpretation Based on Deep Learning and Speech Synthesis},
+year = {2022},
+}
+
+@inproceedings{GuoJiaxin2022THSt,
+abstract = {The paper presents the HW-TSC's pipeline and results of Offline Speech to Speech Translation for IWSLT 2022. We design a cascade system consisted of an ASR model, machine translation model and TTS model to convert the speech from one language into another language(en-de). For the ASR part, we find that better performance can be obtained by ensembling multiple heterogeneous ASR models and performing reranking on beam candidates. And we find that the combination of context-aware reranking strategy and MT model fine-tuned on the in-domain dataset is helpful to improve the performance. Because it can mitigate the problem that the inconsistency in transcripts caused by the lack of context. Finally, we use VITS model provided officially to reproduce audio files from the translation hypothesis.},
+author = {Guo, Jiaxin and Li, Yinglu and Wang, Minghan and Qiao, Xiaosong and Wang, Yuxia and Shang, Hengchao and Su, Chang and Chen, Yimeng and Zhang, Min and Tao, Shimin and Yang, Hao and Qin, Ying},
+address = {STROUDSBURG},
+booktitle = {PROCEEDINGS OF THE 19TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2022)},
+isbn = {1955917418},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Cybernetics ;  Science & Technology ;  Technology},
+language = {eng},
+organization = {Associ Computat Linguist},
+pages = {293-297},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {The HW-TSC's Speech to Speech Translation System for IWSLT 2022},
+year = {2022},
+}
+
+@article{LeeAnn2021Dstw,
+abstract = {We present a direct speech-to-speech translation (S2ST) model that translates
+speech from one language to speech in another language without relying on
+intermediate text generation. We tackle the problem by first applying a
+self-supervised discrete speech encoder on the target speech and then training
+a sequence-to-sequence speech-to-unit translation (S2UT) model to predict the
+discrete representations of the target speech. When target text transcripts are
+available, we design a joint speech and text training framework that enables
+the model to generate dual modality output (speech and text) simultaneously in
+the same inference pass. Experiments on the Fisher Spanish-English dataset show
+that the proposed framework yields improvement of 6.7 BLEU compared with a
+baseline direct S2ST model that predicts spectrogram features. When trained
+without any text transcripts, our model performance is comparable to models
+that predict spectrograms and are trained with text supervision, showing the
+potential of our system for translation between unwritten languages. Audio
+samples are available at
+https://facebookresearch.github.io/speech_translation/direct_s2st_units/index.html .},
+author = {Lee, Ann and Chen, Peng-Jen and Wang, Changhan and Gu, Jiatao and Popuri, Sravya and Ma, Xutai and Polyak, Adam and Adi, Yossi and He, Qing and Tang, Yun and Pino, Juan and Hsu, Wei-Ning},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language ;  Computer Science - Learning},
+language = {eng},
+title = {Direct speech-to-speech translation with discrete units},
+year = {2021},
+}
+
+@article{LiuDan2021TUSf,
+abstract = {This paper describes USTC-NELSLIP's submissions to the IWSLT2021 Simultaneous Speech Translation task. We proposed a novel simultaneous translation model, Cross Attention Augmented Transducer (CAAT), which extends conventional RNN-T to sequence-to-sequence tasks without monotonic constraints, e.g., simultaneous translation. Experiments on speech-to-text (S2T) and text-to-text (T2T) simultaneous translation tasks shows CAAT achieves better quality-latency trade-offs compared to \textit{wait-k}, one of the previous state-of-the-art approaches. Based on CAAT architecture and data augmentation, we build S2T and T2T simultaneous translation systems in this evaluation campaign. Compared to last year's optimal systems, our S2T simultaneous translation system improves by an average of 11.3 BLEU for all latency regimes, and our T2T simultaneous translation system improves by an average of 4.6 BLEU.},
+author = {Liu, Dan and Du, Mengge and Li, Xiaoxi and Hu, Yuchen and Dai, Lirong},
+address = {Ithaca},
+copyright = {2021. This work is published under http://creativecommons.org/licenses/by/4.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Speech recognition ;  Systems analysis},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {The USTC-NELSLIP Systems for Simultaneous Speech Translation Task at IWSLT 2021},
+year = {2021},
+}
+
+@article{LiuDan2021TUSf,
+abstract = {This paper describes USTC-NELSLIP's submissions to the IWSLT2021 Simultaneous Speech Translation task. We proposed a novel simultaneous translation model, Cross Attention Augmented Transducer (CAAT), which extends conventional RNN-T to sequence-to-sequence tasks without monotonic constraints, e.g., simultaneous translation. Experiments on speech-to-text (S2T) and text-to-text (T2T) simultaneous translation tasks shows CAAT achieves better quality-latency trade-offs compared to wait-k, one of the previous state-of-the-art approaches. Based on CAAT architecture and data augmentation, we build S2T and T2T simultaneous translation systems in this evaluation campaign. Compared to last year's optimal systems, our S2T simultaneous translation system improves by an average of 11.3 BLEU for all latency regimes, and our T2T simultaneous translation system improves by an average of 4.6 BLEU.},
+author = {Liu, Dan and Du, Mengge and Li, Xiaoxi and Hu, Yuchen and Dai, Lirong},
+copyright = {http://creativecommons.org/licenses/by/4.0},
+keywords = {Computer Science - Computation and Language ;  Computer Science - Sound},
+language = {eng},
+title = {The USTC-NELSLIP Systems for Simultaneous Speech Translation Task at IWSLT 2021},
+year = {2021},
+}
+
+@inproceedings{GuptaAnchit2021Ivei,
+abstract = {This paper proposes a video editor based on OpenShot with several state-of-the-art facial video editing algorithms as added functionalities. Our editor provides an easy-to-use interface to apply modern lip-syncing algorithms interactively. Apart from lip-syncing, the editor also uses audio and facial re-enactment to generate expressive talking faces. The manual control improves the overall experience of video editing without missing out on the benefits of modern synthetic video generation algorithms. This control enables us to lip-sync complex dubbed movie scenes, interviews, television shows, and other visual content. Furthermore, our editor provides features that automatically translate lectures from spoken content, lip-sync of the professor, and background content like slides. While doing so, we also tackle the critical aspect of synchronizing background content with the translated speech. We qualitatively evaluate the usefulness of the proposed editor by conducting human evaluations. Our evaluations show a clear improvement in the efficiency of using human editors and an improved video generation quality.
+We attach demo videos with the supplementary material clearly explaining the tool and also showcasing multiple results.},
+author = {Gupta, Anchit and Khan, Faizan Farooq and Mukhopadhyay, Rudrabha and Namboodiri, Vinay P. and Jawahar, C. V.},
+address = {New York, NY, USA},
+booktitle = {Proceedings of the 19th ACM-IEEE International Conference on Formal Methods and Models for System Design},
+copyright = {2021 ACM},
+isbn = {1450375960},
+keywords = {Speech-to-speech translation ;  Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Software Engineering ;  Computer Science Theory & Methods ;  Computing methodologies -- Artificial intelligence -- Computer vision -- Computer vision problems ;  Human in the loop ;  Imaging Science & Photographic Technology ;  Lip-sync ;  Science & Technology ;  Talking head generation ;  Technology ;  Video editing},
+language = {eng},
+organization = {ACM},
+pages = {1-9},
+publisher = {ACM},
+title = {Intelligent video editing: incorporating modern talking face generation algorithms in a video editor},
+year = {2021},
+}
+
+@inproceedings{PingLv2021MPSI,
+abstract = {This paper analyzes the function of voice translation software on mobile platform based on the existing technology. To improve the quality of translation, a phrase based translation statistical model is proposed and the training process is analyzed in detail. Then the architecture of the oral translation system is designed by using the speech recognition function of Android framework and the strategy of multi translation engine coordination. For the problem of data sparseness, we adopt a modeling method which combines the language model based on words and the language model with parts of speech. The log linear model is used to analyze the semantic of corpus annotation. The parameters obtained from training reflect the structural information of sentences. Finally, the actual test on the mobile client shows that the real-time speech translation system can not only effectively speed up the speed of data check and audit, but also appropriately improve the accuracy of speech recognition and ensure the quality of translation work.},
+author = {Ping, Lv},
+address = {LOS ALAMITOS},
+booktitle = {International Conference on Measuring Technology and Mechatronics Automation (Print)},
+copyright = {Copyright 2021 Elsevier B.V., All rights reserved.},
+isbn = {9781665438926},
+issn = {2157-1473},
+keywords = {Design methodology ;  Analytical models ;  Annotations ;  APP ;  Automation & Control Systems ;  Data models ;  Engineering ;  Engineering Electrical & Electronic ;  Engineering Mechanical ;  Instruments & Instrumentation ;  intelligent recognition ;  JSON ;  log-linear ;  Mechatronics ;  Science & Technology ;  Semantics ;  Sentences ;  Speech recognition ;  Statistical models ;  Technology ;  Training ;  translation ;  Voice recognition},
+language = {eng},
+organization = {IEEE COMP SOC},
+pages = {595-598},
+publisher = {IEEE},
+title = {Mobile Platform Speech Intelligent Recognition and Translation APP},
+year = {2021},
+}
+
+@inproceedings{MaXutai2021SSST,
+abstract = {Transformer-based models have achieved state-of-the-art performance on speech translation tasks. However, the model architecture is not efficient enough for streaming scenarios since self-attention is computed over an entire input sequence and the computational cost grows quadratically with the length of the input sequence. Nevertheless, most of the previous work on simultaneous speech translation, the task of generating translations from partial audio input, ignores the time spent in generating the translation when analyzing the latency. With this assumption, a system may have good latency quality trade-offs but be inapplicable in real-time scenarios. In this paper, we focus on the task of streaming simultaneous speech translation, where the systems are not only capable of translating with partial input but are also able to handle very long or continuous input. We propose an end-to-end transformer-based sequence-to-sequence model, equipped with an augmented memory transformer encoder, which has shown great success on the streaming automatic speech recognition task with hybrid or transducer-based models. We conduct an empirical evaluation of the proposed model on segment, context and memory sizes and we compare our approach to a transformer with a unidirectional mask. 1},
+author = {Ma, Xutai and Wang, Yongqiang and Dousti, Mohammad Javad and Koehn, Philipp and Pino, Juan},
+address = {NEW YORK},
+booktitle = {2021 IEEE INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP 2021)},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+isbn = {9781728176055},
+issn = {1520-6149},
+keywords = {Simultaneous speech translation ;  Acoustics ;  Automatic speech recognition ;  Coders ;  Computational efficiency ;  Computational modeling ;  Computer architecture ;  Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Software Engineering ;  Conferences ;  Empirical analysis ;  End-to-end speech translation ;  Engineering ;  Engineering Electrical & Electronic ;  Imaging Science & Photographic Technology ;  Real-time systems ;  Science & Technology ;  Signal processing ;  Speech ;  Streaming speech translation ;  Task analysis ;  Technology ;  Transformers ;  Translations},
+language = {eng},
+organization = {IEEE},
+pages = {7523-7527},
+publisher = {IEEE},
+title = {Streaming Simultaneous Speech Translation with Augmented Memory Transformer},
+volume = {2021-},
+year = {2021},
+}
+
+@inproceedings{VirkarYogesh2021ItPA,
+abstract = {Automatic dubbing is an extension of speech-to-speech translation such that the resulting target speech is carefully aligned in terms of duration, lip movements, timbre, emotion, prosody, etc. of the speaker in order to achieve audiovisual coherence. Dubbing quality strongly depends on isochrony, i.e., arranging the translation of the original speech to optimally match its sequence of phrases and pauses. To this end, we present improvements to the prosodic alignment component of our recently introduced dubbing architecture. We present empirical results for four dubbing directions - English to French, Italian, German and Spanish - on a publicly available collection of TED Talks. Compared to previous work, our enhanced prosodic alignment model significantly improves prosodic alignment accuracy and provides segmentation perceptibly better or on par with manually annotated reference segmentation.},
+author = {Virkar, Yogesh and Federico, Marcello and Enyedi, Robert and Barra-Chicote, Roberto},
+address = {NEW YORK},
+booktitle = {2021 IEEE INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP 2021)},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+isbn = {9781728176055},
+issn = {1520-6149},
+keywords = {Acoustics ;  Alignment ;  Automatic dubbing ;  Coherence ;  Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Software Engineering ;  Conferences ;  Engineering ;  Engineering Electrical & Electronic ;  Imaging Science & Photographic Technology ;  Linguistics ;  Lips ;  Science & Technology ;  Segmentation ;  Semantics ;  Signal processing ;  Speech ;  Speech translation ;  Technology ;  Text to speech ;  Timbre},
+language = {eng},
+organization = {IEEE},
+pages = {7543-7574},
+publisher = {IEEE},
+title = {Improvements to Prosodic Alignment for Automatic Dubbing},
+volume = {2021-},
+year = {2021},
+}
+
+@inproceedings{LiuDan2021TUSf,
+abstract = {This paper describes USTC-NELSLIP's submissions to the IWSLT2021 Simultaneous Speech Translation task. We proposed a novel simultaneous translation model, Cross Attention Augmented Transducer (CAAT), which extends conventional RNN-T to sequence-to-sequence tasks without monotonic constraints, e.g., simultaneous translation. Experiments on speech-to-text (S2T) and text-to-text (T2T) simultaneous translation tasks shows CAAT achieves better quality-latency trade-offs compared to wait-k, one of the previous state-of-the-art approaches. Based on CAAT architecture and data augmentation, we build S2T and T2T simultaneous translation systems in this evaluation campaign. Compared to last year's optimal systems, our S2T simultaneous translation system improves by an average of 11.3 BLEU for all latency regimes, and our T2T simultaneous translation system improves by an average of 4.6 BLEU.},
+author = {Liu, Dan and Du, Mengge and Li, Xiaoxi and Hu, Yuchen and Dai, Lirong},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {30-38},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {The USTC-NELSLIP Systems for Simultaneous Speech Translation Task at IWSLT 2021},
+year = {2021},
+}
+
+@article{MaXutai2020StSA,
+abstract = {Simultaneous text translation and end-to-end speech translation have recently made great progress but little work has combined these tasks together. We investigate how to adapt simultaneous text translation methods such as wait-k and monotonic multihead attention to end-to-end simultaneous speech translation by introducing a pre-decision module. A detailed analysis is provided on the latency-quality trade-offs of combining fixed and flexible pre-decision with fixed and flexible policies. We also design a novel computation-aware latency metric, adapted from Average Lagging.},
+author = {Ma, Xutai and Pino, Juan and Koehn, Philipp},
+address = {Ithaca},
+copyright = {2020. This work is published under http://arxiv.org/licenses/nonexclusive-distrib/1.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Decision analysis ;  Speech},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {SimulMT to SimulST: Adapting Simultaneous Text Translation to End-to-End Simultaneous Speech Translation},
+year = {2020},
+}
+
+@article{MaXutai2020StSA,
+abstract = {Simultaneous text translation and end-to-end speech translation have recently
+made great progress but little work has combined these tasks together. We
+investigate how to adapt simultaneous text translation methods such as wait-k
+and monotonic multihead attention to end-to-end simultaneous speech translation
+by introducing a pre-decision module. A detailed analysis is provided on the
+latency-quality trade-offs of combining fixed and flexible pre-decision with
+fixed and flexible policies. We also design a novel computation-aware latency
+metric, adapted from Average Lagging.},
+author = {Ma, Xutai and Pino, Juan and Koehn, Philipp},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language},
+language = {eng},
+title = {SimulMT to SimulST: Adapting Simultaneous Text Translation to End-to-End Simultaneous Speech Translation},
+year = {2020},
+}
+
+@article{MaXutai2020SSST,
+abstract = {Transformer-based models have achieved state-of-the-art performance on speech
+translation tasks. However, the model architecture is not efficient enough for
+streaming scenarios since self-attention is computed over an entire input
+sequence and the computational cost grows quadratically with the length of the
+input sequence. Nevertheless, most of the previous work on simultaneous speech
+translation, the task of generating translations from partial audio input,
+ignores the time spent in generating the translation when analyzing the
+latency. With this assumption, a system may have good latency quality
+trade-offs but be inapplicable in real-time scenarios. In this paper, we focus
+on the task of streaming simultaneous speech translation, where the systems are
+not only capable of translating with partial input but are also able to handle
+very long or continuous input. We propose an end-to-end transformer-based
+sequence-to-sequence model, equipped with an augmented memory transformer
+encoder, which has shown great success on the streaming automatic speech
+recognition task with hybrid or transducer-based models. We conduct an
+empirical evaluation of the proposed model on segment, context and memory sizes
+and we compare our approach to a transformer with a unidirectional mask.},
+author = {Ma, Xutai and Wang, Yongqiang and Dousti, Mohammad Javad and Koehn, Philipp and Pino, Juan},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language},
+language = {eng},
+title = {Streaming Simultaneous Speech Translation with Augmented Memory Transformer},
+year = {2020},
+}
+
+@article{MaXutai2020SSST,
+abstract = {Transformer-based models have achieved state-of-the-art performance on speech translation tasks. However, the model architecture is not efficient enough for streaming scenarios since self-attention is computed over an entire input sequence and the computational cost grows quadratically with the length of the input sequence. Nevertheless, most of the previous work on simultaneous speech translation, the task of generating translations from partial audio input, ignores the time spent in generating the translation when analyzing the latency. With this assumption, a system may have good latency quality trade-offs but be inapplicable in real-time scenarios. In this paper, we focus on the task of streaming simultaneous speech translation, where the systems are not only capable of translating with partial input but are also able to handle very long or continuous input. We propose an end-to-end transformer-based sequence-to-sequence model, equipped with an augmented memory transformer encoder, which has shown great success on the streaming automatic speech recognition task with hybrid or transducer-based models. We conduct an empirical evaluation of the proposed model on segment, context and memory sizes and we compare our approach to a transformer with a unidirectional mask.},
+author = {Ma, Xutai and Wang, Yongqiang and Dousti, Mohammad Javad and Koehn, Philipp and Pino, Juan},
+address = {Ithaca},
+copyright = {2020. This work is published under http://arxiv.org/licenses/nonexclusive-distrib/1.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Automatic speech recognition ;  Coders ;  Empirical analysis ;  Transformers ;  Translations},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {Streaming Simultaneous Speech Translation with Augmented Memory Transformer},
+year = {2020},
+}
+
+@inproceedings{MaXutai2020StSA,
+abstract = {Simultaneous text translation and end-to-end speech translation have recently made great progress but little work has combined these tasks together. We investigate how to adapt simultaneous text translation methods such as wait-k and monotonic multihead attention to end-to-end simultaneous speech translation by introducing a pre-decision module. A detailed analysis is provided on the latency-quality trade-offs of combining fixed and flexible predecision with fixed and flexible policies. We also design a novel computation-aware latency metric, adapted from Average Lagging. (1)},
+author = {Ma, Xutai and Pino, Juan and Koehn, Philipp},
+address = {STROUDSBURG},
+booktitle = {1ST CONFERENCE OF THE ASIA-PACIFIC CHAPTER OF THE ASSOCIATION FOR COMPUTATIONAL LINGUISTICS AND THE 10TH INTERNATIONAL JOINT CONFERENCE ON NATURAL LANGUAGE PROCESSING (AACL-IJCNLP 2020)},
+isbn = {9781952148910},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {582-587},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {SimulMT to SimulST: Adapting Simultaneous Text Translation to End-to-End Simultaneous Speech Translation},
+year = {2020},
+}
+
+@inproceedings{BaharParnia2020SaEN,
+abstract = {AppTek and RWTH Aachen University team together to participate in the offline and simultaneous speech translation tracks of IWSLT 2020. For the offline task, we create both cascaded and end-to-end speech translation systems, paying attention to careful data selection and weighting. In the cascaded approach, we combine high-quality hybrid automatic speech recognition (ASR) with the Transformer-based neural machine translation (NMT). Our end-to-end direct speech translation systems benefit from pretraining of adapted encoder and decoder components, as well as synthetic data and fine-tuning and thus are able to compete with cascaded systems in terms of MT quality. For simultaneous translation, we utilize a novel architecture that makes dynamic decisions, learned from parallel data, to determine when to continue feeding on input or generate output words. Experiments with speech and text input show that even at low latency this architecture leads to superior translation results.},
+author = {Bahar, Parnia and Wilken, Patrick and Alkhouli, Tamer and Guta, Andreas and Golik, Pavel and Matusov, Evgeny and Herold, Christian},
+address = {STROUDSBURG},
+booktitle = {17TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2020)},
+isbn = {9781952148071},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Comp Linguist},
+pages = {44-54},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {Start-Before-End and End-to-End: Neural Speech Translation by AppTek and RWTH Aachen University},
+year = {2020},
+}
+
+@article{DongQianqian2019ATMf,
+abstract = {Transcript disfluency detection (TDD) is an important component of the real-time speech translation system, which arouses more and more interests in recent years. This paper presents our study on adapting neural machine translation (NMT) models for TDD. We propose a general training framework for adapting NMT models to TDD task rapidly. In this framework, the main structure of the model is implemented similar to the NMT model. Additionally, several extended modules and training techniques which are independent of the NMT model are proposed to improve the performance, such as the constrained decoding, denoising autoencoder initialization and a TDD-specific training object. With the proposed training framework, we achieve significant improvement. However, it is too slow in decoding to be practical. To build a feasible and production-ready solution for TDD, we propose a fast non-autoregressive TDD model following the non-autoregressive NMT model emerged recently. Even we do not assume the specific architecture of the NMT model, we build our TDD model on the basis of Transformer, which is the state-of-the-art NMT model. We conduct extensive experiments on the publicly available set, Switchboard, and in-house Chinese set. Experimental results show that the proposed model significantly outperforms previous state-ofthe-art models.},
+author = {Dong, Qianqian and Wang, Feng and Yang, Zhen and Chen, Wei and Xu, Shuang and Xu, Bo},
+address = {PALO ALTO},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+isbn = {1577358090},
+issn = {2159-5399},
+journal = {33rd AAAI Conference on Artificial Intelligence, AAAI 2019, 31st Innovative Applications of Artificial Intelligence Conference, IAAI 2019 and the 9th AAAI Symposium on Educational Advances in Artificial Intelligence, EAAI 2019},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Theory & Methods ;  Engineering ;  Engineering Electrical & Electronic ;  Science & Technology ;  Technology},
+language = {eng},
+number = {1},
+organization = {AAAI},
+pages = {6351-6358},
+publisher = {Association for the Advancement of Artificial Intelligence (AAAI)},
+title = {Adapting Translation Models for Transcript Disfluency Detection},
+volume = {33},
+year = {2019},
+}
+
+@inproceedings{SantosaAgung2019TAoS,
+abstract = {With competencies and the results of the engineering of natural language processing technology owned by BPPT since 1987, BPPT develops an English-Bahasa Indonesia speech-to-speech translation system (S2ST). In this paper, we propose an architecture of speech-to-speech translation system for Android-based mobile conversation using separate mobile devices for each language. This architecture applies three leading technologies, namely: WebSocket, REST, and JSON. The system utilizes a two-way communication protocol between two users and a simple voice activation detector that can detect a boundary of user's utterance.},
+author = {Santosa, Agung and Jarin, Asril and Aini, Lyla Ruslana and Gunarso and Puspita, Gita Citra and Uliniansyah, Muhammad Teduh and Nurfadhilah, Elvira and Prafitia, Harnum A. and Gunawan, Made and Latief, Andi Djalal and Riza, Hammam},
+address = {Piscataway},
+booktitle = {2019 22nd Conference of the Oriental COCOSDA International Committee for the Co-ordination and Standardisation of Speech Databases and Assessment Techniques, O-COCOSDA 2019},
+copyright = {Copyright 2020 Elsevier B.V., All rights reserved.},
+isbn = {9781728124490},
+issn = {2472-7695},
+keywords = {Architecture ;  speech-to-speech translation ;  ASR ;  Communications systems ;  Detectors ;  Electronic devices ;  Mobile handsets ;  Natural language processing ;  NLP ;  Oral communication ;  Protocols ;  RESTful Service ;  S2ST ;  Servers ;  Speech ;  System performance ;  Technological innovation ;  Translation ;  TTS ;  Verbal communication ;  Voice activity detection ;  Voice activity detectors ;  Voice communication ;  Voice recognition ;  WebSocket},
+language = {eng},
+pages = {1-6},
+publisher = {IEEE},
+title = {The Architecture of Speech-to-Speech Translator for Mobile Conversation},
+year = {2019},
+}
+
+@article{NguyenThi-Huyen2018UESt,
+abstract = {In this study, an application (app) called ezTranslate was developed to aid English as foreign language (EFL) learning by assigning lessons that adapt to students’ interests, in order to motivate them to engage concurrently in physical activity in a real context. ezTranslate was developed by combining state-of-the-art technologies-automatic speech recognition and a cloud translation service, which permit effortless language translation. ezTranslate also offers user-oriented, self-speaking practice opportunities via its speech shadowing function. This app is designed (1) as an effective support tool for EFL speaking in authentic contexts and (2) to engage students in exercise as they walk in their environment. Results suggest that using ezTranslate in familiar situations significantly promotes student cooperation, as evidenced by their increased listening and speaking. Furthermore, there were significant differences in English speaking performance and homework aptitude in participants when using ezTranslate with or without authentic contexts. Indeed, this study’s findings emphasize the importance of authentic support for EFL speaking; namely, students’ interests. The familiarity and fascination of students with real contexts can motivate them to communicate in English better and more frequently. As for the effect of exercise on EFL learning, statistical analysis revealed that the more steps students take, the more they practice speaking English. These results are very promising. Creating an interactive medium in which students not only acquire knowledge but also move their bodies promotes brain and body activity vital to their overall health. In the near future, we plan to extend activity design, executing authentic drama-play to sustain effective, healthy EFL learning.},
+author = {Nguyen, Thi-Huyen and Hwang, Wu-Yuin and Pham, Xuan-Lam and Ma, Zhao-Heng},
+address = {DOULIU CITY},
+copyright = {Copyright 2022 Elsevier B.V., All rights reserved.},
+issn = {1176-3647},
+journal = {Educational Technology ＆ Society},
+keywords = {Speech to speech translation ;  Authentic learning context ;  Automatic speech recognition ;  Brain ;  College Freshmen ;  Computer Oriented Programs ;  Context ;  Cooperative learning ;  Education & Educational Research ;  Educational research ;  English ;  English (Second Language) ;  English as a second language ;  English as a second language learning ;  Exercise ;  Familiarity ;  Foreign Countries ;  Foreign languages ;  Graduate Students ;  Healthy learning ;  Interactive learning environments ;  Language translation ;  Learner Engagement ;  Learning ;  Machine translation ;  Methods ;  Motivation in education ;  Native Language ;  Oral English ;  Physical Activities ;  Physical fitness ;  Second Language Learning ;  Second languages ;  Shadowing ;  Social Sciences ;  Speaking ;  Special Issue Articles ;  Speech ;  Speech recognition ;  State of the art ;  Statistical analysis ;  Student Interests ;  Student Motivation ;  Students ;  Study and teaching ;  Translation ;  Undergraduate Students ;  Voice recognition ;  Willingness to communicate},
+language = {eng},
+number = {4},
+pages = {129-142},
+publisher = {International Forum of Educational Technology ＆ Society},
+title = {User-Oriented EFL Speaking through Application and Exercise: Instant Speech Translation and Shadowing in Authentic Context},
+volume = {21},
+year = {2018},
+}
+
+@article{cdi_proquest_reports_1918338622,
+abstract = {Madcap co-founder and CEO Trevor Corlett spent the first week at the pop-up, while the other key employees from the company also are spending time throughout the month leading taste and chat sessions, including Co-Founder and Director of Coffee Ryan Knapp; Head Roaster Ron Heathman; Director of Retail Ryan Wojton; Lead Barista Trainer Colin Whitcomb; Quality Control Manager Marie Hucal; and Barista Trainer Jonathan MŐler. Madcap has three locations in Grand Rapids: the original Monroe Center, 98 Monroe Center St. NW; the Madcap Coffee Downtown Market, 435 Ionia Ave. SW; and a recently opened café attached to the roastery, 1041 E. Fulton St. Corlett said there currently are no plans to open a full-time café in Seattle, but he said he is pleased with how well the coffee is going over with denizens of the "coffee capital" of America. ¿Tienes la próxima gran idea? Borrowing a page from the United Nations, meeting attendees will be offered real-time speech translation via headsets provided to non-Spanish speaking audience members. The five ideas selected for the first Cinco por Cinco are quite varied and range from collaborations and physical products to services and education. *We Art Together for a Change is a platform...},
+address = {Grand Rapids},
+copyright = {Copyright Gemini Publications Jun 26, 2017},
+issn = {1045-4055},
+journal = {Grand Rapids Business Journal},
+keywords = {Astronauts ;  Coffee ;  Collaboration ;  Medieval period ;  Moon ;  Product design ;  Social change ;  Startups ;  Students},
+language = {eng},
+number = {26},
+pages = {18-},
+publisher = {Gemini Publications},
+title = {Into the heart of coffee country},
+volume = {35},
+year = {2017},
+}
+
+@inproceedings{QuocTruongDo2017TEST,
+abstract = {Emphasis is an important piece of paralinguistic information that is used to express different intentions, attitudes, or convey emotion. Recent works have tried to translate emphasis by developing additional emphasis estimation and translation components apart from an existing speech-to-speech translation (S2ST) system. Although these approaches can preserve emphasis, they introduce more complexity to the translation pipeline. The emphasis translation component has to wait for the target language sentence and word alignments derived from a machine translation system, resulting in a significant translation delay. In this paper, we proposed an approach that jointly trains and predicts words and emphasis in a unified architecture based on sequence-to-sequence models. The proposed model not only speeds up the translation pipeline but also allows us to perform joint training. Our experiments on the emphasis and word translation tasks showed that we could achieve comparable performance for both tasks compared with previous approaches while eliminating complex dependencies.},
+author = {Quoc Truong Do and Sakti, Sakriani and Nakamura, Satoshi},
+address = {BAIXAS},
+booktitle = {18TH ANNUAL CONFERENCE OF THE INTERNATIONAL SPEECH COMMUNICATION ASSOCIATION (INTERSPEECH 2017), VOLS 1-6},
+isbn = {9781510848764},
+issn = {2308-457X},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Engineering ;  Engineering Electrical & Electronic ;  Science & Technology ;  Technology},
+language = {eng},
+organization = {Int Speech Commun Assoc},
+pages = {2640-2644},
+publisher = {Isca-Int Speech Communication Assoc},
+title = {Toward Expressive Speech Translation: A Unified Sequence-to-Sequence LSTMs Approach for Translating Words and Emphasis: SITUATED INTERACTION},
+year = {2017},
+}
+
+@inproceedings{MrinaliniK.2015HSTS,
+abstract = {Speech-to-speech translation system enables in translation of speech signals in a source language A to target language B. A good speech-to-speech translation (S2ST) system can be characterized by its ability to keep intact the fluency and meaning of the original speech input. An S2ST system to enable translation between Hindi and English is the main idea of the proposed work. A preliminary dataset concentrating on basic travel expressions in both the languages considered is used for this work. In order to develop a successful S2ST system three subsystems are required namely, automatic speech recognition (ASR) system, machine translation (MT) system and text-to-speech synthesis (TTS) system. Hidden Markov models based ASR system is developed for both the languages and their performances are analyzed based on the word error rate (WER). The MT subsystem makes use of the statistical machine translation (SMT) approach for the purpose of translating the text between the two languages involved. The SMT makes use of IBM alignment models and language models to enable proper translation. The performance of MT is analyzed based on translated edit rate (TER) and analysis of the translation table. HMM-based speech synthesis system (HTS) is used to synthesize the translated text. Performance of the synthesizer is analyzed based on mean opinion score (MOS) from a group of listeners.},
+author = {Mrinalini, K. and Vijayalakshmi, P.},
+address = {NEW YORK},
+booktitle = {Proceedings of ... International Conference on Computation of Power, Energy, Information and Communication (Online)},
+isbn = {9781467365246},
+issn = {2472-4033},
+keywords = {Computer Science ;  Computer Science Hardware & Architecture ;  Computer Science Information Systems ;  Engineering ;  Engineering Electrical & Electronic ;  Science & Technology ;  Technology ;  Telecommunications},
+language = {eng},
+organization = {IEEE},
+pages = {250-255},
+publisher = {IEEE},
+title = {Hindi-English Speech-to-Speech Translation System for Travel Expressions},
+year = {2015},
+}
+

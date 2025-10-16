@@ -301,7 +301,7 @@ class ResearchPaper:
         if not self.file_path or not self.file_path.strip():
             raise ValueError("Paper file_path cannot be empty")
         
-        valid_file_types = {"pdf", "docx", "txt", "md"}
+        valid_file_types = {"pdf", "docx", "txt", "md", "bib", "ris"}
         if self.file_type not in valid_file_types:
             raise ValueError(f"Invalid file_type: {self.file_type}. Must be one of: {valid_file_types}")
         

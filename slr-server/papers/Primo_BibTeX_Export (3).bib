@@ -1,0 +1,203 @@
+@inproceedings{VydanaHariKrishna2021JTTM,
+abstract = {End-to-End and cascade (ASR-MT) spoken language translation (SLT) systems are reaching comparable performances, however, a large degradation is observed when translating the ASR hypothesis in comparison to using oracle input text. In this work, degradation in performance is reduced by creating an End-to-End differentiable pipeline between the ASR and MT systems. In this work, we train SLT systems with ASR objective as an auxiliary loss and both the networks are connected through the neural hidden representations. This training has an End-to-End differentiable path with respect to the final objective function and utilizes the ASR objective for better optimization. This architecture has improved the BLEU score from 41.21 to 44.69. Ensembling the proposed architecture with independently trained ASR and MT systems further improved the BLEU score from 44.69 to 46.9. All the experiments are reported on English-Portuguese speech translation task using the How2 corpus. The final BLEU score is on-par with the best speech translation system on How2 dataset without using any additional training data and language model and using fewer parameters.},
+author = {Vydana, Hari Krishna and Karafiat, Martin and Zmolikova, Katerina and Burget, Lukas and Cernocky, Honza},
+address = {NEW YORK},
+booktitle = {2021 IEEE INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP 2021)},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+isbn = {9781728176055},
+issn = {1520-6149},
+keywords = {End-to-End differentiable pipeline ;  Acoustics ;  ASR objective ;  Auxiliary loss ;  Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Software Engineering ;  Coupled de-coding ;  Coupled decoding ;  Data models ;  Degradation ;  Engineering ;  Engineering Electrical & Electronic ;  How2 dataset ;  Imaging Science & Photographic Technology ;  Joint training ;  Language translation ;  Linear programming ;  Optimization ;  Performance degradation ;  Pipelines ;  Science & Technology ;  Signal processing ;  Speech ;  Spoken Language Translation ;  Technology ;  Training ;  Training data ;  Transformers ;  Translating},
+language = {eng},
+organization = {IEEE},
+pages = {7513-7517},
+publisher = {IEEE},
+title = {Jointly Trained Transformers Models for Spoken Language Translation},
+volume = {2021-},
+year = {2021},
+}
+
+@inproceedings{ZhaoChengqi2021TVNS,
+abstract = {This paper describes the systems submitted to IWSLT 2021 by the Volctrans team. We participate in the offline speech translation and text-to-text simultaneous translation tracks. For offline speech translation, our best end-to-end model achieves 7.9 BLEU improvements over the benchmark on the MuST-C test set and is even approaching the results of a strong cascade solution. For text-to-text simultaneous translation, we explore the best practice to optimize the wait-k model. As a result, our final submitted systems exceed the benchmark at around 7 BLEU on the same latency regime. We release our code and model to facilitate both future research works and industrial applications(1).},
+author = {Zhao, Chengqi and Liu, Zhicheng and Tong, Jian and Wang, Tao and Wang, Mingxuan and Ye, Rong and Dong, Qianqian and Cao, Jun and Li, Lei},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {64-74},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {The Volctrans Neural Speech Translation System for IWSLT 2021},
+year = {2021},
+}
+
+@inproceedings{GallegoGerard2021ESTw,
+abstract = {This paper describes the submission to the IWSLT 2021 offline speech translation task by the UPC Machine Translation group. The task consists of building a system capable of translating English audio recordings extracted from TED talks into German text. Submitted systems can be either cascade or end-to-end and use a custom or given segmentation. Our submission is an end-to-end speech translation system, which combines pre-trained models (Wav2Vec 2.0 and mBART) with coupling modules between the encoder and decoder, and uses an efficient fine-tuning technique, which trains only 20% of its total parameters. We show that adding an Adapter to the system and pre-training it, can increase the convergence speed and the final result, with which we achieve a BLEU score of 27.3 on the MuST-C test set. Our final model is an ensemble that obtains 28.22 BLEU score on the same set. Our submission also uses a custom segmentation algorithm that employs pre-trained Wav2Vec 2.0 for identifying periods of untranscribable text and can bring improvements of 2.5 to 3 BLEU score on the IWSLT 2019 test set, as compared to the result with the given segmentation.},
+author = {Gallego, Gerard and Tsiamas, Ioannis and Escolano, Carlos and Fonollosa, Jose A. R. and Costa-jussa, Marta R.},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {110-119},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {End-to-End Speech Translation with Pre-trained Models and Adapters: UPC at IWSLT 2021},
+year = {2021},
+}
+
+@inproceedings{TangYun2021FtFS,
+abstract = {In this paper, we describe our end-to-end multilingual speech translation system submitted to the IWSLT 2021 evaluation campaign on the Multilingual Speech Translation shared task. Our system is built by leveraging transfer learning across modalities, tasks and languages. First, we leverage general-purpose multilingual modules pretrained with large amounts of unlabelled and labelled data. We further enable knowledge transfer from the text task to the speech task by training two tasks jointly. Finally, our multilingual model is finetuned on speech translation task-specific data to achieve the best translation results. Experimental results show our system outperforms the reported systems, including both end-to-end and cascaded based approaches, by a large margin. In some translation directions, our speech translation results evaluated on the public Multilingual TEDx test set are even comparable with the ones from a strong text-to-text translation system, which uses the oracle speech transcripts as input.},
+author = {Tang, Yun and Gong, Hongyu and Li, Xian and Wang, Changhan and Pino, Juan and Schwenk, Holger and Goyal, Naman},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {131-137},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {FST: the FAIR Speech Translation System for the IWSLT21 Multilingual Shared Task},
+year = {2021},
+}
+
+@inproceedings{LiuDanni2021MUMS,
+abstract = {This paper describes Maastricht University's participation in the IWSLT 2021 multilingual speech translation track. The task of this track is to build multilingual speech translation systems in supervised and zero-shot directions. Our primary system is an end-to-end model that performs both speech transcription and translation. We observe that the joint training for the two tasks is complementary especially when the speech translation data is scarce. On the source and target side, we use data augmentation and pseudo-labels respectively to improve the performance of our systems. We also introduce an ensembling technique that consistently improves the quality of transcriptions and translations. The experiments show that the end-to-end system is competitive with its cascaded counterpart especially in zero-shot conditions.},
+author = {Liu, Danni and Niehues, Jan},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {138-143},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {Maastricht University's Multilingual Speech Translation System for IWSLT 2021},
+year = {2021},
+}
+
+@inproceedings{XuChen2021TNES,
+abstract = {This paper describes the submission of the Ni-uTrans end-to-end speech translation system for the IWSLT 2021 offline task, which translates from the English audio to German text directly without intermediate transcription. We use the Transformer-based model architecture and enhance it by Conformer, relative position encoding, and stacked acoustic and textual encoding. To augment the training data, the English transcriptions are translated to German translations. Finally, we employ ensemble decoding to integrate the predictions from several models trained with the different datasets. Combining these techniques, we achieve 33.84 BLEU points on the MuST-C En-De test set, which shows the enormous potential of the end-to-end model.},
+author = {Xu, Chen and Liu, Xiaoqian and Liu, Xiaowen and Wang, Laohu and Huang, Canan and Xiao, Tong and Zhu, Jingbo},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {92-99},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {The NiuTrans End-to-End Speech Translation System for IWSLT 2021 Offline Task},
+year = {2021},
+}
+
+@inproceedings{ZhangLinlin2021ZI2S,
+abstract = {In this paper, we describe Zhejiang University's submission to the IWSLT2021 Multilingual Speech Translation Task. This task focuses on speech translation (ST) research across many non-English source languages. Participants can decide whether to work on constrained systems or unconstrained systems which can use external data. We create both cascaded and end-to-end speech translation constrained systems, using the provided data only. In the cascaded approach, we combine Conformer-based automatic speech recognition (ASR) with the Transformer-based neural machine translation (NMT). Our end-to-end direct speech translation systems use ASR pre-trained encoder and multi-task decoders. The submitted systems are ensembled by different cascaded models.},
+author = {Zhang, Linlin},
+address = {STROUDSBURG},
+booktitle = {IWSLT 2021: THE 18TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION},
+isbn = {9781954085749},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Computat Linguist},
+pages = {144-148},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {ZJU's IWSLT 2021 Speech Translation System},
+year = {2021},
+}
+
+@article{Costa-jussàMartaR2020EGBi,
+abstract = {Proceedings of the LREC 2022 The scientific community is increasingly aware of the necessity to embrace
+pluralism and consistently represent major and minor social groups. Currently,
+there are no standard evaluation techniques for different types of biases.
+Accordingly, there is an urgent need to provide evaluation sets and protocols
+to measure existing biases in our automatic systems. Evaluating the biases
+should be an essential step towards mitigating them in the systems.
+This paper introduces WinoST, a new freely available challenge set for
+evaluating gender bias in speech translation. WinoST is the speech version of
+WinoMT which is a MT challenge set and both follow an evaluation protocol to
+measure gender accuracy. Using a state-of-the-art end-to-end speech translation
+system, we report the gender bias evaluation on four language pairs and we show
+that gender accuracy in speech translation is more than 23% lower than in MT.},
+author = {Costa-jussà, Marta R and Basta, Christine and Gállego, Gerard I},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language},
+language = {eng},
+title = {Evaluating Gender Bias in Speech Translation},
+year = {2020},
+}
+
+@article{VydanaHariKrishna2020JTTm,
+abstract = {Conventional spoken language translation (SLT) systems are pipeline based systems, where we have an Automatic Speech Recognition (ASR) system to convert the modality of source from speech to text and a Machine Translation (MT) systems to translate source text to text in target language. Recent progress in the sequence-sequence architectures have reduced the performance gap between the pipeline based SLT systems (cascaded ASR-MT) and End-to-End approaches. Though End-to-End and cascaded ASR-MT systems are reaching to the comparable levels of performances, we can see a large performance gap using the ASR hypothesis and oracle text w.r.t MT models. This performance gap indicates that the MT systems are prone to large performance degradation due to noisy ASR hypothesis as opposed to oracle text transcript. In this work this degradation in the performance is reduced by creating an end to-end differentiable pipeline between the ASR and MT systems. In this work, we train SLT systems with ASR objective as an auxiliary loss and both the networks are connected through the neural hidden representations. This train ing would have an End-to-End differentiable path w.r.t to the final objective function as well as utilize the ASR objective for better performance of the SLT systems. This architecture has improved from BLEU from 36.8 to 44.5. Due to the Multi-task training the model also generates the ASR hypothesis which are used by a pre-trained MT model. Combining the proposed systems with the MT model has increased the BLEU score by 1. All the experiments are reported on English-Portuguese speech translation task using How2 corpus. The final BLEU score is on-par with the best speech translation system on How2 dataset with no additional training data and language model and much less parameters.},
+author = {Vydana, Hari Krishna and Karafi'at, Martin and Zmolikova, Katerina and Burget, Luk'as and Cernocky, Honza},
+address = {Ithaca},
+copyright = {2020. This work is published under http://arxiv.org/licenses/nonexclusive-distrib/1.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Automatic speech recognition ;  Hypotheses ;  Language translation ;  Machine translation ;  Performance degradation ;  Pipelines ;  Training},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {Jointly Trained Transformers models for Spoken Language Translation},
+year = {2020},
+}
+
+@article{VydanaHariKrishna2020JTTm,
+abstract = {Conventional spoken language translation (SLT) systems are pipeline based
+systems, where we have an Automatic Speech Recognition (ASR) system to convert
+the modality of source from speech to text and a Machine Translation (MT)
+systems to translate source text to text in target language. Recent progress in
+the sequence-sequence architectures have reduced the performance gap between
+the pipeline based SLT systems (cascaded ASR-MT) and End-to-End approaches.
+Though End-to-End and cascaded ASR-MT systems are reaching to the comparable
+levels of performances, we can see a large performance gap using the ASR
+hypothesis and oracle text w.r.t MT models. This performance gap indicates that
+the MT systems are prone to large performance degradation due to noisy ASR
+hypothesis as opposed to oracle text transcript. In this work this degradation
+in the performance is reduced by creating an end to-end differentiable pipeline
+between the ASR and MT systems. In this work, we train SLT systems with ASR
+objective as an auxiliary loss and both the networks are connected through the
+neural hidden representations. This train ing would have an End-to-End
+differentiable path w.r.t to the final objective function as well as utilize
+the ASR objective for better performance of the SLT systems. This architecture
+has improved from BLEU from 36.8 to 44.5. Due to the Multi-task training the
+model also generates the ASR hypothesis which are used by a pre-trained MT
+model. Combining the proposed systems with the MT model has increased the BLEU
+score by 1. All the experiments are reported on English-Portuguese speech
+translation task using How2 corpus. The final BLEU score is on-par with the
+best speech translation system on How2 dataset with no additional training data
+and language model and much less parameters.},
+author = {Vydana, Hari Krishna and Karafi'at, Martin and Zmolikova, Katerina and Burget, Luk'as and Cernocky, Honza},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language ;  Computer Science - Sound},
+language = {eng},
+title = {Jointly Trained Transformers models for Spoken Language Translation},
+year = {2020},
+}
+
+@inproceedings{LakumarapuNikhilKumar2020Eost,
+author = {Lakumarapu, Nikhil Kumar and Lee, Beomseok and Indurthi, Sathish and Han, Houjeung and Zaidi, Mohd Abbas and Kim, Sangha},
+booktitle = {Proceedings of the conference - Association for Computational Linguistics. Meeting},
+copyright = {Copyright 2023 Elsevier B.V., All rights reserved.},
+isbn = {9781952148071},
+issn = {0736-587X},
+language = {eng},
+pages = {73-79},
+title = {End-to-end offline speech translation system for IWSLT 2020 using modality agnostic meta-learning},
+year = {2020},
+}
+
+@inproceedings{LakumarapuNikhilKumar2020EOST,
+abstract = {In this paper, we describe the system submitted to the IWSLT 2020 Offline Speech Translation Task. We adopt the Transformer architecture coupled with the meta-learning approach to build our end-to-end Speech- to-Text Translation (ST) system. Our meta-learning approach tackles the data scarcity of the ST task by leveraging the data available from Automatic Speech Recognition (ASR) and Machine Translation (MT) tasks. The meta-learning approach combined with synthetic data augmentation techniques improves the model performance significantly and achieves BLEU scores of 24.58, 27.51, and 27.61 on IWSLT test 2015, MuST-C test, and Europarl-ST test sets respectively.},
+author = {Lakumarapu, Nikhil Kumar and Lee, Beomseok and Indurthi, Sathish and Han, Houjeung and Zaidi, Mohd Abbas and Kim, Sangha},
+address = {STROUDSBURG},
+booktitle = {17TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2020)},
+isbn = {9781952148071},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Comp Linguist},
+pages = {73-79},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {End-to-End Offline Speech Translation System for IWSLT 2020 using Modality Agnostic Meta-Learning},
+year = {2020},
+}
+

@@ -33,83 +33,52 @@ class DatabaseConnection:
     - Can be tested independently with in-memory databases
     """
 
-    def __init__(self, connection_string: str = "slr_database.db"):
+    def __init__(self, database_path: str = "slr_database.db"):
         """
         Initialize database connection manager.
 
         Args:
-            connection_string: Database connection string or path
-                - SQLite: file path (e.g., 'database/slr.db')
-                - PostgreSQL: connection URL (e.g., 'postgresql://user:pass@host:port/db')
+            database_path: Path to SQLite database file
         """
-        self.connection_string = connection_string
-        self.is_postgresql = connection_string.startswith(('postgresql://', 'postgres://'))
-        
-        if self.is_postgresql:
-            self.database_path = None
-        else:
-            self.database_path = Path(connection_string)
-            # Ensure database directory exists
-            self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        self._connection: Optional[Any] = None
-        
+        self.database_path = Path(database_path)
+        self._connection: Optional[sqlite3.Connection] = None
         self._lock = threading.RLock()
         self.logger = logging.getLogger(__name__)
 
-    def connect(self) -> Any:
+        # Ensure database directory exists
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def connect(self) -> sqlite3.Connection:
         """
         Establish database connection with proper configuration.
 
         Returns:
-            Configured database connection (SQLite or PostgreSQL)
+            Configured SQLite connection
 
         Raises:
-            Exception: If connection fails
+            sqlite3.Error: If connection fails
         """
         with self._lock:
             if self._connection is None:
                 try:
-                    if self.is_postgresql:
-                        self._connection = self._create_postgresql_connection()
-                        self.logger.info("PostgreSQL database connected")
-                    else:
-                        self._connection = sqlite3.connect(
-                            str(self.database_path),
-                            check_same_thread=False,
-                            timeout=30.0,
-                        )
-                        # Configure connection for optimal performance and FTS5 support
-                        self._configure_connection(self._connection)
-                        self.logger.info(f"SQLite database connected: {self.database_path}")
+                    self._connection = sqlite3.connect(
+                        str(self.database_path),
+                        check_same_thread=False,
+                        timeout=30.0,
+                    )
 
-                except Exception as e:
+                    # Configure connection for optimal performance and FTS5 support
+                    self._configure_connection(self._connection)
+
+                    self.logger.info(
+                        f"Database connected: {self.database_path}"
+                    )
+
+                except sqlite3.Error as e:
                     self.logger.error(f"Failed to connect to database: {e}")
                     raise
 
             return self._connection
-
-    def _create_postgresql_connection(self):
-        """Create PostgreSQL connection."""
-        try:
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-        except ImportError:
-            raise ImportError(
-                "psycopg2 is required for PostgreSQL support. "
-                "Install with: pip install psycopg2-binary"
-            )
-        
-        conn = psycopg2.connect(
-            self.connection_string,
-            cursor_factory=RealDictCursor
-        )
-        conn.autocommit = False
-        return conn
-
-    def _is_postgresql(self) -> bool:
-        """Check if connection string is for PostgreSQL."""
-        return self.connection_string.startswith('postgresql://') or self.connection_string.startswith('postgres://')
 
     def _configure_connection(self, conn: sqlite3.Connection) -> None:
         """
@@ -151,7 +120,7 @@ class DatabaseConnection:
                 try:
                     self._connection.close()
                     self.logger.info("Database connection closed")
-                except Exception as e:
+                except sqlite3.Error as e:
                     self.logger.error(
                         f"Error closing database connection: {e}"
                     )
@@ -191,7 +160,7 @@ class DatabaseConnection:
         return self.connect()
 
     @contextmanager
-    def transaction(self) -> Generator[Any, None, None]:
+    def transaction(self) -> Generator[sqlite3.Connection, None, None]:
         """
         Transaction context manager for ACID compliance.
 
@@ -202,7 +171,7 @@ class DatabaseConnection:
             Database connection within transaction context
 
         Raises:
-            Database error: If transaction fails
+            sqlite3.Error: If transaction fails
 
         Example:
             with db.transaction() as conn:
@@ -214,16 +183,9 @@ class DatabaseConnection:
         conn = self.connect()
 
         try:
-            # PostgreSQL and SQLite handle transactions differently
-            if self._is_postgresql():
-                # PostgreSQL: Use cursor for BEGIN
-                with conn.cursor() as cursor:
-                    cursor.execute("BEGIN")
-                self.logger.debug("PostgreSQL transaction started")
-            else:
-                # SQLite: Direct connection execute
-                conn.execute("BEGIN")
-                self.logger.debug("SQLite transaction started")
+            # Begin transaction
+            conn.execute("BEGIN")
+            self.logger.debug("Transaction started")
 
             yield conn
 
@@ -236,7 +198,7 @@ class DatabaseConnection:
             try:
                 conn.rollback()
                 self.logger.debug("Transaction rolled back")
-            except Exception as rollback_error:
+            except sqlite3.Error as rollback_error:
                 self.logger.error(
                     f"Failed to rollback transaction: {rollback_error}"
                 )
@@ -312,80 +274,6 @@ class DatabaseConnection:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with cleanup."""
         self.close()
-
-    def table_exists(self, table_name: str) -> bool:
-        """Check if a table exists in the database."""
-        conn = self.connect()
-        try:
-            if self.is_postgresql:
-                cursor = conn.cursor()
-                cursor.execute("SELECT tablename FROM pg_tables WHERE tablename = %s", (table_name,))
-                result = cursor.fetchone()
-            else:
-                cursor = conn.cursor()
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
-                result = cursor.fetchone()
-            return result is not None
-        except Exception:
-            return False
-
-    def get_schema_version(self) -> int:
-        """Get current schema version."""
-        try:
-            conn = self.connect()
-            if self.is_postgresql:
-                if not self.table_exists('schema_version'):
-                    return 0
-                cursor = conn.cursor()
-                cursor.execute("SELECT MAX(version) FROM schema_version")
-                result = cursor.fetchone()
-                return result[0] if result and result[0] else 0
-            else:
-                cursor = conn.cursor()
-                cursor.execute("PRAGMA user_version")
-                result = cursor.fetchone()
-                return result[0] if result else 0
-        except Exception:
-            return 0
-
-    def update_schema_version(self, version: int) -> None:
-        """Update schema version."""
-        conn = self.connect()
-        if self.is_postgresql:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO schema_version (version) VALUES (%s) ON CONFLICT (version) DO NOTHING",
-                (version,)
-            )
-            conn.commit()
-        else:
-            cursor = conn.cursor()
-            cursor.execute(f"PRAGMA user_version = {version}")
-            conn.commit()
-
-    @staticmethod
-    def from_config() -> 'DatabaseConnection':
-        """Create database connection from environment configuration."""
-        import os
-        
-        # Check for database type configuration
-        db_type = os.environ.get('DATABASE_TYPE', 'sqlite').lower()
-        
-        if db_type == 'postgresql':
-            # PostgreSQL configuration
-            connection_string = os.environ.get(
-                'DATABASE_URL',
-                'postgresql://localhost:5432/slr_database'
-            )
-        else:
-            # SQLite configuration (default)
-            db_path = os.environ.get(
-                'DATABASE_PATH',
-                os.environ.get('SLR_DB_PATH', 'database/slr_database.db')
-            )
-            connection_string = db_path
-        
-        return DatabaseConnection(connection_string)
 
     def __del__(self):
         """Cleanup connection on destruction."""

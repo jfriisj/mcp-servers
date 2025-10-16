@@ -5,6 +5,21 @@
     "research_domain": "Computer Science - Natural Language Processing",
     "description": "Systematic literature review analyzing architectural patterns, design considerations, and performance optimization strategies for real-time speech translation platforms",
     "primary_research_question": "What are the key architectural patterns, design considerations, and performance optimization strategies for implementing effective real-time speech translation platforms?",
+    "refined_research_questions": {
+      "main": "How do different architectural approaches and optimization strategies affect the performance, accuracy, and scalability of real-time speech translation platforms?",
+      "sub_questions": [
+        "RQ1: What architectural patterns (pipeline vs end-to-end) are most effective for real-time speech translation systems?",
+        "RQ2: Which optimization strategies best balance translation quality and processing latency?",
+        "RQ3: What design considerations are critical for multi-language and cross-domain scalability?",
+        "RQ4: How do different platforms handle streaming audio processing and real-time constraints?"
+      ],
+      "search_framework": {
+        "Population": "Real-time speech translation platforms and systems documented in academic literature",
+        "Intervention": "Various architectural approaches (pipeline, end-to-end, hybrid), optimization techniques, design patterns",
+        "Comparison": "Performance metrics comparison across different implementations and approaches",
+        "Outcome": "Translation accuracy, processing latency, system scalability, resource efficiency"
+      }
+    },
     "timeline_weeks": 16,
     "team_lead": "Research Team",
     "status": "initialized"
@@ -70,12 +85,20 @@
     "Week 13-15": "Report writing and analysis",
     "Week 16": "Final review and submission"
   },
+  "search_methodology": {
+    "detailed_strategy": "detailed_search_strategy.md",
+    "inclusion_exclusion": "inclusion_exclusion_criteria.md", 
+    "database_plan": "database_search_plan.md",
+    "documentation_system": "search_documentation_system.md",
+    "search_guide": "search_strategy_guide.md"
+  },
   "deliverables": [
     "Systematic review report following PRISMA guidelines",
-    "Architecture pattern taxonomy for speech translation platforms",
+    "Architecture pattern taxonomy for speech translation platforms", 
     "Performance benchmark comparison across different systems",
     "Best practices guide for real-time translation system design",
     "Future research directions identification"
   ],
-  "created": "2025-10-15T15:07:22.168245"
+  "created": "2025-10-15T15:07:22.168245",
+  "search_strategy_completed": "2025-10-15T16:00:00.000000"
 }

@@ -1,85 +1,61 @@
 services:
   slr-server:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deployment/Dockerfile
     container_name: slr-mcp-server
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_PATH=/app/data/slr_database.db
+      - DATABASE_TYPE=postgresql
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=slr_database
+      - POSTGRES_USER=slr_user
+      - POSTGRES_PASSWORD=slr_password
       - LOG_LEVEL=INFO
       - MCP_PORT=8080
       - MAX_PAPERS_PER_ANALYSIS=100
-      - ENABLE_CACHING=true
     volumes:
-      - slr_data:/app/data
       - slr_logs:/app/logs
-      - ./papers:/app/papers:ro  # Mount papers directory as read-only
+      - ./papers:/app/papers:ro
     networks:
       - slr-network
+    depends_on:
+      - postgres
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "from src.main import SLRMCPServer; print('Production server ready')"]
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # Optional: Redis for caching (uncomment if needed)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: slr-redis
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   networks:
-  #     - slr-network
-  #   restart: unless-stopped
-  #   command: redis-server --appendonly yes
-
-  # Optional: PostgreSQL for production (uncomment if needed)
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: slr-postgres
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_DB: slr_database
-  #     POSTGRES_USER: slr_user
-  #     POSTGRES_PASSWORD: slr_password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   networks:
-  #     - slr-network
-  #   restart: unless-stopped
-
-  # Optional: Nginx reverse proxy (uncomment for production)
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: slr-nginx
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #   networks:
-  #     - slr-network
-  #   depends_on:
-  #     - slr-server
-  #   restart: unless-stopped
+  postgres:
+    image: postgres:15-alpine
+    container_name: slr-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: slr_database
+      POSTGRES_USER: slr_user
+      POSTGRES_PASSWORD: slr_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - slr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slr_user -d slr_database"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  slr_data:
-    driver: local
   slr_logs:
     driver: local
-  # redis_data:
-  #   driver: local
-  # postgres_data:
-  #   driver: local
+  postgres_data:
+    driver: local
 
 networks:
   slr-network:

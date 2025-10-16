@@ -1,0 +1,15 @@
+# PostgreSQL Support for SLR MCP Server
+# Install these additional dependencies for PostgreSQL support
+
+# PostgreSQL adapter
+psycopg2-binary>=2.9.0
+
+# Redis support (optional, for caching and enhanced search)
+redis>=4.5.0
+aioredis>=2.0.0
+
+# Advanced JSON processing for PostgreSQL JSONB
+orjson>=3.8.0
+
+# Connection pooling for PostgreSQL
+asyncpg>=0.27.0  # Alternative async PostgreSQL driver

@@ -47,15 +47,15 @@ class SLRMCPServer:
     - Proper error handling and logging
     """
 
-    def __init__(self, database_path: Optional[str] = None, project_root: Optional[Path] = None):
+    def __init__(self, connection_string: Optional[str] = None, project_root: Optional[Path] = None):
         """
         Initialize SLR MCP Server.
 
         Args:
-            database_path: Optional path to SQLite database file
+            connection_string: Optional database connection string (SQLite path or PostgreSQL URL)
             project_root: Optional path to project root for document storage
         """
-        self.database_path = database_path
+        self.connection_string = connection_string
         self.project_root = project_root or Path.cwd()
         self.container = None
         self.mcp_handler: Optional[SLRMCPHandler] = None
@@ -96,6 +96,30 @@ class SLRMCPServer:
                                 "tags": {"type": "array", "items": {"type": "string"}, "description": "Research tags"}
                             },
                             "required": ["file_path"]
+                        }
+                    ),
+                    types.Tool(
+                        name="upload_bibliography_batch",
+                        description="Upload and parse bibliography file containing multiple papers (BibTeX, RIS)",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "file_path": {"type": "string", "description": "Path to bibliography file (.bib or .ris)"},
+                                "tags": {"type": "array", "items": {"type": "string"}, "description": "Research tags to apply to all papers"},
+                                "auto_extract_metadata": {"type": "boolean", "default": True, "description": "Whether to extract metadata automatically"}
+                            },
+                            "required": ["file_path"]
+                        }
+                    ),
+                    types.Tool(
+                        name="detect_remove_duplicates",
+                        description="Detect and optionally remove duplicate papers from the corpus using title similarity and DOI matching",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "similarity_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0, "default": 0.85, "description": "Title similarity threshold for duplicate detection (0.0-1.0)"},
+                                "dry_run": {"type": "boolean", "default": True, "description": "If true, only detect duplicates without removing them"}
+                            }
                         }
                     ),
                     types.Tool(
@@ -487,7 +511,7 @@ class SLRMCPServer:
         """Initialize application dependencies."""
         try:
             # Initialize application with container
-            self.container = await initialize_application(self.database_path, self.project_root)
+            self.container = await initialize_application(self.connection_string, self.project_root)
 
             # Get MCP handler from container
             self.mcp_handler = self.container.get_mcp_handler()
@@ -555,8 +579,19 @@ class SLRMCPServer:
 
 async def main() -> None:
     """Main entry point for SLR MCP Server."""
-    # Get configuration from environment
-    database_path = os.getenv("DATABASE_PATH") or os.getenv("SLR_DB_PATH")
+    # Import database configuration system
+    try:
+        from .database.config import DatabaseConfig, get_database_path
+    except ImportError:
+        # Fallback for direct execution
+        sys.path.append(str(Path(__file__).parent))
+        from database.config import DatabaseConfig, get_database_path
+    
+    # Log database configuration and get database path
+    database_config = DatabaseConfig.log_configuration()
+    database_path = get_database_path()
+    
+    # Get project root from environment
     project_root_env = os.getenv("PROJECT_ROOT") or os.getenv("SLR_PROJECT_ROOT")
     project_root = Path(project_root_env) if project_root_env else None
 

@@ -1,0 +1,148 @@
+@article{VydanaHariKrishna2020JTTm,
+abstract = {Conventional spoken language translation (SLT) systems are pipeline based systems, where we have an Automatic Speech Recognition (ASR) system to convert the modality of source from speech to text and a Machine Translation (MT) systems to translate source text to text in target language. Recent progress in the sequence-sequence architectures have reduced the performance gap between the pipeline based SLT systems (cascaded ASR-MT) and End-to-End approaches. Though End-to-End and cascaded ASR-MT systems are reaching to the comparable levels of performances, we can see a large performance gap using the ASR hypothesis and oracle text w.r.t MT models. This performance gap indicates that the MT systems are prone to large performance degradation due to noisy ASR hypothesis as opposed to oracle text transcript. In this work this degradation in the performance is reduced by creating an end to-end differentiable pipeline between the ASR and MT systems. In this work, we train SLT systems with ASR objective as an auxiliary loss and both the networks are connected through the neural hidden representations. This train ing would have an End-to-End differentiable path w.r.t to the final objective function as well as utilize the ASR objective for better performance of the SLT systems. This architecture has improved from BLEU from 36.8 to 44.5. Due to the Multi-task training the model also generates the ASR hypothesis which are used by a pre-trained MT model. Combining the proposed systems with the MT model has increased the BLEU score by 1. All the experiments are reported on English-Portuguese speech translation task using How2 corpus. The final BLEU score is on-par with the best speech translation system on How2 dataset with no additional training data and language model and much less parameters.},
+author = {Vydana, Hari Krishna and Karafi'at, Martin and Zmolikova, Katerina and Burget, Luk'as and Cernocky, Honza},
+address = {Ithaca},
+copyright = {2020. This work is published under http://arxiv.org/licenses/nonexclusive-distrib/1.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Performance degradation ;  Automatic speech recognition ;  Hypotheses ;  Language translation ;  Machine translation ;  Pipelines ;  Training},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {Jointly Trained Transformers models for Spoken Language Translation},
+year = {2020},
+}
+
+@article{VydanaHariKrishna2020JTTm,
+abstract = {Conventional spoken language translation (SLT) systems are pipeline based
+systems, where we have an Automatic Speech Recognition (ASR) system to convert
+the modality of source from speech to text and a Machine Translation (MT)
+systems to translate source text to text in target language. Recent progress in
+the sequence-sequence architectures have reduced the performance gap between
+the pipeline based SLT systems (cascaded ASR-MT) and End-to-End approaches.
+Though End-to-End and cascaded ASR-MT systems are reaching to the comparable
+levels of performances, we can see a large performance gap using the ASR
+hypothesis and oracle text w.r.t MT models. This performance gap indicates that
+the MT systems are prone to large performance degradation due to noisy ASR
+hypothesis as opposed to oracle text transcript. In this work this degradation
+in the performance is reduced by creating an end to-end differentiable pipeline
+between the ASR and MT systems. In this work, we train SLT systems with ASR
+objective as an auxiliary loss and both the networks are connected through the
+neural hidden representations. This train ing would have an End-to-End
+differentiable path w.r.t to the final objective function as well as utilize
+the ASR objective for better performance of the SLT systems. This architecture
+has improved from BLEU from 36.8 to 44.5. Due to the Multi-task training the
+model also generates the ASR hypothesis which are used by a pre-trained MT
+model. Combining the proposed systems with the MT model has increased the BLEU
+score by 1. All the experiments are reported on English-Portuguese speech
+translation task using How2 corpus. The final BLEU score is on-par with the
+best speech translation system on How2 dataset with no additional training data
+and language model and much less parameters.},
+author = {Vydana, Hari Krishna and Karafi'at, Martin and Zmolikova, Katerina and Burget, Luk'as and Cernocky, Honza},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language ;  Computer Science - Sound},
+language = {eng},
+title = {Jointly Trained Transformers models for Spoken Language Translation},
+year = {2020},
+}
+
+@inproceedings{BaharParnia2020SaEN,
+abstract = {AppTek and RWTH Aachen University team together to participate in the offline and simultaneous speech translation tracks of IWSLT 2020. For the offline task, we create both cascaded and end-to-end speech translation systems, paying attention to careful data selection and weighting. In the cascaded approach, we combine high-quality hybrid automatic speech recognition (ASR) with the Transformer-based neural machine translation (NMT). Our end-to-end direct speech translation systems benefit from pretraining of adapted encoder and decoder components, as well as synthetic data and fine-tuning and thus are able to compete with cascaded systems in terms of MT quality. For simultaneous translation, we utilize a novel architecture that makes dynamic decisions, learned from parallel data, to determine when to continue feeding on input or generate output words. Experiments with speech and text input show that even at low latency this architecture leads to superior translation results.},
+author = {Bahar, Parnia and Wilken, Patrick and Alkhouli, Tamer and Guta, Andreas and Golik, Pavel and Matusov, Evgeny and Herold, Christian},
+address = {STROUDSBURG},
+booktitle = {17TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2020)},
+isbn = {9781952148071},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Comp Linguist},
+pages = {44-54},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {Start-Before-End and End-to-End: Neural Speech Translation by AppTek and RWTH Aachen University},
+year = {2020},
+}
+
+@inproceedings{LakumarapuNikhilKumar2020EOST,
+abstract = {In this paper, we describe the system submitted to the IWSLT 2020 Offline Speech Translation Task. We adopt the Transformer architecture coupled with the meta-learning approach to build our end-to-end Speech- to-Text Translation (ST) system. Our meta-learning approach tackles the data scarcity of the ST task by leveraging the data available from Automatic Speech Recognition (ASR) and Machine Translation (MT) tasks. The meta-learning approach combined with synthetic data augmentation techniques improves the model performance significantly and achieves BLEU scores of 24.58, 27.51, and 27.61 on IWSLT test 2015, MuST-C test, and Europarl-ST test sets respectively.},
+author = {Lakumarapu, Nikhil Kumar and Lee, Beomseok and Indurthi, Sathish and Han, Houjeung and Zaidi, Mohd Abbas and Kim, Sangha},
+address = {STROUDSBURG},
+booktitle = {17TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2020)},
+isbn = {9781952148071},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Interdisciplinary Applications ;  Linguistics ;  Science & Technology ;  Social Sciences ;  Technology},
+language = {eng},
+organization = {Assoc Comp Linguist},
+pages = {73-79},
+publisher = {Assoc Computational Linguistics-Acl},
+title = {End-to-End Offline Speech Translation System for IWSLT 2020 using Modality Agnostic Meta-Learning},
+year = {2020},
+}
+
+@article{ChengQiao2019BtDB,
+abstract = {In a pipeline speech translation system, automatic speech recognition (ASR) system will transmit errors in recognition to the downstream machine translation (MT) system. A standard machine translation system is usually trained on parallel corpus composed of clean text and will perform poorly on text with recognition noise, a gap well known in speech translation community. In this paper, we propose a training architecture which aims at making a neural machine translation model more robust against speech recognition errors. Our approach addresses the encoder and the decoder simultaneously using adversarial learning and data augmentation, respectively. Experimental results on IWSLT2018 speech translation task show that our approach can bridge the gap between the ASR output and the MT input, outperforms the baseline by up to 2.83 BLEU on noisy ASR output, while maintaining close performance on clean text.},
+author = {Cheng, Qiao and Fang, Meiyuan and Han, Yaqian and Huang, Jin and Duan, Yitao},
+address = {Ithaca},
+copyright = {2019. This work is published under http://arxiv.org/licenses/nonexclusive-distrib/1.0/ (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {2331-8422},
+journal = {arXiv.org},
+keywords = {Automatic speech recognition ;  Coders ;  Machine translation ;  Speech ;  Training ;  Voice recognition},
+language = {eng},
+publisher = {Cornell University Library, arXiv.org},
+title = {Breaking the Data Barrier: Towards Robust Speech Translation via Adversarial Stability Training},
+year = {2019},
+}
+
+@article{ChengQiao2019BtDB,
+abstract = {In a pipeline speech translation system, automatic speech recognition (ASR)
+system will transmit errors in recognition to the downstream machine
+translation (MT) system. A standard machine translation system is usually
+trained on parallel corpus composed of clean text and will perform poorly on
+text with recognition noise, a gap well known in speech translation community.
+In this paper, we propose a training architecture which aims at making a neural
+machine translation model more robust against speech recognition errors. Our
+approach addresses the encoder and the decoder simultaneously using adversarial
+learning and data augmentation, respectively. Experimental results on IWSLT2018
+speech translation task show that our approach can bridge the gap between the
+ASR output and the MT input, outperforms the baseline by up to 2.83 BLEU on
+noisy ASR output, while maintaining close performance on clean text.},
+author = {Cheng, Qiao and Fang, Meiyuan and Han, Yaqian and Huang, Jin and Duan, Yitao},
+copyright = {http://arxiv.org/licenses/nonexclusive-distrib/1.0},
+keywords = {Computer Science - Computation and Language},
+language = {eng},
+title = {Breaking the Data Barrier: Towards Robust Speech Translation via Adversarial Stability Training},
+year = {2019},
+}
+
+@article{DongQianqian2019ATMf,
+abstract = {Transcript disfluency detection (TDD) is an important component of the real-time speech translation system, which arouses more and more interests in recent years. This paper presents our study on adapting neural machine translation (NMT) models for TDD. We propose a general training framework for adapting NMT models to TDD task rapidly. In this framework, the main structure of the model is implemented similar to the NMT model. Additionally, several extended modules and training techniques which are independent of the NMT model are proposed to improve the performance, such as the constrained decoding, denoising autoencoder initialization and a TDD-specific training object. With the proposed training framework, we achieve significant improvement. However, it is too slow in decoding to be practical. To build a feasible and production-ready solution for TDD, we propose a fast non-autoregressive TDD model following the non-autoregressive NMT model emerged recently. Even we do not assume the specific architecture of the NMT model, we build our TDD model on the basis of Transformer, which is the state-of-the-art NMT model. We conduct extensive experiments on the publicly available set, Switchboard, and in-house Chinese set. Experimental results show that the proposed model significantly outperforms previous state-ofthe-art models.},
+author = {Dong, Qianqian and Wang, Feng and Yang, Zhen and Chen, Wei and Xu, Shuang and Xu, Bo},
+address = {PALO ALTO},
+copyright = {Copyright 2025 Elsevier B.V., All rights reserved.},
+isbn = {1577358090},
+issn = {2159-5399},
+journal = {33rd AAAI Conference on Artificial Intelligence, AAAI 2019, 31st Innovative Applications of Artificial Intelligence Conference, IAAI 2019 and the 9th AAAI Symposium on Educational Advances in Artificial Intelligence, EAAI 2019},
+keywords = {Computer Science ;  Computer Science Artificial Intelligence ;  Computer Science Theory & Methods ;  Engineering ;  Engineering Electrical & Electronic ;  Science & Technology ;  Technology},
+language = {eng},
+number = {1},
+organization = {AAAI},
+pages = {6351-6358},
+publisher = {Association for the Advancement of Artificial Intelligence (AAAI)},
+title = {Adapting Translation Models for Transcript Disfluency Detection},
+volume = {33},
+year = {2019},
+}
+
+@article{ZenkelThomas2018OSTf,
+abstract = {In this paper we introduce an open source toolkit for speech translation. While there already exists a wide variety of open source tools for the essential tasks of a speech translation system, our goal is to provide an easy to use recipe for the complete pipeline of translating speech. We provide a Docker container with a ready to use pipeline of the following components: a neural speech recognition system, a sentence segmentation system and an attention-based translation system. We provide recipes for training and evaluating models for the task of translating English lectures and TED talks to German. Additionally, we provide pre-trained models for this task. With this toolkit we hope to facilitate the development of speech translation systems and to encourage researchers to improve the overall performance of speech translation systems.},
+author = {Zenkel, Thomas and Sperber, Matthias and Niehues, Jan and Müller, Markus and Pham, Ngoc-Quan and Stüker, Sebastian and Waibel, Alex},
+address = {Prague},
+copyright = {2018. This work is published under http://creativecommons.org/licenses/by-nc-nd/3.0 (the “License”). Notwithstanding the ProQuest Terms and Conditions, you may use this content in accordance with the terms of the License.},
+issn = {1804-0462},
+journal = {Prague bulletin of mathematical linguistics},
+keywords = {English language ;  German language ;  Open source software ;  Segmentation ;  Speech recognition ;  Text-to-speech ;  Translation},
+language = {eng},
+number = {1},
+pages = {125-135},
+publisher = {Sciendo},
+title = {Open Source Toolkit for Speech to Text Translation},
+volume = {111},
+year = {2018},
+}
+

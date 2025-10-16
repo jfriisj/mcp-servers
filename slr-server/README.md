@@ -5,29 +5,47 @@ A production-ready Model Context Protocol (MCP) server for systematic literature
 ## Features
 
 - **Academic Paper Management**: Upload, parse, and manage research papers (PDF, DOCX, LaTeX, BibTeX)
+- **Multi-Database Support**: SQLite (default) for development, PostgreSQL for large production projects
 - **Quality Assessment**: PRISMA-compliant quality assessment with multiple frameworks
 - **Citation Analysis**: Extract and analyze citation networks and patterns
 - **Research Questions**: PICO/SPIDER framework support for research question validation
 - **Hypothesis Testing**: Statistical hypothesis analysis and evidence synthesis
 - **Full-Text Search**: FTS5-powered semantic search across papers and content
 - **Systematic Reviews**: Complete SLR workflow support with progress tracking
+- **Auto-Schema Management**: Automatic table creation and migrations for both database types
 
 ## Quick Start
 
-1. **Start the Server**:
-   ```bash
-   python start_server.py
-   ```
+### SQLite (Default - Zero Configuration)
+```bash
+python start_server.py
+```
 
-2. **List Available Tools**:
-   ```bash
-   python list_slr_tools.py
-   ```
+### PostgreSQL (Large Projects)
+```bash
+# Install PostgreSQL support
+pip install -r requirements-postgresql.txt
 
-3. **Run Complete Workflow**:
-   ```bash
-   python slr_workflow.py
-   ```
+# Configure environment
+export DATABASE_TYPE=postgresql
+export POSTGRES_HOST=localhost
+export POSTGRES_DB=slr_server
+export POSTGRES_USER=slr_user
+export POSTGRES_PASSWORD=your_password
+
+# Start server (tables created automatically)
+python start_server.py
+```
+
+### List Available Tools
+```bash
+python list_slr_tools.py
+```
+
+### Run Complete Workflow
+```bash
+python slr_workflow.py
+```
 
 ## Production Ready
 
