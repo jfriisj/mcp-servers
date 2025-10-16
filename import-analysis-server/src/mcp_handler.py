@@ -386,9 +386,17 @@ class MCPHandler:
     
     async def _analyze_file_imports(self, args: Dict[str, Any]) -> List[TextContent]:
         """Analyze imports in a single file"""
-        file_path = Path(args["file_path"])
-        if not file_path.is_absolute():
-            file_path = self.project_root / file_path
+        file_path_str = args["file_path"]
+        
+        # Handle different path formats
+        if Path(file_path_str).is_absolute():
+            file_path = Path(file_path_str)
+        else:
+            # Try relative to current working directory first
+            file_path = Path.cwd() / file_path_str
+            if not file_path.exists():
+                # Fall back to project root
+                file_path = self.project_root / file_path_str
         
         if not file_path.exists():
             return [TextContent(type="text", text=f"❌ File not found: {file_path}")]
@@ -406,12 +414,44 @@ class MCPHandler:
     
     async def _analyze_project_imports(self, args: Dict[str, Any]) -> List[TextContent]:
         """Analyze imports across entire project"""
-        project_path = Path(args["project_path"])
-        if not project_path.is_absolute():
-            project_path = self.project_root / project_path
+        project_path_str = args["project_path"]
+        
+        # Handle different path formats
+        if project_path_str == ".":
+            # Use current working directory from the host system
+            project_path = Path.cwd()
+        elif project_path_str.startswith("/workspace/"):
+            # Already mapped to workspace, use as-is
+            project_path = Path(project_path_str)
+        elif Path(project_path_str).is_absolute():
+            # Absolute path (Windows or Unix)
+            project_path = Path(project_path_str)
+        else:
+            # Relative path - try both workspace and project root
+            project_path = self.project_root / project_path_str
+            if not project_path.exists():
+                # Try relative to current working directory
+                alt_path = Path.cwd() / project_path_str
+                if alt_path.exists():
+                    project_path = alt_path
         
         if not project_path.exists():
-            return [TextContent(type="text", text=f"❌ Project path not found: {project_path}")]
+            # Try to find the project in common locations
+            possible_paths = [
+                Path.cwd(),
+                Path.cwd() / "slr-server",
+                Path("/workspace"),
+                Path("/workspace/slr-server"),
+                self.project_root,
+                self.project_root / project_path_str
+            ]
+            
+            for possible_path in possible_paths:
+                if possible_path.exists() and any(possible_path.glob("*.py")):
+                    project_path = possible_path
+                    break
+            else:
+                return [TextContent(type="text", text=f"❌ Project path not found: {project_path}. Tried: {[str(p) for p in possible_paths]}")]
         
         try:
             # Set up analysis options
@@ -430,9 +470,17 @@ class MCPHandler:
     
     async def _check_circular_imports(self, args: Dict[str, Any]) -> List[TextContent]:
         """Check for circular imports"""
-        project_path = Path(args["project_path"])
-        if not project_path.is_absolute():
-            project_path = self.project_root / project_path
+        project_path_str = args["project_path"]
+        
+        # Handle different path formats (same logic as analyze_project_imports)
+        if project_path_str == ".":
+            project_path = Path.cwd()
+        elif Path(project_path_str).is_absolute():
+            project_path = Path(project_path_str)
+        else:
+            project_path = Path.cwd() / project_path_str
+            if not project_path.exists():
+                project_path = self.project_root / project_path_str
         
         try:
             # Find all Python files
@@ -1174,9 +1222,17 @@ class MCPHandler:
     
     async def _get_import_stats(self, args: Dict[str, Any]) -> List[TextContent]:
         """Get import statistics for project"""
-        project_path = Path(args["project_path"])
-        if not project_path.is_absolute():
-            project_path = self.project_root / project_path
+        project_path_str = args["project_path"]
+        
+        # Handle different path formats (same logic as other methods)
+        if project_path_str == ".":
+            project_path = Path.cwd()
+        elif Path(project_path_str).is_absolute():
+            project_path = Path(project_path_str)
+        else:
+            project_path = Path.cwd() / project_path_str
+            if not project_path.exists():
+                project_path = self.project_root / project_path_str
         
         try:
             options = ImportAnalysisOptions()
