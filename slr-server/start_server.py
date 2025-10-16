@@ -52,7 +52,8 @@ async def main():
                 # Default to database directory
                 database_dir = Path(__file__).parent / "database"
                 database_dir.mkdir(exist_ok=True)
-                database_path = str(database_dir / "slr_production.db")
+                # Use development database which has all the test data
+                database_path = str(database_dir / "slr_database.db")
             
             connection_string = database_path
             print(f"📂 Using SQLite database: {database_path}")

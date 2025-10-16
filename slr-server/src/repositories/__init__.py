@@ -16,6 +16,7 @@ Repository classes:
 
 from .base_repository import BaseRepository, RepositoryError, EntityNotFoundError, DuplicateEntityError
 from .paper_repository import PaperRepository
+from .chunk_repository import ChunkRepository
 
 __all__ = [
     # Base classes
@@ -25,5 +26,6 @@ __all__ = [
     "DuplicateEntityError",
     
     # Repository implementations
-    "PaperRepository"
+    "PaperRepository",
+    "ChunkRepository"
 ]

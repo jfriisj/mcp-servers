@@ -10,6 +10,7 @@ from .database.connection import DatabaseConnection
 from .database.adapter import DatabaseFactory, DatabaseAdapter
 from .database.schema import create_tables
 from .repositories.paper_repository import PaperRepository
+from .repositories.chunk_repository import ChunkRepository
 from .repositories.quality_assessment_repository import QualityAssessmentRepository
 from .repositories.research_question_repository import ResearchQuestionRepository
 from .repositories.hypothesis_repository import HypothesisRepository
@@ -42,6 +43,7 @@ class Container:
         
         # Repositories
         self._paper_repository: Optional[PaperRepository] = None
+        self._chunk_repository: Optional[ChunkRepository] = None
         self._quality_repository: Optional[QualityAssessmentRepository] = None
         self._question_repository: Optional[ResearchQuestionRepository] = None
         self._hypothesis_repository: Optional[HypothesisRepository] = None
@@ -77,11 +79,19 @@ class Container:
         return self._db_connection
     
     def get_database_adapter(self) -> DatabaseAdapter:
-        """Get database adapter instance using environment variables directly."""
+        """Get database adapter instance using the configured database path."""
         if self._db_adapter is None:
-            # Always use environment-based configuration - this will automatically
-            # detect PostgreSQL from POSTGRES_HOST env var and use correct Docker IPs
-            self._db_adapter = DatabaseFactory.create_adapter()
+            # Use the configured database path instead of environment variables
+            if self._is_postgresql:
+                # For PostgreSQL, use environment-based configuration
+                self._db_adapter = DatabaseFactory.create_adapter()
+            else:
+                # For SQLite, use the configured database_path
+                config = {
+                    "type": "sqlite",
+                    "path": self.database_path
+                }
+                self._db_adapter = DatabaseFactory.create_adapter(config)
         return self._db_adapter
     
     def get_paper_repository(self) -> PaperRepository:
@@ -89,6 +99,12 @@ class Container:
         if self._paper_repository is None:
             self._paper_repository = PaperRepository(self.get_database_connection())
         return self._paper_repository
+    
+    def get_chunk_repository(self) -> ChunkRepository:
+        """Get chunk repository instance."""
+        if self._chunk_repository is None:
+            self._chunk_repository = ChunkRepository(self.get_database_connection())
+        return self._chunk_repository
     
     def get_quality_repository(self) -> QualityAssessmentRepository:
         """Get quality assessment repository instance."""
@@ -145,7 +161,8 @@ class Container:
         """Get academic chunking service instance."""
         if self._chunking_service is None:
             self._chunking_service = AcademicChunkingService(
-                paper_repository=self.get_paper_repository()
+                paper_repository=self.get_paper_repository(),
+                chunk_repository=self.get_chunk_repository()
             )
         return self._chunking_service
     

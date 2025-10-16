@@ -184,7 +184,8 @@ class SLRMCPHandler:
         self,
         paper_id: int,
         strategy: str = "hybrid",
-        optimization_level: str = "intermediate"
+        optimization_level: str = "intermediate",
+        force: bool = False
     ) -> Dict[str, Any]:
         """Index paper with intelligent chunking."""
         try:
@@ -192,14 +193,21 @@ class SLRMCPHandler:
             strategy_enum = IndexingStrategy(strategy)
             optimization_enum = OptimizationLevel(optimization_level)
             
-            chunks = self.academic_chunking_service.index_paper(
-                paper_id, strategy_enum, optimization_enum
-            )
+            if force:
+                # Use reindex_paper method when force is True
+                chunks = self.academic_chunking_service.reindex_paper(
+                    paper_id, force=True, new_strategy=strategy_enum
+                )
+            else:
+                # Use regular index_paper method
+                chunks = self.academic_chunking_service.index_paper(
+                    paper_id, strategy_enum, optimization_enum
+                )
             
             return self._create_success_response({
                 "paper_id": paper_id,
                 "chunks_created": len(chunks),
-                "average_chunk_size": sum(c.word_count for c in chunks) / len(chunks) if chunks else 0,
+                "average_chunk_size": sum(c.word_count or 0 for c in chunks) / len(chunks) if chunks else 0,
                 "indexing_strategy": strategy,
                 "optimization_level": optimization_level
             })

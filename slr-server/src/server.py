@@ -196,7 +196,7 @@ async def list_tools() -> List[types.Tool]:
                     },
                     "strategy": {
                         "type": "string",
-                        "enum": ["section", "semantic", "hybrid"],
+                        "enum": ["section_based", "semantic", "hybrid", "full_text", "citation_aware"],
                         "default": "hybrid",
                         "description": "Chunking strategy to use"
                     },
@@ -205,6 +205,11 @@ async def list_tools() -> List[types.Tool]:
                         "enum": ["basic", "intermediate", "advanced"],
                         "default": "intermediate",
                         "description": "Optimization level for chunking"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Force reindexing even if paper is already indexed"
                     }
                 },
                 "required": ["paper_id"]
@@ -283,7 +288,8 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.TextCont
             result = handler.index_paper(
                 paper_id=arguments["paper_id"],
                 strategy=arguments.get("strategy", "hybrid"),
-                optimization_level=arguments.get("optimization_level", "intermediate")
+                optimization_level=arguments.get("optimization_level", "intermediate"),
+                force=arguments.get("force", False)
             )
         elif name == "synthesize-evidence":
             result = handler.synthesize_evidence(

@@ -332,6 +332,16 @@ class SLRMCPHandler:
             # Get the academic chunking service
             chunking_service = self.container.get_chunking_service()
             
+            # If force is True, clear existing chunks first
+            if force:
+                chunk_repository = self.container.get_chunk_repository()
+                existing_chunks = chunk_repository.get_by_paper_id(paper_id)
+                if existing_chunks:
+                    for chunk in existing_chunks:
+                        if chunk.id is not None:
+                            chunk_repository.delete(chunk.id)
+                    logger.info(f"Cleared {len(existing_chunks)} existing chunks for paper {paper_id}")
+            
             # Index the paper
             chunks = chunking_service.index_paper(paper_id, strategy)
             
