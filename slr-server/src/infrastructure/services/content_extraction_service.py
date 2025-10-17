@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Optional
 import logging
 
-from domain.services.chunking_service import IContentExtractionService
-from domain.models import ResearchPaper
+from ...domain.services.chunking_service import IContentExtractionService
+from ...domain import ResearchPaper
 
 logger = logging.getLogger(__name__)
 

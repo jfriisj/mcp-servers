@@ -9,3 +9,16 @@ This layer contains:
 
 This layer orchestrates domain objects to fulfill application requirements.
 """
+
+# Application Services
+from .container import IDependencyContainer
+
+# Handlers
+from .handlers.solid_mcp_handler import SOLIDMCPHandler
+
+__all__ = [
+    # Container
+    "IDependencyContainer",
+    # Handlers
+    "SOLIDMCPHandler",
+]

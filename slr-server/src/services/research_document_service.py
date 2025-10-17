@@ -66,6 +66,172 @@ class ResearchDocumentService:
         """
         self.paper_repository = paper_repository
 
+    # ===== Helper Methods for upload_paper (Extracted for SRP) =====
+
+    def _validate_file_path(self, file_path: str) -> Tuple[str, int, int]:
+        """
+        Validate file exists, is accessible, and meets academic standards.
+        
+        Returns:
+            Tuple of (file_extension, file_size, file_hash)
+            
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If file validation fails
+        """
+        # Academic Rule: File must exist and be accessible
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Academic paper file not found: {file_path}")
+
+        if not os.path.isfile(file_path):
+            raise ValueError(f"Path is not a file: {file_path}")
+
+        # Academic Rule: File size appropriate for academic papers
+        file_size = os.path.getsize(file_path)
+        if file_size > self.MAX_FILE_SIZE:
+            raise ValueError(
+                f"Academic paper size {file_size} bytes exceeds maximum of {self.MAX_FILE_SIZE} bytes"
+            )
+
+        # Academic Rule: Must be academic document format
+        file_ext = os.path.splitext(file_path)[1].lower()
+        if file_ext not in self.ACADEMIC_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported academic format '{file_ext}'. Supported: {', '.join(self.ACADEMIC_EXTENSIONS)}"
+            )
+
+        # Academic Rule: No duplicate file paths
+        if self.paper_repository.get_by_file_path(file_path):
+            raise ValueError(f"Research paper already exists for file path: {file_path}")
+
+        return file_ext, file_size, 0  # hash placeholder
+
+    def _extract_and_merge_metadata(
+        self,
+        file_path: str,
+        auto_extract: bool,
+        title: Optional[str],
+        authors: Optional[List[Author]],
+        journal: Optional[Journal],
+        publication_year: Optional[int],
+        doi: Optional[str]
+    ) -> Dict[str, Any]:
+        """
+        Extract metadata from file and merge with provided values.
+        
+        Provided values take precedence over extracted values.
+        
+        Returns:
+            Merged metadata dictionary
+        """
+        # Extract academic metadata if requested
+        extracted_metadata = {}
+        if auto_extract:
+            try:
+                extracted_metadata = self.extract_metadata(file_path)
+            except Exception as e:
+                raise ResearchDocumentError(f"Failed to extract academic metadata: {str(e)}") from e
+
+        # Combine provided and extracted metadata with precedence to provided
+        return {
+            "title": title or extracted_metadata.get("title") or Path(file_path).stem,
+            "authors": authors or extracted_metadata.get("authors", []),
+            "journal": journal or extracted_metadata.get("journal"),
+            "publication_year": publication_year or extracted_metadata.get("publication_year"),
+            "abstract": extracted_metadata.get("abstract", ""),
+            "keywords": extracted_metadata.get("keywords", []),
+            "sample_size": extracted_metadata.get("sample_size"),
+            "total_pages": extracted_metadata.get("total_pages"),
+            "total_words": extracted_metadata.get("total_words"),
+        }
+
+    def _validate_paper_metadata(
+        self,
+        title: str,
+        authors: List[Author],
+        publication_year: Optional[int],
+        abstract: Optional[str],
+        doi: Optional[str]
+    ) -> None:
+        """
+        Validate paper metadata meets academic standards.
+        
+        Raises:
+            ValueError: If validation fails
+        """
+        # Academic Rule: Title must be meaningful
+        if not title.strip():
+            raise ValueError("Research paper title cannot be empty")
+
+        # Academic Rule: Author count within limits
+        if len(authors) > self.MAX_AUTHORS:
+            raise ValueError(f"Author count ({len(authors)}) exceeds maximum of {self.MAX_AUTHORS}")
+
+        # Academic Rule: Publication year validation
+        current_year = datetime.now().year
+        if publication_year and (publication_year < 1900 or publication_year > current_year + 1):
+            raise ValueError(f"Invalid publication year: {publication_year}")
+
+        # Academic Rule: Abstract quality standards
+        if abstract and len(abstract) < self.MIN_ABSTRACT_LENGTH:
+            raise ValueError(
+                f"Abstract too short ({len(abstract)} chars). Minimum: {self.MIN_ABSTRACT_LENGTH}"
+            )
+
+        # Academic Rule: DOI uniqueness if provided
+        if doi and self._is_duplicate_doi(doi):
+            raise ValueError(f"Research paper with DOI '{doi}' already exists")
+
+    def _build_research_paper_entity(
+        self,
+        file_path: str,
+        file_ext: str,
+        file_size: int,
+        metadata: Dict[str, Any],
+        doi: Optional[str],
+        tags: Optional[List[str]]
+    ) -> ResearchPaper:
+        """
+        Build ResearchPaper entity from validated metadata.
+        
+        Returns:
+            Constructed ResearchPaper object
+        """
+        # Classify paper academic characteristics
+        classification = self._classify_paper(
+            metadata["title"],
+            metadata["abstract"],
+            metadata["keywords"]
+        )
+
+        # Create research paper entity
+        return ResearchPaper(
+            title=metadata["title"].strip(),
+            file_path=file_path,
+            file_type=file_ext[1:],
+            authors=metadata["authors"],
+            journal=metadata["journal"],
+            publication_year=metadata["publication_year"],
+            doi=doi,
+            abstract=metadata["abstract"],
+            keywords=metadata["keywords"],
+            methodology=classification.get("methodology"),
+            study_type=classification.get("study_type"),
+            sample_size=metadata.get("sample_size"),
+            citation_count=0,  # Will be updated by citation analysis
+            upload_date=datetime.now(),
+            file_size=file_size,
+            total_pages=metadata.get("total_pages"),
+            total_words=metadata.get("total_words"),
+            tags=tags or [],
+            indexed=False,
+            quality_assessed=False,
+            included_in_review=None,  # To be determined by quality assessment
+            notes=""
+        )
+
+    # ===== Main upload_paper method (Refactored for SRP) =====
+
     def upload_paper(
         self,
         file_path: str,
@@ -114,102 +280,42 @@ class ResearchDocumentService:
         - Author count within reasonable limits
         - Publication year is valid academic year
         """
-        # Academic Rule: File must exist and be accessible
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Academic paper file not found: {file_path}")
+        # 1. Validate file
+        file_ext, file_size, file_path_obj = self._validate_file_path(file_path)
 
-        if not os.path.isfile(file_path):
-            raise ValueError(f"Path is not a file: {file_path}")
-
-        # Academic Rule: File size appropriate for academic papers
-        file_size = os.path.getsize(file_path)
-        if file_size > self.MAX_FILE_SIZE:
-            raise ValueError(
-                f"Academic paper size {file_size} bytes exceeds maximum of {self.MAX_FILE_SIZE} bytes"
-            )
-
-        # Academic Rule: Must be academic document format
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext not in self.ACADEMIC_EXTENSIONS:
-            raise ValueError(
-                f"Unsupported academic format '{file_ext}'. Supported: {', '.join(self.ACADEMIC_EXTENSIONS)}"
-            )
-
-        # Academic Rule: No duplicate file paths
-        if self.paper_repository.get_by_file_path(file_path):
-            raise ValueError(f"Research paper already exists for file path: {file_path}")
-
-        # Academic Rule: DOI uniqueness if provided
-        if doi and self._is_duplicate_doi(doi):
-            raise ValueError(f"Research paper with DOI '{doi}' already exists")
-
-        # Extract academic metadata if requested
-        extracted_metadata = {}
-        if auto_extract_metadata:
-            try:
-                extracted_metadata = self.extract_metadata(file_path)
-            except Exception as e:
-                raise ResearchDocumentError(f"Failed to extract academic metadata: {str(e)}") from e
-
-        # Combine provided and extracted metadata with precedence to provided
-        paper_title = title or extracted_metadata.get("title") or Path(file_path).stem
-        paper_authors = authors or extracted_metadata.get("authors", [])
-        paper_journal = journal or extracted_metadata.get("journal")
-        paper_year = publication_year or extracted_metadata.get("publication_year")
-        paper_abstract = extracted_metadata.get("abstract", "")
-        paper_keywords = extracted_metadata.get("keywords", [])
-        
-        # Academic Rule: Title must be meaningful
-        if not paper_title.strip():
-            raise ValueError("Research paper title cannot be empty")
-
-        # Academic Rule: Author count within limits
-        if len(paper_authors) > self.MAX_AUTHORS:
-            raise ValueError(f"Author count ({len(paper_authors)}) exceeds maximum of {self.MAX_AUTHORS}")
-
-        # Academic Rule: Publication year validation
-        current_year = datetime.now().year
-        if paper_year and (paper_year < 1900 or paper_year > current_year + 1):
-            raise ValueError(f"Invalid publication year: {paper_year}")
-
-        # Academic Rule: Abstract quality standards
-        if paper_abstract and len(paper_abstract) < self.MIN_ABSTRACT_LENGTH:
-            raise ValueError(
-                f"Abstract too short ({len(paper_abstract)} chars). Minimum: {self.MIN_ABSTRACT_LENGTH}"
-            )
-
-        # Classify paper academic characteristics
-        classification = self._classify_paper(paper_title, paper_abstract, paper_keywords)
-
-        # Create research paper entity
-        research_paper = ResearchPaper(
-            title=paper_title.strip(),
+        # 2. Extract and merge metadata
+        metadata = self._extract_and_merge_metadata(
             file_path=file_path,
-            file_type=file_ext[1:],
-            authors=paper_authors,
-            journal=paper_journal,
-            publication_year=paper_year,
-            doi=doi,
-            abstract=paper_abstract,
-            keywords=paper_keywords,
-            methodology=classification.get("methodology"),
-            study_type=classification.get("study_type"),
-            sample_size=extracted_metadata.get("sample_size"),
-            citation_count=0,  # Will be updated by citation analysis
-            upload_date=datetime.now(),
-            file_size=file_size,
-            total_pages=extracted_metadata.get("total_pages"),
-            total_words=extracted_metadata.get("total_words"),
-            tags=tags or [],
-            indexed=False,
-            quality_assessed=False,
-            included_in_review=None,  # To be determined by quality assessment
-            notes=""
+            auto_extract=auto_extract_metadata,
+            title=title,
+            authors=authors,
+            journal=journal,
+            publication_year=publication_year,
+            doi=doi
         )
 
-        # Persist research paper
+        # 3. Validate academic metadata
+        self._validate_paper_metadata(
+            title=metadata["title"],
+            authors=metadata["authors"],
+            publication_year=metadata["publication_year"],
+            abstract=metadata.get("abstract"),
+            doi=doi
+        )
+
+        # 4. Build entity
+        paper = self._build_research_paper_entity(
+            file_path=file_path,
+            file_ext=file_ext,
+            file_size=file_size,
+            metadata=metadata,
+            doi=doi,
+            tags=tags
+        )
+
+        # 5. Persist and analyze
         try:
-            created_paper = self.paper_repository.create(research_paper)
+            created_paper = self.paper_repository.create(paper)
             
             # Perform citation analysis after creation
             if auto_extract_metadata:
@@ -686,79 +792,137 @@ class ResearchDocumentService:
             Dictionary containing comprehensive corpus statistics
         """
         try:
+            # 1. Get all papers
             all_papers = self.paper_repository.list_all()
             
-            stats = {
-                "total_papers": len(all_papers),
-                "review_status": {
-                    "included": sum(1 for p in all_papers if p.included_in_review is True),
-                    "excluded": sum(1 for p in all_papers if p.included_in_review is False),
-                    "pending": sum(1 for p in all_papers if p.included_in_review is None)
-                },
-                "quality_assessed": sum(1 for p in all_papers if p.quality_assessed),
-                "methodologies": {},
-                "study_types": {},
-                "publication_years": {},
-                "journals": {},
-                "authors": {},
-                "citation_statistics": {
-                    "total_citations": sum(p.citation_count for p in all_papers if p.citation_count),
-                    "average_citations": 0,
-                    "max_citations": 0,
-                    "papers_with_citations": 0
-                },
-                "file_types": {},
-                "total_size_mb": sum(p.file_size for p in all_papers if p.file_size) / (1024 * 1024),
-                "indexed_papers": sum(1 for p in all_papers if p.indexed)
-            }
-
-            # Calculate detailed statistics
-            citation_counts = [p.citation_count for p in all_papers if p.citation_count]
-            if citation_counts:
-                stats["citation_statistics"]["average_citations"] = sum(citation_counts) / len(citation_counts)
-                stats["citation_statistics"]["max_citations"] = max(citation_counts)
-                stats["citation_statistics"]["papers_with_citations"] = len(citation_counts)
-
-            # Aggregate by categories
-            for paper in all_papers:
-                # Methodology distribution
-                if paper.methodology:
-                    stats["methodologies"][paper.methodology] = stats["methodologies"].get(paper.methodology, 0) + 1
-
-                # Study type distribution
-                if paper.study_type:
-                    stats["study_types"][paper.study_type] = stats["study_types"].get(paper.study_type, 0) + 1
-
-                # Publication year distribution
-                if paper.publication_year:
-                    year = str(paper.publication_year)
-                    stats["publication_years"][year] = stats["publication_years"].get(year, 0) + 1
-
-                # Journal distribution (top 10)
-                if paper.journal and paper.journal.name:
-                    journal_name = paper.journal.name
-                    stats["journals"][journal_name] = stats["journals"].get(journal_name, 0) + 1
-
-                # File type distribution
-                file_type = paper.file_type or "unknown"
-                stats["file_types"][file_type] = stats["file_types"].get(file_type, 0) + 1
-
-                # Author statistics (unique authors)
-                if paper.authors:
-                    for author in paper.authors:
-                        author_name = author.name
-                        stats["authors"][author_name] = stats["authors"].get(author_name, 0) + 1
-
-            # Limit to top entries for readability
-            stats["journals"] = dict(sorted(stats["journals"].items(), key=lambda x: x[1], reverse=True)[:10])
-            stats["authors"] = dict(sorted(stats["authors"].items(), key=lambda x: x[1], reverse=True)[:20])
-
+            # 2. Calculate basic statistics
+            stats = self._calculate_basic_corpus_statistics(all_papers)
+            
+            # 3. Calculate citation statistics
+            stats["citation_statistics"] = self._calculate_citation_statistics(all_papers)
+            
+            # 4. Aggregate distributions
+            distributions = self._aggregate_paper_distributions(all_papers)
+            stats.update(distributions)
+            
             return stats
 
         except Exception as e:
             raise ResearchDocumentError(f"Failed to get corpus statistics: {str(e)}") from e
 
     # Private helper methods for academic processing
+
+    def _calculate_basic_corpus_statistics(
+        self,
+        papers: List[ResearchPaper]
+    ) -> Dict[str, Any]:
+        """
+        Calculate basic corpus statistics.
+        
+        Returns:
+            Dictionary with counts and review status
+        """
+        return {
+            "total_papers": len(papers),
+            "review_status": {
+                "included": sum(1 for p in papers if p.included_in_review is True),
+                "excluded": sum(1 for p in papers if p.included_in_review is False),
+                "pending": sum(1 for p in papers if p.included_in_review is None)
+            },
+            "quality_assessed": sum(1 for p in papers if p.quality_assessed),
+            "indexed_papers": sum(1 for p in papers if p.indexed),
+            "total_size_mb": sum(p.file_size for p in papers if p.file_size) / (1024 * 1024)
+        }
+
+    def _calculate_citation_statistics(
+        self,
+        papers: List[ResearchPaper]
+    ) -> Dict[str, Any]:
+        """
+        Calculate citation-related statistics.
+        
+        Returns:
+            Dictionary with citation metrics
+        """
+        citation_counts = [p.citation_count for p in papers if p.citation_count]
+        
+        stats = {
+            "total_citations": sum(p.citation_count for p in papers if p.citation_count),
+            "average_citations": 0,
+            "max_citations": 0,
+            "papers_with_citations": 0
+        }
+        
+        if citation_counts:
+            stats["average_citations"] = sum(citation_counts) / len(citation_counts)
+            stats["max_citations"] = max(citation_counts)
+            stats["papers_with_citations"] = len(citation_counts)
+        
+        return stats
+
+    def _aggregate_paper_distributions(
+        self,
+        papers: List[ResearchPaper]
+    ) -> Dict[str, Dict[str, int]]:
+        """
+        Aggregate papers by various categories.
+        
+        Returns:
+            Dictionary with methodology, study type, year, journal, file type, and author distributions
+        """
+        distributions = {
+            "methodologies": {},
+            "study_types": {},
+            "publication_years": {},
+            "journals": {},
+            "file_types": {},
+            "authors": {}
+        }
+        
+        for paper in papers:
+            # Methodology distribution
+            if paper.methodology:
+                distributions["methodologies"][paper.methodology] = \
+                    distributions["methodologies"].get(paper.methodology, 0) + 1
+
+            # Study type distribution
+            if paper.study_type:
+                distributions["study_types"][paper.study_type] = \
+                    distributions["study_types"].get(paper.study_type, 0) + 1
+
+            # Publication year distribution
+            if paper.publication_year:
+                year = str(paper.publication_year)
+                distributions["publication_years"][year] = \
+                    distributions["publication_years"].get(year, 0) + 1
+
+            # Journal distribution
+            if paper.journal and paper.journal.name:
+                journal_name = paper.journal.name
+                distributions["journals"][journal_name] = \
+                    distributions["journals"].get(journal_name, 0) + 1
+
+            # File type distribution
+            file_type = paper.file_type or "unknown"
+            distributions["file_types"][file_type] = \
+                distributions["file_types"].get(file_type, 0) + 1
+
+            # Author statistics
+            if paper.authors:
+                for author in paper.authors:
+                    author_name = author.name
+                    distributions["authors"][author_name] = \
+                        distributions["authors"].get(author_name, 0) + 1
+        
+        # Limit to top entries for readability
+        distributions["journals"] = dict(
+            sorted(distributions["journals"].items(), key=lambda x: x[1], reverse=True)[:10]
+        )
+        distributions["authors"] = dict(
+            sorted(distributions["authors"].items(), key=lambda x: x[1], reverse=True)[:20]
+        )
+        
+        return distributions
 
     def _is_duplicate_doi(self, doi: str) -> bool:
         """Check if DOI already exists in corpus."""
@@ -768,6 +932,132 @@ class ResearchDocumentService:
         except Exception:
             # If query fails, assume no duplicate to avoid blocking uploads
             return False
+
+    def _group_duplicate_papers(
+        self, 
+        papers: List[ResearchPaper], 
+        similarity_threshold: float
+    ) -> List[List[ResearchPaper]]:
+        """
+        Group papers by similarity to identify duplicates.
+        
+        Uses multiple criteria:
+        - Exact DOI match
+        - Title similarity above threshold
+        - Same title + year + first author
+        
+        Returns:
+            List of paper groups where each group contains duplicates
+        """
+        groups = []
+        processed_ids = set()
+        
+        for i, paper1 in enumerate(papers):
+            if paper1.id in processed_ids:
+                continue
+            
+            # Start new group with current paper
+            current_group = [paper1]
+            processed_ids.add(paper1.id)
+            
+            # Find similar papers
+            for paper2 in papers[i+1:]:
+                if paper2.id in processed_ids:
+                    continue
+                
+                # Check duplicate criteria
+                is_duplicate = False
+                
+                # 1. Exact DOI match
+                if (paper1.doi and paper2.doi and 
+                    paper1.doi.strip().lower() == paper2.doi.strip().lower()):
+                    is_duplicate = True
+                
+                # 2. Title similarity
+                elif self._calculate_title_similarity(paper1.title, paper2.title) >= similarity_threshold:
+                    is_duplicate = True
+                
+                # 3. Same title + year + first author
+                elif (paper1.title.strip().lower() == paper2.title.strip().lower() and
+                      paper1.publication_year == paper2.publication_year and
+                      self._same_first_author(paper1, paper2)):
+                    is_duplicate = True
+                
+                if is_duplicate:
+                    current_group.append(paper2)
+                    processed_ids.add(paper2.id)
+            
+            groups.append(current_group)
+        
+        return groups
+
+    def _build_duplicate_report(
+        self,
+        groups: List[List[ResearchPaper]],
+        dry_run: bool
+    ) -> List[Dict[str, Any]]:
+        """
+        Build detailed report of duplicate groups.
+        
+        Returns:
+            List of duplicate details (limited to first 10 groups)
+        """
+        duplicate_details = []
+        
+        for group in groups:
+            if len(group) <= 1:
+                continue
+            
+            kept_paper = group[0]
+            removed_papers = group[1:]
+            
+            detail = {
+                ("would_keep_paper" if dry_run else "kept_paper"): {
+                    "id": kept_paper.id,
+                    "title": kept_paper.title,
+                    "authors": [author.name for author in kept_paper.authors] if kept_paper.authors else []
+                },
+                ("would_remove_papers" if dry_run else "removed_papers"): [
+                    {
+                        "id": paper.id,
+                        "title": paper.title,
+                        "similarity": self._calculate_title_similarity(kept_paper.title, paper.title)
+                    }
+                    for paper in removed_papers
+                ]
+            }
+            duplicate_details.append(detail)
+        
+        return duplicate_details[:10]  # Limit to first 10
+
+    def _remove_duplicate_papers(
+        self,
+        groups: List[List[ResearchPaper]]
+    ) -> int:
+        """
+        Remove duplicate papers, keeping first paper in each group.
+        
+        Returns:
+            Number of papers successfully removed
+        """
+        removed_count = 0
+        
+        for group in groups:
+            if len(group) <= 1:
+                continue
+            
+            # Keep first paper, remove rest
+            papers_to_remove = group[1:]
+            
+            for paper in papers_to_remove:
+                try:
+                    if paper.id is not None:
+                        self.paper_repository.delete(paper.id)
+                        removed_count += 1
+                except Exception as e:
+                    print(f"Warning: Could not remove paper {paper.id}: {e}")
+        
+        return removed_count
 
     def detect_and_remove_duplicates(self, 
                                    similarity_threshold: float = 0.85,
@@ -783,7 +1073,7 @@ class ResearchDocumentService:
             Dictionary with duplicate detection results and actions taken
         """
         try:
-            # Get all papers
+            # 1. Get all papers
             all_papers = self.paper_repository.list_all()
             
             if len(all_papers) < 2:
@@ -795,71 +1085,21 @@ class ResearchDocumentService:
                     "total_papers": len(all_papers)
                 }
             
-            # Group papers by potential duplicates
-            duplicate_groups = self._identify_duplicate_groups(all_papers, similarity_threshold)
+            # 2. Group papers by duplicates
+            duplicate_groups = self._group_duplicate_papers(all_papers, similarity_threshold)
             
-            # Count total duplicates
+            # 3. Count total duplicates
             total_duplicates = sum(len(group) - 1 for group in duplicate_groups if len(group) > 1)
             
+            # 4. Remove duplicates if not dry run
             removed_count = 0
-            duplicate_details = []
-            
             if not dry_run and total_duplicates > 0:
-                # Remove duplicates (keep first paper in each group)
-                for group in duplicate_groups:
-                    if len(group) > 1:
-                        # Keep the first paper (usually the one uploaded first)
-                        papers_to_keep = group[0]
-                        papers_to_remove = group[1:]
-                        
-                        # Remove duplicate papers
-                        for paper in papers_to_remove:
-                            try:
-                                if paper.id is not None:
-                                    self.paper_repository.delete(paper.id)
-                                    removed_count += 1
-                            except Exception as e:
-                                print(f"Warning: Could not remove paper {paper.id}: {e}")
-                        
-                        # Record details
-                        duplicate_details.append({
-                            "kept_paper": {
-                                "id": papers_to_keep.id,
-                                "title": papers_to_keep.title,
-                                "authors": [author.name for author in papers_to_keep.authors] if papers_to_keep.authors else []
-                            },
-                            "removed_papers": [
-                                {
-                                    "id": paper.id,
-                                    "title": paper.title,
-                                    "similarity": self._calculate_title_similarity(papers_to_keep.title, paper.title)
-                                }
-                                for paper in papers_to_remove
-                            ]
-                        })
-            else:
-                # Dry run - just collect information
-                for group in duplicate_groups:
-                    if len(group) > 1:
-                        papers_to_keep = group[0]
-                        papers_to_remove = group[1:]
-                        
-                        duplicate_details.append({
-                            "would_keep_paper": {
-                                "id": papers_to_keep.id,
-                                "title": papers_to_keep.title,
-                                "authors": [author.name for author in papers_to_keep.authors] if papers_to_keep.authors else []
-                            },
-                            "would_remove_papers": [
-                                {
-                                    "id": paper.id,
-                                    "title": paper.title,
-                                    "similarity": self._calculate_title_similarity(papers_to_keep.title, paper.title)
-                                }
-                                for paper in papers_to_remove
-                            ]
-                        })
+                removed_count = self._remove_duplicate_papers(duplicate_groups)
             
+            # 5. Build detailed report
+            duplicate_details = self._build_duplicate_report(duplicate_groups, dry_run)
+            
+            # 6. Return results
             return {
                 "success": True,
                 "dry_run": dry_run,
@@ -869,7 +1109,7 @@ class ResearchDocumentService:
                 "total_papers_after": len(all_papers) - removed_count,
                 "duplicate_groups": len([g for g in duplicate_groups if len(g) > 1]),
                 "similarity_threshold": similarity_threshold,
-                "duplicate_details": duplicate_details[:10],  # Limit to first 10 for readability
+                "duplicate_details": duplicate_details,
                 "message": f"{'Would remove' if dry_run else 'Removed'} {total_duplicates} duplicate papers" if total_duplicates > 0 else "No duplicates found"
             }
             
@@ -880,59 +1120,6 @@ class ResearchDocumentService:
                 "duplicates_found": 0,
                 "papers_removed": 0
             }
-
-    def _identify_duplicate_groups(self, papers: List[ResearchPaper], similarity_threshold: float) -> List[List[ResearchPaper]]:
-        """
-        Group papers by similarity to identify duplicates.
-        
-        Args:
-            papers: List of research papers to analyze
-            similarity_threshold: Minimum similarity score to consider papers duplicates
-            
-        Returns:
-            List of paper groups, where each group contains similar papers
-        """
-        groups = []
-        processed_papers = set()
-        
-        for i, paper1 in enumerate(papers):
-            if paper1.id in processed_papers:
-                continue
-                
-            # Start a new group with this paper
-            current_group = [paper1]
-            processed_papers.add(paper1.id)
-            
-            # Find all similar papers
-            for j, paper2 in enumerate(papers[i+1:], i+1):
-                if paper2.id in processed_papers:
-                    continue
-                
-                # Check multiple similarity criteria
-                is_duplicate = False
-                
-                # 1. Exact DOI match
-                if (paper1.doi and paper2.doi and 
-                    paper1.doi.strip().lower() == paper2.doi.strip().lower()):
-                    is_duplicate = True
-                
-                # 2. Title similarity
-                elif self._calculate_title_similarity(paper1.title, paper2.title) >= similarity_threshold:
-                    is_duplicate = True
-                
-                # 3. Same title + same first author + same year
-                elif (paper1.title.strip().lower() == paper2.title.strip().lower() and
-                      paper1.publication_year == paper2.publication_year and
-                      self._same_first_author(paper1, paper2)):
-                    is_duplicate = True
-                
-                if is_duplicate:
-                    current_group.append(paper2)
-                    processed_papers.add(paper2.id)
-            
-            groups.append(current_group)
-        
-        return groups
 
     def _calculate_title_similarity(self, title1: str, title2: str) -> float:
         """Calculate similarity between two paper titles."""

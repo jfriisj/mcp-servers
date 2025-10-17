@@ -77,7 +77,7 @@ The SLR MCP Server provides AI-powered tools for conducting systematic literatur
 
 ## Installation
 
-### From Source
+### Runtime Installation (Production)
 
 1. Clone the repository:
 ```bash
@@ -85,17 +85,45 @@ git clone https://github.com/slr-team/slr-mcp-server.git
 cd slr-mcp-server
 ```
 
-2. Install the package:
+2. Install runtime dependencies only:
 ```bash
-pip install -e .
+pip install -r requirements.txt
+```
+
+3. Start the server:
+```bash
+python start_server.py
 ```
 
 ### Development Installation
 
-For development work, install with development dependencies:
+For development work with testing and code quality tools:
+
 ```bash
+# Install development dependencies (includes runtime deps)
+pip install -r dev-requirements.txt
+
+# Or install with extras if using setup.py
 pip install -e ".[dev]"
 ```
+
+## Dependencies
+
+### Runtime Dependencies (requirements.txt)
+- **mcp**: Model Context Protocol - REQUIRED
+- **Note**: All other dependencies are commented out as they're not currently used in the codebase
+- Database: Uses Python's built-in `sqlite3` module
+- Future features may require uncommenting additional packages
+
+### Development Dependencies (dev-requirements.txt)
+- **Testing**: pytest, pytest-asyncio, pytest-cov, pytest-mock
+- **Formatting**: black, isort
+- **Linting**: flake8, pylint, ruff, bandit
+- **Type Checking**: mypy
+- **Documentation**: sphinx
+- **Dev Tools**: ipython, ipdb, pre-commit
+
+See [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for details on dependency cleanup.
 
 ## Usage
 

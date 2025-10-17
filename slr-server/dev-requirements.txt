@@ -1,0 +1,40 @@
+# Development Dependencies
+# Install with: pip install -r dev-requirements.txt
+
+# First install runtime dependencies
+-r requirements.txt
+
+# Testing Framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-timeout>=2.1.0
+
+# Code Formatting
+black>=23.0.0
+isort>=5.12.0
+
+# Linting
+flake8>=6.0.0
+pylint>=2.17.0
+ruff>=0.1.0  # Fast modern linter
+
+# Type Checking
+mypy>=1.0.0
+
+# Type Stubs
+types-requests>=2.28.0
+
+# Code Quality
+bandit>=1.7.0  # Security linter
+coverage>=7.0.0
+
+# Documentation
+sphinx>=5.0.0
+sphinx-rtd-theme>=1.2.0
+
+# Development Tools
+ipython>=8.0.0  # Better REPL
+ipdb>=0.13.0    # Debugger
+pre-commit>=3.0.0  # Git hooks

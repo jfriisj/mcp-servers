@@ -1,52 +1,44 @@
-# Core MCP and SLR dependencies
+# Core MCP Server Dependencies
+# Runtime dependencies only - development tools in dev-requirements.txt
+
+# MCP Protocol (REQUIRED)
 mcp>=0.1.0
-pydantic>=1.8
-typing-extensions>=4.0
 
-# Database
-sqlalchemy>=1.4.0
-aiosqlite>=0.17.0
-# PostgreSQL support (optional, for large projects)
-# psycopg2-binary>=2.9.0
+# Future dependencies (currently not used in code, but may be needed):
+# Uncomment when actually implemented in the code
 
-# PDF processing
-PyPDF2>=3.0.0
-pymupdf>=1.23.0
+# Database (if switching from sqlite3)
+# sqlalchemy>=1.4.0
+# aiosqlite>=0.17.0
 
-# Academic analysis
-numpy>=1.20.0
-pandas>=1.3.0
-scipy>=1.7.0
-scikit-learn>=1.0.0
+# PDF Processing (for paper upload features)
+# PyPDF2>=3.0.0
+# pymupdf>=1.23.0  # Also known as 'fitz'
 
-# Text processing
-nltk>=3.7
-spacy>=3.4.0
-textstat>=0.7.0
+# Academic Analysis (for advanced features)
+# numpy>=1.20.0
+# pandas>=1.3.0
+# scipy>=1.7.0
+# scikit-learn>=1.0.0
 
-# Citation analysis
-bibtexparser>=1.4.0
-crossref-commons>=0.0.7
+# Text Processing (for NLP features)
+# nltk>=3.7
+# spacy>=3.4.0
+# textstat>=0.7.0
 
-# Web scraping (for paper metadata)
-requests>=2.25.0
-beautifulsoup4>=4.9.0
+# Citation Analysis (for bibliography parsing)
+# bibtexparser>=1.4.0
+# crossref-commons>=0.0.7
 
-# Statistical analysis
-statsmodels>=0.13.0
+# Web Scraping (for metadata retrieval)
+# requests>=2.25.0
+# beautifulsoup4>=4.9.0
 
-# Async support
-aiofiles>=0.8.0
+# Statistical Analysis (for meta-analysis)
+# statsmodels>=0.13.0
 
-# Logging and monitoring
-structlog>=21.0.0
+# Async Support
+# aiofiles>=0.8.0
 
-# Development dependencies (optional)
-pytest>=6.0
-pytest-asyncio>=0.18.0
-pytest-cov>=3.0
-pytest-mock>=3.6
-black>=21.0
-isort>=5.0
-flake8>=3.9
-mypy>=0.900
+# Structured Logging
+# structlog>=21.0.0

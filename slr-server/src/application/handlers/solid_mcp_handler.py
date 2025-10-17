@@ -7,13 +7,13 @@ An MCP handler that follows SOLID principles with proper dependency injection.
 from typing import Any, Dict, List, Optional, Union
 import logging
 
-from domain.repositories.paper_repository import IPaperRepository
-from domain.repositories.chunk_repository import IChunkRepository  
-from domain.services.document_service import IDocumentService
-from domain.services.bibliography_service import IBibliographyService
-from domain.services.duplicate_detection_service import IDuplicateDetectionService
-from domain.services.chunking_service import IChunkingService, IndexingStrategy, OptimizationLevel
-from application.container import IDependencyContainer
+from ...domain.repositories.paper_repository import IPaperRepository
+from ...domain.repositories.chunk_repository import IChunkRepository  
+from ...domain.services.document_service import IDocumentService
+from ...domain.services.bibliography_service import IBibliographyService
+from ...domain.services.duplicate_detection_service import IDuplicateDetectionService
+from ...domain.services.chunking_service import IChunkingService, IndexingStrategy, OptimizationLevel
+from .. import IDependencyContainer
 
 logger = logging.getLogger(__name__)
 

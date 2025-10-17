@@ -8,8 +8,8 @@ Follows SRP by only handling chunking strategy selection and execution.
 from typing import List
 import logging
 
-from domain.services.chunking_service import IChunkingStrategyService, IndexingStrategy
-from domain.models import ResearchPaper, AcademicChunk
+from ...domain.services.chunking_service import IChunkingStrategyService, IndexingStrategy
+from ...domain import ResearchPaper, AcademicChunk
 
 logger = logging.getLogger(__name__)
 
