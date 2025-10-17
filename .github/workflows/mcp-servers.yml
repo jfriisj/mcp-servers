@@ -263,11 +263,66 @@ jobs:
           echo "📊 Study Buddy Image size:"
           docker images ${{ env.REGISTRY }}/jfriisj/study-buddy-mcp-server:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 
+  # SLR Server
+  build-slr:
+    name: Build SLR MCP Server
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '@slr') || contains(github.event.head_commit.message, '@all')
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/jfriisj/slr-mcp-server
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./slr-server
+          file: ./slr-server/deployment/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test SLR Docker image
+        run: |
+          echo "🧪 Testing SLR MCP server..."
+          docker run --rm ${{ env.REGISTRY }}/jfriisj/slr-mcp-server:latest --help
+          
+      - name: Check image size
+        run: |
+          echo "📊 SLR Image size:"
+          docker images ${{ env.REGISTRY }}/jfriisj/slr-mcp-server:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
   # Build summary
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-solid, build-import-analysis, build-whisper-cpu, build-whisper-gpu, build-study-buddy]
+    needs: [build-solid, build-import-analysis, build-whisper-cpu, build-whisper-gpu, build-study-buddy, build-slr]
     if: always()
     
     steps:
@@ -318,6 +373,14 @@ jobs:
             echo "| Study Buddy MCP | ❌ Failed | - |" >> $GITHUB_STEP_SUMMARY
           fi
           
+          if [ "${{ needs.build-slr.result }}" = "success" ]; then
+            echo "| SLR MCP | ✅ Success | GitHub Container Registry |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-slr.result }}" = "skipped" ]; then
+            echo "| SLR MCP | ⏭️ Skipped | - |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| SLR MCP | ❌ Failed | - |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🎯 Trigger Commands:" >> $GITHUB_STEP_SUMMARY
           echo "- \`@solid\` - Build SOLID MCP Server" >> $GITHUB_STEP_SUMMARY
@@ -325,4 +388,5 @@ jobs:
           echo "- \`@whisper-cpu\` or \`@whisper\` - Build Whisper CPU MCP Server" >> $GITHUB_STEP_SUMMARY
           echo "- \`@whisper-gpu\` - Build Whisper GPU MCP Server (Docker Hub)" >> $GITHUB_STEP_SUMMARY
           echo "- \`@study-buddy\` - Build Study Buddy MCP Server" >> $GITHUB_STEP_SUMMARY
+          echo "- \`@slr\` - Build SLR MCP Server" >> $GITHUB_STEP_SUMMARY
           echo "- \`@all\` - Build all servers except GPU (GitHub size limits)" >> $GITHUB_STEP_SUMMARY
