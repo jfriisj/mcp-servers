@@ -140,6 +140,186 @@ class HypothesisStatus(Enum):
     ARCHIVED = "archived"
 
 
+class ProjectStatus(Enum):
+    """Status of SLR project."""
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
+class ProjectPhase(Enum):
+    """Current phase of SLR project following PRISMA methodology."""
+    PLANNING = "planning"
+    SEARCH = "search"
+    SCREENING = "screening"
+    QUALITY_ASSESSMENT = "quality_assessment"
+    DATA_EXTRACTION = "data_extraction"
+    ANALYSIS = "analysis"
+    REPORTING = "reporting"
+
+
+class ScreeningStatus(Enum):
+    """Screening status for papers within project."""
+    PENDING = "pending"
+    SCREENING = "screening"
+    INCLUDED = "included"
+    EXCLUDED = "excluded"
+
+
+class ScreeningPhase(Enum):
+    """Phase of screening process."""
+    TITLE_ABSTRACT = "title_abstract"
+    FULL_TEXT = "full_text"
+    FINAL_SELECTION = "final_selection"
+
+
+@dataclass
+class SLRProject:
+    """
+    Domain model representing a Systematic Literature Review project.
+    
+    This class manages SLR project metadata, research framework (PICO/SPIDER),
+    and project organization following PRISMA guidelines.
+    
+    Clean Architecture Layer 4: Domain Model
+    """
+    name: str  # Slug format: "software-designs"
+    display_name: str  # Human-readable: "Software Design Patterns"
+    description: str
+    
+    # Identity
+    id: Optional[int] = None
+    
+    # Research framework (PICO/SPIDER)
+    research_questions: List[str] = field(default_factory=list)
+    population: Optional[str] = None  # PICO: Population
+    intervention: Optional[str] = None  # PICO: Intervention
+    comparison: Optional[str] = None  # PICO: Comparison
+    outcome: Optional[str] = None  # PICO: Outcome
+    
+    # File system
+    folder_path: str = ""  # "projects/software-designs"
+    project_file_path: Optional[str] = None  # Path to description file
+    project_file_type: Optional[str] = None  # "pdf" or "markdown"
+    
+    # Timestamps
+    created_date: Optional[datetime] = None
+    updated_date: Optional[datetime] = None
+    
+    # Status tracking
+    current_phase: str = "planning"  # ProjectPhase enum value
+    status: str = "active"  # ProjectStatus enum value
+    
+    # Paper statistics
+    total_papers: int = 0
+    papers_screening: int = 0
+    papers_included: int = 0
+    papers_excluded: int = 0
+    papers_quality_assessed: int = 0
+    
+    # Team management
+    created_by: Optional[str] = None
+    team_members: List[str] = field(default_factory=list)
+    
+    # Settings and metadata
+    settings: Optional[Dict[str, Any]] = None
+    tags: List[str] = field(default_factory=list)
+    notes: str = ""
+    
+    def __post_init__(self):
+        """Validate SLRProject after initialization."""
+        self._validate()
+        
+        # Set timestamps
+        if self.created_date is None:
+            self.created_date = datetime.now(timezone.utc)
+        if self.updated_date is None:
+            self.updated_date = datetime.now(timezone.utc)
+        
+        # Set folder path if not provided
+        if not self.folder_path:
+            self.folder_path = f"projects/{self.name}"
+    
+    def _validate(self) -> None:
+        """Validate SLRProject business rules."""
+        if not self.name or not self.name.strip():
+            raise ValueError("Project name cannot be empty")
+        
+        # Validate slug format (lowercase, hyphens, alphanumeric)
+        import re
+        if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', self.name):
+            raise ValueError(
+                "Project name must be in slug format: lowercase alphanumeric with hyphens "
+                "(e.g., 'software-designs')"
+            )
+        
+        if not self.display_name or not self.display_name.strip():
+            raise ValueError("Display name cannot be empty")
+        
+        if not self.description or not self.description.strip():
+            raise ValueError("Project description cannot be empty")
+        
+        # Validate phase
+        valid_phases = [p.value for p in ProjectPhase]
+        if self.current_phase not in valid_phases:
+            raise ValueError(f"Invalid phase: {self.current_phase}. Must be one of: {valid_phases}")
+        
+        # Validate status
+        valid_statuses = [s.value for s in ProjectStatus]
+        if self.status not in valid_statuses:
+            raise ValueError(f"Invalid status: {self.status}. Must be one of: {valid_statuses}")
+        
+        # Validate statistics
+        if self.total_papers < 0:
+            raise ValueError("Total papers cannot be negative")
+        if self.papers_screening < 0:
+            raise ValueError("Papers screening cannot be negative")
+        if self.papers_included < 0:
+            raise ValueError("Papers included cannot be negative")
+        if self.papers_excluded < 0:
+            raise ValueError("Papers excluded cannot be negative")
+    
+    @property
+    def completion_percentage(self) -> float:
+        """Calculate project completion based on papers processed."""
+        if self.total_papers == 0:
+            return 0.0
+        processed = self.papers_included + self.papers_excluded
+        return (processed / self.total_papers) * 100
+    
+    @property
+    def is_active(self) -> bool:
+        """Check if project is currently active."""
+        return self.status == "active"
+    
+    def update_statistics(
+        self, 
+        action: str, 
+        count: int = 1
+    ) -> None:
+        """
+        Update project statistics based on action.
+        
+        Args:
+            action: Action type (paper_added, paper_included, paper_excluded, etc.)
+            count: Number of papers affected
+        """
+        if action == "paper_added":
+            self.total_papers += count
+            self.papers_screening += count
+        elif action == "paper_included":
+            self.papers_screening -= count
+            self.papers_included += count
+        elif action == "paper_excluded":
+            self.papers_screening -= count
+            self.papers_excluded += count
+        elif action == "paper_quality_assessed":
+            self.papers_quality_assessed += count
+        
+        self.updated_date = datetime.now(timezone.utc)
+
+
 @dataclass
 class Author:
     """
@@ -280,6 +460,16 @@ class ResearchPaper:
     notes: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+    # Project-based organization (Phase 1)
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None  # Denormalized for faster queries
+    relative_file_path: Optional[str] = None  # e.g., "screening/paper1.pdf"
+    screening_status: Optional[str] = None  # "pending", "screening", "included", "excluded"
+    screening_phase: Optional[str] = None  # "title_abstract", "full_text", "final_selection"
+    screening_notes: Optional[str] = None
+    screening_date: Optional[datetime] = None
+    screened_by: Optional[str] = None
 
     def __post_init__(self):
         """Validate ResearchPaper after initialization."""
@@ -1131,21 +1321,14 @@ class SLRPhase(Enum):
     REPORTING = "reporting"
 
 
-
-
-
-class ProjectStatus(Enum):
-
-    """Project status indicators."""
-
+# DEPRECATED: Old ProjectStatus definition - use the one at the top of file
+# Kept for backward compatibility during migration
+class ProjectStatusOld(Enum):
+    """Project status indicators (DEPRECATED - use ProjectStatus instead)."""
     NOT_STARTED = "not_started"
-
     IN_PROGRESS = "in_progress"
-
     ON_HOLD = "on_hold"
-
     COMPLETED = "completed"
-
     ARCHIVED = "archived"
 
 
@@ -1216,14 +1399,13 @@ class ScreeningStage(Enum):
 
 
 
+# DEPRECATED: Old SLRProject for workflow - use the comprehensive SLRProject at top of file
+# This is kept temporarily for backward compatibility with slr_workflow_service
 @dataclass
-
-class SLRProject:
-
+class SLRProjectWorkflow:
     """
-
-    Core SLR project model for workflow management and progress tracking.
-
+    DEPRECATED: Old SLR project model for workflow management.
+    Use the comprehensive SLRProject at the top of the file instead.
     """
 
     title: str
@@ -1241,48 +1423,27 @@ class SLRProject:
     research_question: Optional[str] = None
 
     objectives: List[str] = field(default_factory=list)
-
     current_phase: SLRPhase = SLRPhase.PLANNING
-
-    status: ProjectStatus = ProjectStatus.NOT_STARTED
-
+    status: ProjectStatusOld = ProjectStatusOld.NOT_STARTED  # DEPRECATED: Use new ProjectStatus
     estimated_timeline_weeks: Optional[int] = None
-
     actual_start_date: Optional[datetime] = None
-
     estimated_completion_date: Optional[datetime] = None
-
     tags: List[str] = field(default_factory=list)
-
     metadata: Dict[str, Any] = field(default_factory=dict)
-
     created_at: Optional[datetime] = None
-
     updated_at: Optional[datetime] = None
 
-
-
     def __post_init__(self):
-
         """Initialize project timestamps."""
-
         if self.created_at is None:
-
             self.created_at = datetime.now(timezone.utc)
-
         if self.updated_at is None:
-
-            self.updated_at = datetime.now(timezone.utc)
-
-
+            self.updated_date = datetime.now(timezone.utc)
 
     @property
-
     def is_active(self) -> bool:
-
         """Check if project is actively being worked on."""
-
-        return self.status in {ProjectStatus.IN_PROGRESS}
+        return self.status in {ProjectStatusOld.IN_PROGRESS}  # DEPRECATED
 
 
 

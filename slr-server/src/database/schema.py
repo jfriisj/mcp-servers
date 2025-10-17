@@ -58,6 +58,8 @@ class SchemaManager:
                 cursor = conn.cursor()
 
                 # Create tables in dependency order
+                # Projects must be created before papers (foreign key)
+                self._create_projects_table(cursor)
                 self._create_papers_table(cursor)
                 self._create_authors_table(cursor)
                 self._create_paper_authors_table(cursor)
@@ -84,6 +86,78 @@ class SchemaManager:
         except Exception as e:
             self.logger.error(f"Failed to initialize schema: {e}")
             raise
+
+    def _create_projects_table(self, cursor) -> None:
+        """
+        Create SLR projects table for project-based organization.
+        
+        Args:
+            cursor: Database cursor for executing statements
+        """
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS slr_projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,  -- Slug format: "software-designs"
+                display_name TEXT NOT NULL,  -- Human-readable name
+                description TEXT NOT NULL,
+                
+                -- Research framework (PICO/SPIDER)
+                research_questions TEXT DEFAULT '[]',  -- JSON array
+                population TEXT,
+                intervention TEXT,
+                comparison TEXT,
+                outcome TEXT,
+                
+                -- File system
+                folder_path TEXT NOT NULL,
+                project_file_path TEXT,
+                project_file_type TEXT CHECK (
+                    project_file_type IS NULL OR
+                    project_file_type IN ('pdf', 'markdown')
+                ),
+                
+                -- Status tracking
+                current_phase TEXT DEFAULT 'planning' CHECK (
+                    current_phase IN (
+                        'planning', 'search', 'screening', 
+                        'quality_assessment', 'data_extraction', 
+                        'analysis', 'reporting'
+                    )
+                ),
+                status TEXT DEFAULT 'active' CHECK (
+                    status IN ('active', 'completed', 'paused', 'archived')
+                ),
+                
+                -- Paper statistics
+                total_papers INTEGER DEFAULT 0 CHECK (total_papers >= 0),
+                papers_screening INTEGER DEFAULT 0 CHECK (papers_screening >= 0),
+                papers_included INTEGER DEFAULT 0 CHECK (papers_included >= 0),
+                papers_excluded INTEGER DEFAULT 0 CHECK (papers_excluded >= 0),
+                papers_quality_assessed INTEGER DEFAULT 0 CHECK (papers_quality_assessed >= 0),
+                
+                -- Team management
+                created_by TEXT,
+                team_members TEXT DEFAULT '[]',  -- JSON array
+                
+                -- Settings and metadata
+                settings TEXT DEFAULT '{}',  -- JSON object
+                tags TEXT DEFAULT '[]',  -- JSON array
+                notes TEXT,
+                
+                -- Timestamps
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Constraints
+                CHECK (LENGTH(name) > 0),
+                CHECK (LENGTH(display_name) > 0),
+                CHECK (LENGTH(description) > 0)
+            )
+        """
+        )
+        
+        self.logger.debug("Projects table created")
 
     def _create_papers_table(self, cursor) -> None:
         """
@@ -150,8 +224,25 @@ class SchemaManager:
                 upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Project-based organization (Phase 1)
+                project_id INTEGER,
+                project_name TEXT,
+                relative_file_path TEXT,
+                screening_status TEXT CHECK (
+                    screening_status IS NULL OR
+                    screening_status IN ('pending', 'screening', 'included', 'excluded')
+                ),
+                screening_phase TEXT CHECK (
+                    screening_phase IS NULL OR
+                    screening_phase IN ('title_abstract', 'full_text', 'final_selection')
+                ),
+                screening_notes TEXT,
+                screening_date TIMESTAMP,
+                screened_by TEXT,
 
                 FOREIGN KEY (journal_id) REFERENCES journals(id) ON DELETE SET NULL,
+                FOREIGN KEY (project_id) REFERENCES slr_projects(id) ON DELETE SET NULL,
                 
                 -- Ensure valid DOI format if provided
                 CHECK (doi IS NULL OR LENGTH(doi) >= 10),

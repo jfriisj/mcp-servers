@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Set
 from pathlib import Path
 
-from ..models import ResearchPaper, Author, Journal, Citation
+from ..domain.models import ResearchPaper, Author, Journal, Citation
 from ..repositories.paper_repository import PaperRepository
 
 
@@ -543,7 +543,7 @@ class ResearchDocumentService:
             author_objects = []
             if authors:
                 for author_name in authors:
-                    from ..models import Author
+                    from ..domain.models import Author
                     author_objects.append(Author(name=author_name))
             
             # Call the main upload_paper method
@@ -645,7 +645,7 @@ class ResearchDocumentService:
     
     def _extract_authors_from_text(self, text: str) -> List['Author']:
         """Extract author names from text content."""
-        from ..models import Author
+        from ..domain.models import Author
         authors = []
         
         # Common patterns for author extraction
@@ -1293,7 +1293,7 @@ class ResearchDocumentService:
             if author_match:
                 author_text = author_match.group(1)
                 author_names = [name.strip() for name in author_text.split(' and ')]
-                from ..models import Author
+                from ..domain.models import Author
                 authors = [Author(name=name) for name in author_names if name]
             
             # Extract abstract from first entry
@@ -1331,7 +1331,7 @@ class ResearchDocumentService:
             }
             
             if journal_name:
-                from ..models import Journal
+                from ..domain.models import Journal
                 metadata["journal"] = Journal(name=journal_name)
             
             return metadata
@@ -1353,7 +1353,7 @@ class ResearchDocumentService:
             authors = []
             author_matches = re.findall(r'^AU\s*-\s*(.+?)$', content, re.MULTILINE)
             if author_matches:
-                from ..models import Author
+                from ..domain.models import Author
                 authors = [Author(name=name.strip()) for name in author_matches if name.strip()]
             
             # Extract abstract
@@ -1391,7 +1391,7 @@ class ResearchDocumentService:
             }
             
             if journal_name:
-                from ..models import Journal
+                from ..domain.models import Journal
                 metadata["journal"] = Journal(name=journal_name)
             
             return metadata
@@ -1921,7 +1921,7 @@ class ResearchDocumentService:
                     if author_match:
                         author_text = author_match.group(1)
                         author_names = [name.strip() for name in author_text.split(' and ')]
-                        from ..models import Author
+                        from ..domain.models import Author
                         authors = [Author(name=name) for name in author_names if name]
                     
                     # Extract abstract
@@ -1958,7 +1958,7 @@ class ResearchDocumentService:
                     }
                     
                     if journal_name:
-                        from ..models import Journal
+                        from ..domain.models import Journal
                         metadata["journal"] = Journal(name=journal_name)
                     
                     entries_metadata.append(metadata)
@@ -1996,7 +1996,7 @@ class ResearchDocumentService:
                     authors = []
                     author_matches = re.findall(r'^AU\s*-\s*(.+?)$', entry, re.MULTILINE)
                     if author_matches:
-                        from ..models import Author
+                        from ..domain.models import Author
                         authors = [Author(name=name.strip()) for name in author_matches if name.strip()]
                     
                     # Extract abstract
@@ -2034,7 +2034,7 @@ class ResearchDocumentService:
                     }
                     
                     if journal_name:
-                        from ..models import Journal
+                        from ..domain.models import Journal
                         metadata["journal"] = Journal(name=journal_name)
                     
                     entries_metadata.append(metadata)

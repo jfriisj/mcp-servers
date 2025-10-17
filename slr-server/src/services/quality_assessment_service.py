@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from enum import Enum
 from dataclasses import dataclass
 
-from ..models import ResearchPaper, QualityAssessment, AssessmentFramework, QualityRating
+from ..domain.models import ResearchPaper, QualityAssessment, AssessmentFramework, QualityRating
 from ..repositories.paper_repository import PaperRepository
 
 

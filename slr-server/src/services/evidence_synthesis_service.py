@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 import re
 
-from ..models import ResearchPaper
+from ..domain.models import ResearchPaper
 from ..repositories.paper_repository import PaperRepository
 
 logger = logging.getLogger(__name__)

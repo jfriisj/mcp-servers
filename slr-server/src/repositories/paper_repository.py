@@ -10,7 +10,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..models import ResearchPaper, Author, Journal
+from ..domain.models import ResearchPaper, Author, Journal
 from .base_repository import BaseRepository, DatabaseConnection, RepositoryError, EntityNotFoundError
 
 

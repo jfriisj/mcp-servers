@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import re
 import math
 
-from ..models import ResearchPaper, ResearchHypothesis, EvidenceItem
+from ..domain.models import ResearchPaper, ResearchHypothesis, EvidenceItem
 from ..repositories.paper_repository import PaperRepository
 
 

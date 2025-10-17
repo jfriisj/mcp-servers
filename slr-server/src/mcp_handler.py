@@ -148,7 +148,7 @@ class SLRMCPHandler:
     ) -> Dict[str, Any]:
         """Test research hypothesis with evidence."""
         try:
-            from .models import ResearchHypothesis
+            from .domain.models import ResearchHypothesis
             hypothesis = ResearchHypothesis(
                 hypothesis_text=hypothesis_text,
                 hypothesis_type="primary",

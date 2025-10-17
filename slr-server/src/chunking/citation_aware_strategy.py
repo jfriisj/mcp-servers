@@ -9,7 +9,7 @@ Optimized for citation analysis and reference network building.
 import re
 from typing import List, Tuple, Set
 
-from ..models import AcademicChunk, ResearchPaper
+from ..domain.models import AcademicChunk, ResearchPaper
 from .base_academic_strategy import BaseAcademicStrategy
 
 

@@ -9,7 +9,7 @@ Optimized for systematic literature review processing.
 import re
 from typing import List, Tuple
 
-from ..models import AcademicChunk, ResearchPaper
+from ..domain.models import AcademicChunk, ResearchPaper
 from .base_academic_strategy import BaseAcademicStrategy
 
 

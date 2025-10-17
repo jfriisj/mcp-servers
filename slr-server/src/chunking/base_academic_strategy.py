@@ -9,7 +9,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Set, Tuple
 
-from ..models import AcademicChunk, ResearchPaper
+from ..domain.models import AcademicChunk, ResearchPaper
 
 
 class BaseAcademicStrategy(ABC):

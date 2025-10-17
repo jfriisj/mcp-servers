@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from .base_repository import BaseRepository, EntityNotFoundError
-from ..models import QualityAssessment, AssessmentFramework, AssessmentStatus
+from ..domain.models import QualityAssessment, AssessmentFramework, AssessmentStatus
 from ..database.connection import DatabaseConnection
 
 logger = logging.getLogger(__name__)

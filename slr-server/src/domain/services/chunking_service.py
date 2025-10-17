@@ -7,7 +7,7 @@ Defines contracts for academic chunking operations, broken down following SRP.
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from ..models import ResearchPaper, AcademicChunk
+from ..domain.models import ResearchPaper, AcademicChunk
 
 
 class IndexingStrategy(Enum):

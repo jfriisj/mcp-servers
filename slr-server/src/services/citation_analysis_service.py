@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from collections import defaultdict, Counter
 import math
 
-from ..models import ResearchPaper, AcademicChunk
+from ..domain.models import ResearchPaper, AcademicChunk
 from ..repositories.paper_repository import PaperRepository
 
 logger = logging.getLogger(__name__)

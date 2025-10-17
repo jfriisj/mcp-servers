@@ -19,7 +19,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..models import ResearchPaper
+from ..domain.models import ResearchPaper
 from ..repositories.paper_repository import PaperRepository
 from .citation_analysis_service import CitationAnalysisService
 from .evidence_synthesis_service import EvidenceSynthesisService

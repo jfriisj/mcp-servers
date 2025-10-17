@@ -10,7 +10,7 @@ import re
 from collections import Counter, defaultdict
 from typing import Dict, List, Set, Tuple
 
-from ..models import AcademicChunk, ResearchPaper
+from ..domain.models import AcademicChunk, ResearchPaper
 from .base_academic_strategy import BaseAcademicStrategy
 
 

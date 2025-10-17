@@ -8,7 +8,7 @@ chunking strategy for a given research paper based on content analysis.
 import re
 from typing import List, Optional
 
-from ..models import ResearchPaper
+from ..domain.models import ResearchPaper
 from .academic_section_strategy import AcademicSectionStrategy
 from .base_academic_strategy import BaseAcademicStrategy
 from .citation_aware_strategy import CitationAwareStrategy

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import re
 import logging
 
-from ..models import ResearchPaper, AcademicChunk
+from ..domain.models import ResearchPaper, AcademicChunk
 from ..repositories.paper_repository import PaperRepository
 from ..repositories.chunk_repository import ChunkRepository
 from ..chunking.strategy_factory import AcademicChunkingStrategyFactory

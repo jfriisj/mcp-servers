@@ -6,7 +6,7 @@ Defines the contract for bibliography processing operations.
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
-from ..models import ResearchPaper
+from ..domain.models import ResearchPaper
 
 
 class IBibliographyService(ABC):

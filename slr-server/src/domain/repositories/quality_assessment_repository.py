@@ -6,7 +6,7 @@ Defines the contract for quality assessment data access operations.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from ..models import QualityAssessment
+from ..domain.models import QualityAssessment
 
 
 class IQualityAssessmentRepository(ABC):

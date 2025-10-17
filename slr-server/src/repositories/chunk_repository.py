@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from ..models import AcademicChunk
+from ..domain.models import AcademicChunk
 from .base_repository import BaseRepository, DatabaseConnection
 
 logger = logging.getLogger(__name__)

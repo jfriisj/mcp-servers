@@ -6,7 +6,7 @@ Defines the contract for duplicate paper detection operations.
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Tuple
-from ..models import ResearchPaper
+from ..domain.models import ResearchPaper
 
 
 class IDuplicateDetectionService(ABC):

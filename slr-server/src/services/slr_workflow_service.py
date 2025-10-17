@@ -9,7 +9,7 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 
-from ..models import (
+from ..domain.models import (
     SLRProject, SLRTask, ScreeningRecord, ProjectProgress,
     SLRPhase, ProjectStatus, TaskStatus, TaskPriority,
     ScreeningDecision, ScreeningStage
