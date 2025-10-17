@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from .services import (
     ResearchDocumentService, QualityAssessmentService, 
     ResearchQuestionService, HypothesisAnalysisService,
-    AcademicChunkingService
+    AcademicChunkingService, ProjectService
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,8 @@ class SLRMCPHandler:
         quality_assessment_service: QualityAssessmentService,
         research_question_service: ResearchQuestionService,
         hypothesis_analysis_service: HypothesisAnalysisService,
-        academic_chunking_service: AcademicChunkingService
+        academic_chunking_service: AcademicChunkingService,
+        project_service: ProjectService
     ):
         """Initialize with service dependencies."""
         self.research_document_service = research_document_service
@@ -33,6 +34,7 @@ class SLRMCPHandler:
         self.research_question_service = research_question_service
         self.hypothesis_analysis_service = hypothesis_analysis_service
         self.academic_chunking_service = academic_chunking_service
+        self.project_service = project_service
 
     def _create_success_response(self, data: Any = None, message: str = None) -> Dict[str, Any]:
         """Create standardized success response."""
@@ -291,5 +293,61 @@ class SLRMCPHandler:
                 dry_run=dry_run
             )
             return result
+        except Exception as e:
+            return self._create_error_response(str(e))
+    
+    def create_slr_project(
+        self,
+        project_name: str,
+        description: Optional[str] = None,
+        file_path: Optional[str] = None,
+        research_questions: Optional[List[str]] = None,
+        extract_metadata: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Create a new SLR project with optional file-based initialization.
+        
+        Args:
+            project_name: Unique project name (slug format)
+            description: Optional project description
+            file_path: Optional path to PDF/Markdown file for metadata extraction
+            research_questions: Optional list of research questions
+            extract_metadata: Whether to extract metadata from file (default: True)
+            
+        Returns:
+            Dictionary with project creation results and project metadata
+        """
+        try:
+            if file_path:
+                # Create project from file (PDF or Markdown)
+                project = self.project_service.create_project_from_file(
+                    project_name=project_name,
+                    file_path=file_path,
+                    description=description or "No description provided",
+                    extract_metadata=extract_metadata
+                )
+            else:
+                # Create project manually
+                # Generate display name from project name
+                display_name = project_name.replace("-", " ").replace("_", " ").title()
+                
+                project = self.project_service.create_project_manual(
+                    project_name=project_name,
+                    display_name=display_name,
+                    description=description or "No description provided",
+                    research_questions=research_questions or []
+                )
+            
+            return self._create_success_response({
+                "project_id": project.id,
+                "project_name": project.name,
+                "display_name": project.display_name,
+                "description": project.description,
+                "research_questions": project.research_questions,
+                "status": project.status,
+                "phase": project.current_phase,
+                "created_date": project.created_date.isoformat() if project.created_date else None,
+                "folder_path": project.folder_path
+            }, f"✅ Project '{project.display_name}' created successfully")
         except Exception as e:
             return self._create_error_response(str(e))

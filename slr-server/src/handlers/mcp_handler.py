@@ -875,6 +875,68 @@ class SLRMCPHandler:
                 )],
                 isError=True
             )
+    
+    async def handle_create_slr_project(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle SLR project creation MCP tool call."""
+        try:
+            project_service = self.container.get_project_service()
+            
+            project_name = arguments["project_name"]
+            description = arguments.get("description", "No description provided")
+            file_path = arguments.get("file_path")
+            research_questions = arguments.get("research_questions", [])
+            extract_metadata = arguments.get("extract_metadata", True)
+            
+            if file_path:
+                # Create from file (PDF or Markdown)
+                project = project_service.create_project_from_file(
+                    project_name=project_name,
+                    file_path=file_path,
+                    description=description,
+                    extract_metadata=extract_metadata
+                )
+            else:
+                # Create manually
+                display_name = project_name.replace("-", " ").replace("_", " ").title()
+                project = project_service.create_project_manual(
+                    project_name=project_name,
+                    display_name=display_name,
+                    description=description,
+                    research_questions=research_questions
+                )
+            
+            # Format success response
+            result_text = f"✅ **SLR Project Created Successfully**\n\n"
+            result_text += f"• **Project Name**: {project.name}\n"
+            result_text += f"• **Display Name**: {project.display_name}\n"
+            result_text += f"• **Description**: {project.description}\n"
+            result_text += f"• **Status**: {project.status}\n"
+            result_text += f"• **Phase**: {project.current_phase}\n"
+            result_text += f"• **Folder Path**: {project.folder_path}\n"
+            
+            if project.research_questions:
+                result_text += f"\n**Research Questions** ({len(project.research_questions)}):\n"
+                for i, rq in enumerate(project.research_questions[:5], 1):
+                    result_text += f"{i}. {rq}\n"
+                if len(project.research_questions) > 5:
+                    result_text += f"... and {len(project.research_questions) - 5} more\n"
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=result_text
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error creating SLR project: {e}")
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error creating SLR project: {str(e)}"
+                )],
+                isError=True
+            )
 
     def _convert_call_result_to_dict(self, call_result: CallToolResult) -> dict:
         """Convert CallToolResult to dict format expected by main server."""

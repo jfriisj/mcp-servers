@@ -344,19 +344,17 @@ class SLRMCPServer:
                     # SLR Workflow Guidance Tools
                     types.Tool(
                         name="create_slr_project",
-                        description="Initialize new SLR project with structured phases and guidance",
+                        description="Initialize new SLR project from description file (PDF/Markdown) or manually",
                         inputSchema={
                             "type": "object",
                             "properties": {
-                                "title": {"type": "string", "description": "Project title"},
-                                "research_domain": {"type": "string", "description": "Research domain/field"},
-                                "description": {"type": "string", "description": "Project description"},
-                                "team_lead": {"type": "string", "description": "Team leader name"},
-                                "team_members": {"type": "array", "items": {"type": "string"}, "description": "Team member names"},
-                                "research_question": {"type": "string", "description": "Initial research question"},
-                                "estimated_timeline_weeks": {"type": "integer", "description": "Estimated project duration in weeks"}
+                                "project_name": {"type": "string", "description": "Project name in slug format (e.g., 'software-designs')"},
+                                "description": {"type": "string", "description": "Project description (optional)"},
+                                "file_path": {"type": "string", "description": "Path to PDF or Markdown file for metadata extraction (optional)"},
+                                "research_questions": {"type": "array", "items": {"type": "string"}, "description": "List of research questions (optional)"},
+                                "extract_metadata": {"type": "boolean", "default": True, "description": "Whether to extract metadata from file (default: True)"}
                             },
-                            "required": ["title", "research_domain"]
+                            "required": ["project_name"]
                         }
                     ),
                     types.Tool(

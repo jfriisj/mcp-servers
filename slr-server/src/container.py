@@ -14,6 +14,7 @@ from .repositories.chunk_repository import ChunkRepository
 from .repositories.quality_assessment_repository import QualityAssessmentRepository
 from .repositories.research_question_repository import ResearchQuestionRepository
 from .repositories.hypothesis_repository import HypothesisRepository
+from .repositories.project_repository import ProjectRepository
 from .services.research_document_service import ResearchDocumentService
 from .services.quality_assessment_service import QualityAssessmentService
 from .services.research_question_service import ResearchQuestionService
@@ -23,6 +24,7 @@ from .services.citation_analysis_service import CitationAnalysisService
 from .services.evidence_synthesis_service import EvidenceSynthesisService
 from .services.slr_report_generation_service import SLRReportGenerator
 from .services.slr_workflow_service import SLRWorkflowService
+from .services.project_service import ProjectService
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +49,7 @@ class Container:
         self._quality_repository: Optional[QualityAssessmentRepository] = None
         self._question_repository: Optional[ResearchQuestionRepository] = None
         self._hypothesis_repository: Optional[HypothesisRepository] = None
+        self._project_repository: Optional[ProjectRepository] = None
         
         # Services
         self._document_service: Optional[ResearchDocumentService] = None
@@ -58,6 +61,7 @@ class Container:
         self._evidence_service: Optional[EvidenceSynthesisService] = None
         self._report_generator: Optional[SLRReportGenerator] = None
         self._slr_workflow_service: Optional[SLRWorkflowService] = None
+        self._project_service: Optional[ProjectService] = None
         
         # Handlers
         self._mcp_handler: Optional['SLRMCPHandler'] = None
@@ -124,6 +128,12 @@ class Container:
             self._hypothesis_repository = HypothesisRepository(self.get_database_connection())
         return self._hypothesis_repository
     
+    def get_project_repository(self) -> ProjectRepository:
+        """Get project repository instance."""
+        if self._project_repository is None:
+            self._project_repository = ProjectRepository(self.get_database_connection())
+        return self._project_repository
+    
     def get_document_service(self) -> ResearchDocumentService:
         """Get research document service instance."""
         if self._document_service is None:
@@ -156,6 +166,14 @@ class Container:
                 paper_repository=self.get_paper_repository()
             )
         return self._hypothesis_service
+    
+    def get_project_service(self) -> ProjectService:
+        """Get project service instance."""
+        if self._project_service is None:
+            self._project_service = ProjectService(
+                project_repository=self.get_project_repository()
+            )
+        return self._project_service
     
     def get_chunking_service(self) -> AcademicChunkingService:
         """Get academic chunking service instance."""

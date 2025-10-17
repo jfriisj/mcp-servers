@@ -12,6 +12,7 @@ Service classes in this layer:
 - ResearchQuestionService: Validates and manages research questions
 - HypothesisAnalysisService: Handles hypothesis testing and evidence synthesis
 - AcademicChunkingService: Manages intelligent academic indexing
+- ProjectService: Manages SLR project creation and lifecycle
 """
 
 from .research_document_service import ResearchDocumentService, ResearchDocumentError
@@ -19,6 +20,7 @@ from .quality_assessment_service import QualityAssessmentService, QualityAssessm
 from .research_question_service import ResearchQuestionService, ResearchQuestionError
 from .hypothesis_analysis_service import HypothesisAnalysisService, HypothesisAnalysisError
 from .academic_chunking_service import AcademicChunkingService, AcademicChunkingError
+from .project_service import ProjectService, ProjectServiceError
 
 __all__ = [
     'ResearchDocumentService',
@@ -31,4 +33,6 @@ __all__ = [
     'HypothesisAnalysisError',
     'AcademicChunkingService',
     'AcademicChunkingError',
+    'ProjectService',
+    'ProjectServiceError',
 ]
