@@ -74,17 +74,19 @@
         "ghcr.io/jfriisj/multi-lint-python:latest"
       ]
     },
-    "import-analysis-docker": {
+    "analysis": {
       "command": "docker",
       "args": [
         "run",
         "--rm",
         "-i",
         "--name",
-        "mcp-import-analysis-${workspaceFolderBasename}",
+        "analysis-${workspaceFolderBasename}",
         "-v",
         "${workspaceFolder}:/workspace",
-        "ghcr.io/jfriisj/import-analysis-mcp-server:latest"
+        "ghcr.io/jfriisj/import-analysis-mcp-server:latest",
+        "--project-root",
+        "/workspace"
       ]
     },
     "solid": {
@@ -94,10 +96,12 @@
         "--rm",
         "-i",
         "--name",
-        "mcp-solid-${workspaceFolderBasename}",
+        "solid-${workspaceFolderBasename}",
         "-v",
-        "${workspaceFolder}:/workspace",
-        "ghcr.io/jfriisj/solid-mcp-server:latest"
+        "C:\\github\\mcp-servers:/workspace",
+        "ghcr.io/jfriisj/solid-mcp-server:latest",
+        "--project-root",
+        "/workspace"
       ]
     },
     "study-buddy": {
