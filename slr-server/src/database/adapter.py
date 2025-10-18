@@ -215,7 +215,7 @@ class DatabaseFactory:
         db_type = config.get("type", "sqlite").lower()
         
         if db_type == "sqlite":
-            db_path = config.get("path", "database/slr_production.db")
+            db_path = config.get("path", "database/slr_database.db")
             return SQLiteAdapter(db_path)
             
         elif db_type == "postgresql":
@@ -246,5 +246,5 @@ class DatabaseFactory:
         # Default to SQLite
         return {
             "type": "sqlite",
-            "path": os.getenv("DATABASE_PATH", "database/slr_production.db")
+            "path": os.getenv("DATABASE_PATH", "database/slr_database.db")
         }

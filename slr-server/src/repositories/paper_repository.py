@@ -672,13 +672,15 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
     def _row_to_paper(self, row: tuple, authors: List[Author], journal: Optional[Journal]) -> ResearchPaper:
         """Convert database row to ResearchPaper instance."""
-        # DEBUG: Log the row structure to help debug field positions
-        if len(row) != 49:
-            print(f"Warning: Expected 49 fields, got {len(row)}")
-            
         # Use a more defensive approach with try-catch and defaults
         try:
             # Field positions for: SELECT rp.*, j.name, j.issn, j.publisher, j.impact_factor, j.quartile, j.open_access
+            # DEBUG: Log any field count mismatches (only at debug level)
+            if len(row) != 49:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Row field count mismatch: expected 49 fields, got {len(row)}")
+            
             upload_date = None
             created_at = None
             updated_at = None

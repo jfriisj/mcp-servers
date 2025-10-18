@@ -1055,7 +1055,9 @@ class ResearchDocumentService:
                         self.paper_repository.delete(paper.id)
                         removed_count += 1
                 except Exception as e:
-                    print(f"Warning: Could not remove paper {paper.id}: {e}")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Could not remove duplicate paper {paper.id}: {str(e)}")
         
         return removed_count
 
@@ -1801,12 +1803,12 @@ class ResearchDocumentService:
         
         return analysis
 
-    def upload_bibliography_batch(self, file_path: str, tags: Optional[List[str]] = None, auto_extract_metadata: bool = True) -> List[ResearchPaper]:
+    def upload_bibliography_batch(self, file_path: str, tags: Optional[List[str]] = None, auto_extract_metadata: bool = True) -> Dict[str, Any]:
         """
         Upload and process a bibliography file containing multiple papers.
         
         This method extracts all entries from BibTeX/RIS files and creates separate
-        ResearchPaper objects for each entry.
+        ResearchPaper objects for each entry, with comprehensive error tracking.
         
         Args:
             file_path: Path to bibliography file (.bib or .ris)
@@ -1814,7 +1816,13 @@ class ResearchDocumentService:
             auto_extract_metadata: Whether to extract metadata automatically
             
         Returns:
-            List of created ResearchPaper objects
+            Dict with keys:
+                - created_papers: List of created ResearchPaper objects
+                - skipped_entries: List of dicts with {entry_num, reason, detail}
+                - total_entries: Total entries found in file
+                - success_count: Number of papers successfully created
+                - failure_count: Number of entries that failed
+                - summary: Human-readable summary
             
         Raises:
             ResearchDocumentError: If batch processing fails
@@ -1829,20 +1837,35 @@ class ResearchDocumentService:
             if not os.path.exists(file_path):
                 raise ResearchDocumentError(f"File not found: {file_path}")
             
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"📚 Starting batch upload from: {file_path}")
+            
             # Extract all entries from bibliography file
             if file_ext == '.bib':
                 entries_metadata = self._extract_all_bib_entries(file_path)
+                logger.info(f"📄 Extracted {len(entries_metadata)} entries from BibTeX file")
+                if len(entries_metadata) == 0:
+                    raise ResearchDocumentError(f"EXTRACTION DEBUG: No entries found by _extract_all_bib_entries. File size: {os.path.getsize(file_path)} bytes")
             else:  # .ris
                 entries_metadata = self._extract_all_ris_entries(file_path)
+                logger.info(f"📄 Extracted {len(entries_metadata)} entries from RIS file")
             
             created_papers = []
+            skipped_entries = []
+            
+            import sys
+            print(f"DEBUG: Processing {len(entries_metadata)} entries", file=sys.stderr, flush=True)
             
             for i, entry_metadata in enumerate(entries_metadata):
                 try:
                     # Create unique virtual file path for each entry
+                    # Use UUID to make each entry's file_path unique even on re-upload
+                    import uuid
                     base_name = Path(file_path).stem
                     file_dir = Path(file_path).parent
-                    entry_filename = f"{base_name}_entry_{i+1}{file_ext}"
+                    unique_id = str(uuid.uuid4())[:8]
+                    entry_filename = f"{base_name}_entry_{i+1}_{unique_id}{file_ext}"
                     virtual_file_path = str(file_dir / entry_filename)
                     
                     # Get file stats from original file
@@ -1873,79 +1896,214 @@ class ResearchDocumentService:
                     # Persist research paper
                     created_paper = self.paper_repository.create(research_paper)
                     created_papers.append(created_paper)
+                    print(f"DEBUG: Entry {i+1} - SUCCESS, paper created", file=sys.stderr, flush=True)
                     
                 except Exception as e:
-                    # Log error but continue with other entries
-                    print(f"Warning: Failed to process entry {i+1}: {str(e)}")
+                    # Import here to avoid circular dependency
+                    from ..repositories.base_repository import DuplicateEntityError
+                    
+                    error_type = type(e).__name__
+                    error_detail = str(e)
+                    print(f"DEBUG: Entry {i+1} - ERROR: {error_type}: {error_detail[:100]}", file=sys.stderr, flush=True)
+                    
+                    # Determine the reason for failure
+                    if "already exists" in error_detail.lower() or isinstance(e, DuplicateEntityError):
+                        reason = "ALREADY_EXISTS"
+                    elif "parse" in error_detail.lower() or "field" in error_detail.lower():
+                        reason = "PARSE_ERROR"
+                    elif "validation" in error_detail.lower():
+                        reason = "VALIDATION_ERROR"
+                    else:
+                        reason = error_type
+                    
+                    skipped_entries.append({
+                        'entry_num': i + 1,
+                        'reason': reason,
+                        'error_type': error_type,
+                        'detail': error_detail
+                    })
+                    
+                    # Log to logger
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Entry {i+1} processing failed: {reason}",
+                        extra={
+                            'entry_number': i + 1,
+                            'error_type': error_type,
+                            'error_message': error_detail
+                        }
+                    )
                     continue
+            
+            # Build summary
+            total_entries = len(entries_metadata)
+            success_count = len(created_papers)
+            failure_count = len(skipped_entries)
+            
+            summary_lines = [
+                f"Processed {total_entries} entries from {Path(file_path).name}:",
+                f"  ✅ Created: {success_count} papers",
+                f"  ❌ Failed: {failure_count} entries"
+            ]
+            
+            if skipped_entries:
+                # Group by reason
+                by_reason = {}
+                for entry in skipped_entries:
+                    reason = entry['reason']
+                    by_reason.setdefault(reason, []).append(entry['entry_num'])
+                
+                summary_lines.append("  Failure breakdown:")
+                for reason, entry_nums in sorted(by_reason.items()):
+                    summary_lines.append(f"    - {reason}: entries {entry_nums}")
             
             if not created_papers:
                 raise ResearchDocumentError("No papers could be extracted from bibliography file")
             
-            return created_papers
+            return {
+                'created_papers': created_papers,
+                'skipped_entries': skipped_entries,
+                'total_entries': total_entries,
+                'success_count': success_count,
+                'failure_count': failure_count,
+                'summary': '\n'.join(summary_lines)
+            }
             
         except Exception as e:
             raise ResearchDocumentError(f"Failed to process bibliography file: {str(e)}") from e
 
     def _extract_all_bib_entries(self, file_path: str) -> List[Dict[str, Any]]:
         """Extract metadata from ALL BibTeX entries in a file."""
+        import logging
+        import sys
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 _extract_all_bib_entries called with: {file_path}")
+        
+        # ALSO write to stderr for debugging
+        print(f"DEBUG: _extract_all_bib_entries called with: {file_path}", file=sys.stderr, flush=True)
+        
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Find all complete BibTeX entries
+            logger.info(f"📖 Read {len(content)} characters from file")
+            print(f"DEBUG: Read {len(content)} characters", file=sys.stderr, flush=True)
+            
+            # Find all complete BibTeX entries using a strict pattern first
             entry_pattern = r'(@\w+\{[^,]+,\s*.*?^\})'
             entries = re.findall(entry_pattern, content, re.DOTALL | re.MULTILINE | re.IGNORECASE)
             
+            logger.info(f"🎯 Regex found {len(entries)} entries with strict pattern")
+            print(f"DEBUG: Regex found {len(entries)} entries", file=sys.stderr, flush=True)
+
+            # If strict matching fails (some exports include nested braces or unusual spacing),
+            # fall back to a more tolerant split-by-entry approach.
             if not entries:
-                return []
+                # Split on the entry start marker while preserving the marker
+                alt_entries = re.split(r'(?=@\w+\{)', content)
+                # The first element may be header text before the first @ - drop it
+                if alt_entries and not alt_entries[0].strip().startswith('@'):
+                    alt_entries = alt_entries[1:]
+
+                # Use non-empty chunks as entries
+                entries = [e for e in alt_entries if e and e.strip()]
+                # If still empty, return empty list
+                if not entries:
+                    return []
             
             entries_metadata = []
             
-            for entry in entries:
+            for entry_idx, entry in enumerate(entries):
                 try:
-                    # Extract the content between first comma and closing brace
-                    content_match = re.search(r'@\w+\{[^,]+,\s*(.*?)\s*\}$', entry, re.DOTALL | re.IGNORECASE)
-                    if not content_match:
+                    # Validate entry structure before parsing
+                    entry_stripped = entry.strip()
+                    
+                    # Check 1: Must start with @
+                    if not entry_stripped.startswith('@'):
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.debug(f"Entry {entry_idx + 1}: Invalid structure - does not start with @")
                         continue
                     
-                    entry_content = content_match.group(1)
+                    # Check 2: Must have closing brace
+                    if not entry_stripped.endswith('}'):
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.debug(f"Entry {entry_idx + 1}: Malformed entry - missing closing brace")
+                        continue
                     
-                    # Extract title
-                    title_match = re.search(r'title\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
-                    title = title_match.group(1).strip() if title_match else "Untitled"
+                    # Check 3: Must have comma after entry type
+                    if ',' not in entry_stripped[:100]:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.debug(f"Entry {entry_idx + 1}: Invalid structure - no comma after entry type")
+                        continue
                     
-                    # Extract authors
-                    author_match = re.search(r'author\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    # Extract the content between first comma and the FINAL closing brace
+                    # Must handle nested braces in fields like abstract
+                    # Find the opening brace after the entry type
+                    open_brace_match = re.search(r'@\w+\{', entry, re.IGNORECASE)
+                    if not open_brace_match:
+                        continue
+                    
+                    # Start from after the first comma
+                    comma_pos = entry.find(',', open_brace_match.end())
+                    if comma_pos == -1:
+                        continue
+                    
+                    # Find the matching closing brace by counting braces
+                    brace_count = 1
+                    pos = open_brace_match.end()
+                    while pos < len(entry) and brace_count > 0:
+                        if entry[pos] == '{':
+                            brace_count += 1
+                        elif entry[pos] == '}':
+                            brace_count -= 1
+                        pos += 1
+                    
+                    if brace_count != 0:
+                        # Unmatched braces
+                        continue
+                    
+                    # Extract content between comma and final closing brace
+                    entry_content = entry[comma_pos + 1:pos - 1].strip()
+                    
+                    # Extract title - handle both {...} and "..." formats
+                    title_match = re.search(r'title\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE | re.DOTALL)
+                    title = (title_match.group(1) or title_match.group(2)).strip() if title_match else "Untitled"
+                    
+                    # Extract authors - handle both {...} and "..." formats
+                    author_match = re.search(r'author\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE | re.DOTALL)
                     authors = []
                     if author_match:
-                        author_text = author_match.group(1)
+                        author_text = (author_match.group(1) or author_match.group(2)) or ""
                         author_names = [name.strip() for name in author_text.split(' and ')]
                         from ..domain.models import Author
                         authors = [Author(name=name) for name in author_names if name]
                     
-                    # Extract abstract
-                    abstract_match = re.search(r'abstract\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
-                    abstract = abstract_match.group(1).strip() if abstract_match else ""
+                    # Extract abstract - handle both {...} and "..." formats
+                    abstract_match = re.search(r'abstract\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE | re.DOTALL)
+                    abstract = ((abstract_match.group(1) or abstract_match.group(2)) or "").strip() if abstract_match else ""
                     
-                    # Extract keywords
-                    keywords_match = re.search(r'keywords\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE | re.DOTALL)
+                    # Extract keywords - handle both {...} and "..." formats
+                    keywords_match = re.search(r'keywords\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE | re.DOTALL)
                     keywords = []
                     if keywords_match:
-                        keywords_text = keywords_match.group(1)
+                        keywords_text = (keywords_match.group(1) or keywords_match.group(2)) or ""
                         keywords = [kw.strip() for kw in keywords_text.split(',') if kw.strip()]
                     
-                    # Extract year
-                    year_match = re.search(r'year\s*=\s*[{"]*(\d{4})[}"]', entry_content, re.IGNORECASE)
-                    publication_year = int(year_match.group(1)) if year_match else None
+                    # Extract year - handle both {...} and "..." formats
+                    year_match = re.search(r'year\s*=\s*(?:\{(\d{4})\}|"(\d{4})")', entry_content, re.IGNORECASE)
+                    publication_year = int(year_match.group(1) or year_match.group(2)) if year_match else None
                     
-                    # Extract DOI
-                    doi_match = re.search(r'doi\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE)
-                    doi = doi_match.group(1).strip() if doi_match else None
+                    # Extract DOI - handle both {...} and "..." formats
+                    doi_match = re.search(r'doi\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE)
+                    doi = ((doi_match.group(1) or doi_match.group(2)) or "").strip() if doi_match else None
                     
-                    # Extract journal
-                    journal_match = re.search(r'journal\s*=\s*[{"](.*?)[}"]', entry_content, re.IGNORECASE)
-                    journal_name = journal_match.group(1).strip() if journal_match else None
+                    # Extract journal - handle both {...} and "..." formats
+                    journal_match = re.search(r'journal\s*=\s*(?:\{((?:[^{}]|(?:\{[^{}]*\}))*)\}|"([^"]*)")', entry_content, re.IGNORECASE)
+                    journal_name = ((journal_match.group(1) or journal_match.group(2)) or "").strip() if journal_match else None
                     
                     metadata = {
                         "title": title,
@@ -1965,13 +2123,94 @@ class ResearchDocumentService:
                     
                 except Exception as e:
                     # Skip malformed entries but log the error
-                    print(f"Warning: Failed to parse BibTeX entry: {str(e)}")
+                    logger.debug(f"Skipped malformed BibTeX entry {entry_idx + 1}: {str(e)}")
                     continue
             
+            logger.info(f"✅ Successfully parsed {len(entries_metadata)} entries")
             return entries_metadata
             
         except Exception as e:
             raise ResearchDocumentError(f"Failed to parse BibTeX file: {str(e)}") from e
+
+    def _extract_all_bib_entries_pybtex_fallback(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Extract metadata from BibTeX file using pybtex library (fallback method).
+        
+        This is a more robust fallback when regex-based parsing fails.
+        """
+        try:
+            from pybtex.database import parse_file
+            from ..domain.models import Author, Journal
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            entries_metadata = []
+            
+            try:
+                # Parse file with pybtex
+                bib_data = parse_file(file_path)
+            except Exception as e:
+                logger.warning(f"Pybtex parsing failed, falling back to regex: {str(e)}")
+                return []  # Let caller fall back to regex method
+            
+            for entry_key, entry in bib_data.entries.items():
+                try:
+                    title = entry.fields.get('title', 'Untitled')
+                    
+                    # Parse authors
+                    authors = []
+                    if 'author' in entry.persons:
+                        for person in entry.persons['author']:
+                            author_name = str(person)
+                            authors.append(Author(name=author_name))
+                    
+                    abstract = entry.fields.get('abstract', '')
+                    keywords = []
+                    if 'keywords' in entry.fields:
+                        keywords = [kw.strip() for kw in entry.fields['keywords'].split(',')]
+                    
+                    publication_year = None
+                    if 'year' in entry.fields:
+                        try:
+                            publication_year = int(entry.fields['year'])
+                        except ValueError:
+                            pass
+                    
+                    doi = entry.fields.get('doi')
+                    journal_name = entry.fields.get('journal')
+                    
+                    metadata = {
+                        "title": title,
+                        "authors": authors,
+                        "abstract": abstract,
+                        "keywords": keywords,
+                        "total_words": len(str(entry).split()),
+                        "publication_year": publication_year,
+                        "doi": doi
+                    }
+                    
+                    if journal_name:
+                        metadata["journal"] = Journal(name=journal_name)
+                    
+                    entries_metadata.append(metadata)
+                    
+                except Exception as e:
+                    logger.debug(f"Failed to parse BibTeX entry {entry_key}: {str(e)}")
+                    continue
+            
+            return entries_metadata
+            
+        except ImportError:
+            # pybtex not installed, return empty list to let caller use regex
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug("pybtex not installed, skipping pybtex fallback")
+            return []
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Pybtex fallback failed: {str(e)}")
+            return []
 
     def _extract_all_ris_entries(self, file_path: str) -> List[Dict[str, Any]]:
         """Extract metadata from ALL RIS entries in a file."""
@@ -2040,7 +2279,9 @@ class ResearchDocumentService:
                     entries_metadata.append(metadata)
                     
                 except Exception as e:
-                    print(f"Warning: Failed to parse RIS entry: {str(e)}")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Skipped malformed RIS entry: {str(e)}")
                     continue
             
             return entries_metadata

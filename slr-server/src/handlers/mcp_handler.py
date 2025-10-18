@@ -63,20 +63,39 @@ class SLRMCPHandler:
         try:
             document_service = self.container.get_document_service()
             
-            # Use the new batch upload method
-            papers = document_service.upload_bibliography_batch(
+            # Use the new batch upload method - now returns detailed report
+            result = document_service.upload_bibliography_batch(
                 file_path=arguments["file_path"],
                 tags=arguments.get("tags", []),
                 auto_extract_metadata=arguments.get("auto_extract_metadata", True)
             )
             
-            # Format results
-            titles = [paper.title for paper in papers[:5]]  # Show first 5 titles
-            if len(papers) > 5:
-                titles.append(f"... and {len(papers) - 5} more papers")
+            # Extract data from result
+            created_papers = result['created_papers']
+            skipped_entries = result['skipped_entries']
+            summary = result['summary']
             
-            result_text = f"✅ Successfully uploaded {len(papers)} papers from bibliography file:\n"
-            result_text += "\n".join([f"• {title}" for title in titles])
+            # Format results with detailed information
+            titles = [paper.title for paper in created_papers[:5]]  # Show first 5 titles
+            if len(created_papers) > 5:
+                titles.append(f"... and {len(created_papers) - 5} more papers")
+            
+            result_lines = [summary]
+            result_lines.append("\n📚 Sample of successfully created papers:")
+            result_lines.extend([f"• {title}" for title in titles])
+            
+            # If there were failures, show details
+            if skipped_entries:
+                result_lines.append("\n⚠️ Failed entries details:")
+                for entry in skipped_entries[:10]:  # Show first 10 failures
+                    result_lines.append(f"  Entry {entry['entry_num']}: {entry['reason']}")
+                    if 'detail' in entry and entry['detail']:
+                        result_lines.append(f"    Error: {entry['detail'][:100]}")
+                
+                if len(skipped_entries) > 10:
+                    result_lines.append(f"  ... and {len(skipped_entries) - 10} more failures")
+            
+            result_text = "\n".join(result_lines)
             
             return CallToolResult(
                 content=[TextContent(
@@ -744,7 +763,7 @@ class SLRMCPHandler:
     
     async def create_slr_project(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle create SLR project tool call."""
-        return await self.workflow_handler.handle_create_slr_project(arguments)
+        return await self.handle_create_slr_project(arguments)
     
     async def get_slr_progress(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Handle get SLR progress tool call."""
@@ -841,15 +860,15 @@ class SLRMCPHandler:
             )
             
             # Format the result for display
-            duplicates_found = result.get("duplicates_detected", 0)
-            removed_count = result.get("duplicates_removed", 0)
-            remaining_count = result.get("remaining_papers", 0)
+            duplicates_found = result.get("duplicates_found", 0)
+            removed_count = result.get("papers_removed", 0)
+            remaining_count = result.get("total_papers_after", 0)
             
             if result.get("dry_run", True):
                 result_text = f"🔍 **Duplicate Detection Analysis (Dry Run)**\n\n"
                 result_text += f"• **Duplicates Found**: {duplicates_found}\n"
-                result_text += f"• **Total Papers**: {result.get('total_papers', 0)}\n"
-                result_text += f"• **Unique Papers**: {remaining_count}\n"
+                result_text += f"• **Total Papers**: {result.get('total_papers_before', 0)}\n"
+                result_text += f"• **Unique Papers**: {result.get('total_papers_before', 0) - duplicates_found}\n"
                 if duplicates_found > 0:
                     result_text += f"\n**Duplicate Groups Found**: {result.get('duplicate_groups', 0)}\n"
                     result_text += "⚠️  Run with dry_run=false to remove duplicates"
@@ -857,7 +876,9 @@ class SLRMCPHandler:
                 result_text = f"✅ **Duplicate Removal Completed**\n\n"
                 result_text += f"• **Duplicates Removed**: {removed_count}\n"
                 result_text += f"• **Papers Remaining**: {remaining_count}\n"
-                result_text += f"• **Reduction**: {result.get('reduction_percentage', 0):.1f}%"
+                if result.get('total_papers_before', 0) > 0:
+                    reduction = (removed_count / result.get('total_papers_before', 1)) * 100
+                    result_text += f"• **Reduction**: {reduction:.1f}%"
             
             return CallToolResult(
                 content=[TextContent(

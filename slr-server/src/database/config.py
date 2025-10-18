@@ -58,7 +58,7 @@ class DatabaseConfig:
         else:
             return {
                 "type": "sqlite",
-                "path": os.getenv("DATABASE_PATH", "database/slr_production.db")
+                "path": os.getenv("DATABASE_PATH", "database/slr_database.db")
             }
     
     @staticmethod

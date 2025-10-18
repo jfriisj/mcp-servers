@@ -4,6 +4,10 @@
 # MCP Protocol (REQUIRED)
 mcp>=0.1.0
 
+# Bibliography Parsing (for robust BibTeX/RIS parsing - prevents data loss)
+bibtexparser>=1.4.0
+pybtex>=0.24.0
+
 # Future dependencies (currently not used in code, but may be needed):
 # Uncomment when actually implemented in the code
 

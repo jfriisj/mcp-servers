@@ -164,7 +164,9 @@ Add the server to your MCP client configuration. For example, with Claude Deskto
 
 ## Available Tools
 
-### upload-paper
+### Phase 1-2: Document Management
+
+#### upload-paper
 Upload and process research papers with automatic metadata extraction.
 
 **Parameters:**
@@ -174,7 +176,60 @@ Upload and process research papers with automatic metadata extraction.
 - `doi` (optional): Digital Object Identifier
 - `tags` (optional): Classification tags
 
-### assess-quality
+### Phase 3: Project-Based Paper Management ✅
+
+#### upload_paper_to_project
+Upload a research paper to a specific SLR project for organized screening.
+
+**Parameters:**
+- `file_path` (required): Path to research paper file
+- `project_name` (required): Name of the SLR project to upload paper to
+- `title` (optional): Paper title override
+- `authors` (optional): Paper authors
+- `publication_year` (optional): Year of publication
+- `doi` (optional): DOI identifier
+- `tags` (optional): Research tags
+
+**Example:**
+```json
+{
+  "tool": "upload_paper_to_project",
+  "arguments": {
+    "file_path": "papers/microservices.pdf",
+    "project_name": "microservices-patterns",
+    "title": "Microservices Architecture: A Survey",
+    "authors": ["Newman, S.", "Richardson, C."],
+    "publication_year": 2024,
+    "tags": ["microservices", "architecture"]
+  }
+}
+```
+
+#### list_project_papers
+List all papers for a specific SLR project with optional filtering and pagination.
+
+**Parameters:**
+- `project_name` (required): Name of the SLR project
+- `status_filter` (optional): Filter by screening status (screening/included/excluded)
+- `limit` (optional): Maximum papers to return (default: 50)
+- `offset` (optional): Number of papers to skip for pagination (default: 0)
+
+**Example:**
+```json
+{
+  "tool": "list_project_papers",
+  "arguments": {
+    "project_name": "microservices-patterns",
+    "status_filter": "screening",
+    "limit": 20,
+    "offset": 0
+  }
+}
+```
+
+### Phase 1-2: Quality & Analysis (continued)
+
+#### assess-quality
 Assess paper quality using systematic evaluation frameworks.
 
 **Parameters:**
