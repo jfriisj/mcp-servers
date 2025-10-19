@@ -1,0 +1,62 @@
+# Search Strings for Real-Time Speech Translation Platform SLR
+# Created: October 19, 2025
+
+## String 1: Comprehensive Architecture & Design Focus
+("speech translation" OR "simultaneous interpretation" OR "real-time translation" OR "concurrent translation")
+AND
+("platform" OR "architecture" OR "system design" OR "framework" OR "infrastructure")
+AND
+("real-time" OR "low-latency" OR "latency" OR "simultaneous" OR "streaming")
+
+## String 2: Neural/Deep Learning Technology Focus
+("speech translation" OR "end-to-end translation" OR "speech-to-text-to-speech")
+AND
+("neural" OR "deep learning" OR "transformer" OR "sequence-to-sequence" OR "seq2seq" OR "neural network")
+AND
+("architecture" OR "design" OR "system" OR "model" OR "framework" OR "implementation")
+
+## String 3: Scalability & Deployment Focus
+("speech translation" OR "multilingual translation" OR "machine translation" OR "simultaneous interpretation")
+AND
+("scalable" OR "distributed" OR "cloud" OR "edge computing" OR "deployment" OR "optimization")
+AND
+("real-time" OR "performance" OR "efficiency" OR "throughput" OR "latency reduction")
+
+## String 4: Multilingual & Cross-lingual Focus
+("multilingual" OR "multi-language" OR "cross-lingual" OR "many-to-many translation")
+AND
+("speech translation" OR "machine translation" OR "translation system")
+AND
+("real-time" OR "simultaneous" OR "streaming" OR "online learning")
+
+## String 5: Empirical Studies & Benchmarks
+("speech translation" OR "speech-to-text translation" OR "multilingual speech")
+AND
+("benchmark" OR "evaluation" OR "performance analysis" OR "case study" OR "empirical study" OR "user study")
+AND
+("system" OR "platform" OR "framework" OR "implementation")
+
+## String 6: Alternative Terminology - Interpretation Focus
+("simultaneous interpretation" OR "consecutive interpretation" OR "live interpretation")
+AND
+("technology" OR "system" OR "platform" OR "software")
+AND
+("speech" OR "audio" OR "streaming")
+AND
+("real-time" OR "latency" OR "delay" OR "synchronous")
+
+## String 7: Specific Technologies & Methods
+("speech translation" OR "spoken language translation")
+AND
+("end-to-end" OR "attention mechanism" OR "self-attention" OR "multilingual BERT" OR "mBART" OR "M2M-100")
+AND
+("implementation" OR "deployment" OR "system" OR "architecture")
+
+## Database Coverage Map
+## - Google Scholar: Strings 1-6 (target top 2000 results)
+## - IEEE Xplore: Strings 1-3, 7
+## - ACM Digital Library: Strings 1-2, 4-5
+## - arXiv: Strings 2, 7
+## - DBLP: Strings 1-3
+## - SpringerLink: Strings 1-3, 5
+## - ProQuest: Strings 1-2

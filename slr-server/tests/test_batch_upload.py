@@ -12,9 +12,9 @@ import os
 import sys
 from pathlib import Path
 
-# Absolute path to slr-server root
-SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
-sys.path.insert(0, str(SLR_SERVER_ROOT))
+# Add the slr-server directory to the Python path  
+slr_root = Path(__file__).parent.parent
+sys.path.insert(0, str(slr_root))
 
 # Import required modules using the proper module path
 from src.services.research_document_service import ResearchDocumentService
@@ -22,8 +22,9 @@ from src.repositories.paper_repository import PaperRepository
 from src.database.connection import DatabaseConnection
 
 def main():
-        # Database setup - SLR_SERVER_ROOT already defined above
-        db_path = SLR_SERVER_ROOT / "database" / "slr_database.db"
+        # Database setup - slr-server root is already defined above
+        # slr_root = Path(__file__).parent.parent
+        db_path = slr_root / "database" / "slr_database.db"
         print(f"📂 Using database: {db_path}")
         
         # Initialize database connection
@@ -34,7 +35,7 @@ def main():
         document_service = ResearchDocumentService(paper_repository)
         
         # Find all BibTeX files
-        papers_dir = SLR_SERVER_ROOT / "data" / "papers"
+        papers_dir = slr_root / "papers"
         bib_files = sorted([f for f in papers_dir.glob("*.bib")])
         
         print(f"📚 Found {len(bib_files)} BibTeX files:")

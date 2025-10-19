@@ -115,9 +115,10 @@ class SLRMCPHandler:
             )
     
     async def handle_get_paper(self, arguments: Dict[str, Any]) -> CallToolResult:
-        """Handle get paper MCP tool call."""
+        """Handle get paper MCP tool call with abstract and full text extraction."""
         try:
             paper_repository = self.container.get_paper_repository()
+            document_service = self.container.get_document_service()
             
             paper = paper_repository.get_by_id(arguments["paper_id"])
             if not paper:
@@ -129,13 +130,83 @@ class SLRMCPHandler:
                     isError=True
                 )
             
-            # Format authors properly
-            authors_str = ', '.join([author.name for author in paper.authors]) if paper.authors else 'None'
+            # Build comprehensive paper information
+            result_parts = []
+            
+            # Basic metadata
+            result_parts.append(f"📄 **Paper ID:** {paper.id}")
+            result_parts.append(f"📝 **Title:** {paper.title}")
+            
+            # Authors
+            if paper.authors:
+                authors_str = ', '.join([author.name for author in paper.authors])
+                result_parts.append(f"✍️ **Authors:** {authors_str}")
+            else:
+                result_parts.append(f"✍️ **Authors:** None")
+            
+            # Publication details
+            if paper.publication_year:
+                result_parts.append(f"📅 **Year:** {paper.publication_year}")
+            if paper.doi:
+                result_parts.append(f"🔗 **DOI:** {paper.doi}")
+            
+            # Journal information
+            if paper.journal:
+                result_parts.append(f"📚 **Journal:** {paper.journal.name}")
+            
+            # File information
+            result_parts.append(f"📋 **File Type:** {paper.file_type}")
+            if paper.total_pages:
+                result_parts.append(f"📖 **Pages:** {paper.total_pages}")
+            
+            # Abstract
+            result_parts.append("\n--- ABSTRACT ---")
+            if paper.abstract:
+                result_parts.append(paper.abstract)
+            else:
+                result_parts.append("[No abstract available]")
+            
+            # Keywords
+            if paper.keywords:
+                result_parts.append(f"\n--- KEYWORDS ---\n{', '.join(paper.keywords)}")
+            
+            # Full text extraction (if available)
+            result_parts.append("\n--- FULL TEXT ---")
+            try:
+                full_text = document_service._extract_paper_content(paper)
+                if full_text:
+                    # Limit full text to first 5000 characters to avoid overwhelming output
+                    if len(full_text) > 5000:
+                        result_parts.append(f"{full_text[:5000]}\n\n[... Full text truncated. Total length: {len(full_text)} characters ...]")
+                    else:
+                        result_parts.append(full_text)
+                else:
+                    result_parts.append("[No full text could be extracted]")
+            except Exception as e:
+                result_parts.append(f"[Could not extract full text: {str(e)}]")
+            
+            # Additional metadata
+            result_parts.append("\n--- METADATA ---")
+            if paper.methodology:
+                result_parts.append(f"🔬 **Methodology:** {paper.methodology}")
+            if paper.study_type:
+                result_parts.append(f"📊 **Study Type:** {paper.study_type}")
+            if paper.citation_count is not None:
+                result_parts.append(f"📈 **Citations:** {paper.citation_count}")
+            if paper.tags:
+                result_parts.append(f"🏷️ **Tags:** {', '.join(paper.tags)}")
+            if paper.screening_status:
+                result_parts.append(f"✅ **Screening Status:** {paper.screening_status}")
+            if paper.included_in_review is not None:
+                status = "Included" if paper.included_in_review else "Excluded"
+                result_parts.append(f"📌 **Review Status:** {status}")
+                if paper.exclusion_reason:
+                    result_parts.append(f"   Reason: {paper.exclusion_reason}")
             
             return CallToolResult(
                 content=[TextContent(
                     type="text",
-                    text=f"Paper: {paper.title}\nAuthors: {authors_str}\nYear: {paper.publication_year}\nDOI: {paper.doi}"
+                    text="\n".join(result_parts)
                 )]
             )
             
@@ -144,7 +215,7 @@ class SLRMCPHandler:
             return CallToolResult(
                 content=[TextContent(
                     type="text",
-                    text=f"Error retrieving paper: {str(e)}"
+                    text=f"❌ Error retrieving paper: {str(e)}"
                 )],
                 isError=True
             )
