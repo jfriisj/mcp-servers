@@ -7,8 +7,8 @@ analysis in systematic literature reviews.
 """
 
 import re
-from collections import Counter, defaultdict
-from typing import Dict, List, Set, Tuple
+from collections import Counter
+from typing import Dict, List, Tuple
 
 from ..domain.models import AcademicChunk, ResearchPaper
 from .base_academic_strategy import BaseAcademicStrategy
@@ -251,11 +251,11 @@ class TopicBasedStrategy(BaseAcademicStrategy):
 
         segments = []
         current_start = 0
-        current_sentences = []
-        current_topics = []
+        current_sentences: List[str] = []
+        current_topics: List[str] = []
         
         for i, sentence in enumerate(sentences):
-            sentence_keywords = self._extract_all_keywords(sentence)
+            self._extract_all_keywords(sentence)
             sentence_topics = self._classify_sentence_topics(sentence)
             
             # Calculate position in original content

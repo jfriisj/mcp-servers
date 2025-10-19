@@ -9,54 +9,11 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 import sqlite3
 
+# Import the actual database connection from infrastructure layer
+from ..database.connection import DatabaseConnection
+
 # Generic type parameter for the entity model
 T = TypeVar('T')
-
-
-class DatabaseConnection:
-    """Database connection interface for repository layer."""
-    
-    def __init__(self, database_path: str = "data/slr_server.db"):
-        self.database_path = database_path
-        self._connection: Optional[sqlite3.Connection] = None
-    
-    def connect(self) -> sqlite3.Connection:
-        """Establish database connection."""
-        if self._connection is None:
-            self._connection = sqlite3.connect(
-                self.database_path,
-                check_same_thread=False,
-                timeout=30.0
-            )
-            self._configure_connection(self._connection)
-        return self._connection
-    
-    def _configure_connection(self, conn: sqlite3.Connection) -> None:
-        """Configure SQLite connection with optimal settings."""
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA foreign_keys = ON")
-        cursor.execute("PRAGMA journal_mode = WAL")
-        cursor.execute("PRAGMA synchronous = NORMAL")
-        cursor.execute("PRAGMA cache_size = -64000")
-        conn.commit()
-    
-    def close(self) -> None:
-        """Close database connection."""
-        if self._connection:
-            self._connection.close()
-            self._connection = None
-    
-    def execute(self, query: str, parameters: tuple = ()) -> sqlite3.Cursor:
-        """Execute single SQL statement."""
-        conn = self.connect()
-        cursor = conn.cursor()
-        cursor.execute(query, parameters)
-        return cursor
-    
-    def commit(self) -> None:
-        """Commit pending transactions."""
-        if self._connection:
-            self._connection.commit()
 
 
 class BaseRepository(ABC, Generic[T]):

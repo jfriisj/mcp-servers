@@ -1,0 +1,223 @@
+{
+  "uploaded": [],
+  "updated": [],
+  "errors": [
+    {
+      "file": "20th International Conference on Spoken Language Translation, IWSLT 2023 - Proceedings of the Conference.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "A review on multilingual voice-to-voice translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Analyzing Speech Unit Selection for Textless Speech-to-Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Blending LLMs into Cascaded Speech Translation KIT's Offline Speech Translation System for IWSLT 2024.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Blockwise Streaming Transformer for Spoken Language Understanding and Simultaneous Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "CMU's IWSLT 2024 Simultaneous Speech Translation System.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "CMU's IWSLT 2025 Simultaneous Speech Translation System.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "DASpeech Directed Acyclic Transformer for Fast and High-quality Speech-to-Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Design and implementation of an AI-based wireless real-time voice translation system with directional audio output.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Diffusion Synthesizer for Efficient Multilingual Speech to Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Direct Speech to Speech Translation A Review.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Direct speech-to-speech translation with discrete units.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Direct Text to Speech Translation System using Acoustic Units.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Dragoman AI Real-Time Speech Translation for Educational.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Edinburgh's End-to-End Multilingual Speech Translation System for IWSLT 2021.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Efficient and Adaptive Simultaneous Speech Translation with Fully Unidirectional Architecture.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "End-to-End Speech Translation of Arabic to English Broadcast News.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "ESPnet-ST IWSLT 2021 Offline Speech Translation System.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Evaluating Gender Bias in Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "FST the FAIR Speech Translation System for the IWSLT21 Multilingual Shared Task.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "IWSLT 2021 - 18th International Conference on Spoken Language Translation, Proceedings.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Jointly Trained Transformers models for Spoken Language Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "KAME Tandem Architecture for Enhancing Knowledge in Real-Time Speech-to-Speech Conversational AI.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "KIT's Multilingual Speech Translation System for IWSLT 2023.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Leveraging Syntax-Aware Chunking and LLMs for Simultaneous Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "LLaST Improved End-to-end Speech Translation System Leveraged by Large Language Models.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Long-Form End-to-End Speech Translation via Latent Alignment Segmentation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "MLLP-VRAIN UPV systems for the IWSLT 2022 Simultaneous Speech Translation and Speech-to-Speech Translation tasks.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "MoE Routers are Advanced Policy Makers for Simultaneous Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Multilingual Simultaneous Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "NAIST Simultaneous Speech Translation System for IWSLT 2024.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "On-Device Simultaneous Speech to Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Open Source Toolkit for Speech to Text Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Oregon State University's IWSLT 2025 Simultaneous Speech Translation System.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "PROCEEDINGS OF THE 19TH INTERNATIONAL CONFERENCE ON SPOKEN LANGUAGE TRANSLATION (IWSLT 2022).pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Real-Time Sign Language-to-Speech Translation System With AI-Powered Wearable Technology.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "SimulMT to SimulST Adapting Simultaneous Text Translation to End-to-End Simultaneous Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Simultaneous Speech-to-Speech Translation System with Neural Incremental ASR, MT, and TTS.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Speech-to-Speech Translation with Discrete-Unit-Based Style Transfer.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Streaming Simultaneous Speech Translation with Augmented Memory Transformer.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Survey On Monolingual Speech-to-Speech Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Talklingo A Smart Solution for Multilingual Communication.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "The NiuTrans End-to-End Speech Translation System for IWSLT 2021 Offline Task.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "The USTC-NELSLIP Systems for Simultaneous Speech Translation Task at IWSLT 2021.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "The USYD-JD Speech Translation System for IWSLT 2021.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "The Volctrans Neural Speech Translation System for IWSLT 2021.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "The YiTrans End-to-End Speech Translation System for IWSLT 2022 Offline Shared Task.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Tibetan\u2013Chinese speech-to-speech translation based on discrete units.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Towards Robust Speech Translation via Adversarial Stability Training.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Towards Simultaneous Machine Interpretation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Towards_Machine_Speech-to-speech_Translation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "TransVIP Speech to Speech Translation System with Voice and Isochrony Preservation.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "Two-pass Direct Speech-to-speech Translation with Discrete Units.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    },
+    {
+      "file": "User-Oriented EFL Speaking through Application and Exercise Instant Speech Translation and Shadowing in Authentic Context.pdf",
+      "error": "Failed to get paper by file path: no such table: research_papers"
+    }
+  ],
+  "skipped": []
+}

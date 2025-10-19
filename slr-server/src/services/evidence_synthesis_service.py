@@ -14,15 +14,32 @@ Provides comprehensive evidence synthesis including:
 import logging
 import math
 import statistics
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from collections import defaultdict
-import re
 
 from ..domain.models import ResearchPaper
 from ..repositories.paper_repository import PaperRepository
 
 logger = logging.getLogger(__name__)
+
+
+def safe_min(values: List[Any], default: Any = "Not available") -> Any:
+    """Safely get minimum value from list, returning default if empty."""
+    try:
+        filtered = [v for v in values if v is not None]
+        return min(filtered) if filtered else default
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_max(values: List[Any], default: Any = "Not available") -> Any:
+    """Safely get maximum value from list, returning default if empty."""
+    try:
+        filtered = [v for v in values if v is not None]
+        return max(filtered) if filtered else default
+    except (ValueError, TypeError):
+        return default
 
 
 @dataclass
@@ -93,49 +110,54 @@ class EvidenceSynthesisService:
         Raises:
             ValueError: If insufficient papers or invalid parameters
         """
-        if len(paper_ids) < 2:
-            raise ValueError("At least 2 papers required for evidence synthesis")
+        try:
+            if len(paper_ids) < 2:
+                raise ValueError("At least 2 papers required for evidence synthesis")
 
-        logger.info(f"Starting evidence synthesis for {len(paper_ids)} papers (method: {synthesis_method})")
+            logger.info(f"Starting evidence synthesis for {len(paper_ids)} papers (method: {synthesis_method})")
 
-        # Get papers
-        papers = []
-        for paper_id in paper_ids:
-            paper = self.paper_repository.get_by_id(paper_id)
-            if paper:
-                papers.append(paper)
+            # Get papers
+            papers = []
+            for paper_id in paper_ids:
+                paper = self.paper_repository.get_by_id(paper_id)
+                if paper:
+                    papers.append(paper)
 
-        if len(papers) < 2:
-            raise ValueError(f"Only {len(papers)} valid papers found, need at least 2")
+            if len(papers) < 2:
+                raise ValueError(f"Only {len(papers)} valid papers found, need at least 2")
 
-        # Extract study characteristics
-        study_characteristics = await self._extract_study_characteristics(papers)
-        
-        # Initialize result
-        result = SynthesisResult(
-            paper_ids=paper_ids,
-            synthesis_method=synthesis_method,
-            outcome_measures=outcome_measures or [],
-            total_studies=len(papers),
-            total_participants=sum(char.get('sample_size', 0) or 0 for char in study_characteristics.values()) or None
-        )
+            # Extract study characteristics
+            study_characteristics = await self._extract_study_characteristics(papers)
+            
+            # Initialize result
+            result = SynthesisResult(
+                paper_ids=paper_ids,
+                synthesis_method=synthesis_method,
+                outcome_measures=outcome_measures or [],
+                total_studies=len(papers),
+                total_participants=sum(char.get('sample_size', 0) or 0 for char in study_characteristics.values()) or None
+            )
 
-        # Perform synthesis based on method
-        if synthesis_method == "meta-analysis":
-            await self._perform_meta_analysis(papers, result, outcome_measures)
-        elif synthesis_method == "meta-synthesis":
-            await self._perform_meta_synthesis(papers, result, outcome_measures)
-        else:  # narrative synthesis
-            await self._perform_narrative_synthesis(papers, result, outcome_measures)
+            # Perform synthesis based on method
+            if synthesis_method == "meta-analysis":
+                await self._perform_meta_analysis(papers, result, outcome_measures)
+            elif synthesis_method == "meta-synthesis":
+                await self._perform_meta_synthesis(papers, result, outcome_measures)
+            else:  # narrative synthesis
+                await self._perform_narrative_synthesis(papers, result, outcome_measures)
 
-        # Add quality assessment
-        result.quality_assessment = await self._assess_synthesis_quality(papers)
-        
-        # Add recommendations
-        result.recommendations = self._generate_recommendations(result)
+            # Add quality assessment
+            result.quality_assessment = await self._assess_synthesis_quality(papers)
+            
+            # Add recommendations
+            result.recommendations = self._generate_recommendations(result)
 
-        logger.info(f"Evidence synthesis completed for {len(papers)} papers")
-        return result
+            logger.info(f"Evidence synthesis completed for {len(papers)} papers")
+            return result
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in synthesize_evidence: {e}\n{traceback.format_exc()}")
+            raise
 
     async def _extract_study_characteristics(self, papers: List[ResearchPaper]) -> Dict[int, Dict[str, Any]]:
         """Extract key characteristics from each study."""
@@ -256,7 +278,7 @@ class EvidenceSynthesisService:
             'low': len([p for p in papers if p.publication_year and p.publication_year < 2015])
         }
         
-        narrative += f"**Confidence Assessment:**\n"
+        narrative += "**Confidence Assessment:**\n"
         narrative += f"- High confidence findings: {confidence_levels['high']} studies\n"
         narrative += f"- Moderate confidence findings: {confidence_levels['moderate']} studies\n"
         narrative += f"- Low confidence findings: {confidence_levels['low']} studies\n"
@@ -298,8 +320,8 @@ class EvidenceSynthesisService:
         narrative += f"- Total studies: {len(papers)}\n"
         narrative += f"- Total participants: {result.total_participants or 'Not reported'}\n"
         years = [p.publication_year for p in papers if p.publication_year]
-        if years:
-            narrative += f"- Publication years: {min(years)} - {max(years)}\n\n"
+        if years and len(years) > 0:
+            narrative += f"- Publication years: {safe_min(years)} - {safe_max(years)}\n\n"
         else:
             narrative += "- Publication years: Not available\n\n"
         
@@ -559,13 +581,24 @@ class EvidenceSynthesisService:
 
     async def _assess_synthesis_quality(self, papers: List[ResearchPaper]) -> Dict[str, Any]:
         """Assess overall quality of the synthesis."""
+        # Get publication years safely
+        pub_years = [p.publication_year for p in papers if p.publication_year]
+        publication_span = {}
+        if pub_years and len(pub_years) > 0:
+            publication_span = {
+                "earliest": safe_min(pub_years),
+                "latest": safe_max(pub_years)
+            }
+        else:
+            publication_span = {
+                "earliest": "Not available",
+                "latest": "Not available"
+            }
+        
         return {
             "total_studies": len(papers),
             "study_designs": list(set(p.study_type for p in papers if p.study_type)),
-            "publication_span": {
-                "earliest": min(p.publication_year for p in papers if p.publication_year),
-                "latest": max(p.publication_year for p in papers if p.publication_year)
-            },
+            "publication_span": publication_span,
             "geographic_diversity": "Not assessed",  # Would need more sophisticated analysis
             "outcome_consistency": "Moderate",  # Simplified assessment
             "overall_strength": "Moderate to High" if len(papers) >= 5 else "Moderate"

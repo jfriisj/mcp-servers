@@ -4,7 +4,7 @@ Dependency Injection Container
 A SOLID-compliant DI container that follows DIP by binding interfaces to implementations.
 """
 
-from typing import Type, TypeVar, Dict, Any, Callable, Optional
+from typing import Type, TypeVar, Dict, Any, Callable
 from abc import ABC, abstractmethod
 import inspect
 import logging

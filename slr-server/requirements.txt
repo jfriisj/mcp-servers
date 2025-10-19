@@ -4,20 +4,18 @@
 # MCP Protocol (REQUIRED)
 mcp>=0.1.0
 
-# Bibliography Parsing (for robust BibTeX/RIS parsing - prevents data loss)
-bibtexparser>=1.4.0
-pybtex>=0.24.0
-
-# Future dependencies (currently not used in code, but may be needed):
-# Uncomment when actually implemented in the code
-
-# Database (if switching from sqlite3)
-# sqlalchemy>=1.4.0
-# aiosqlite>=0.17.0
+# Type Stubs for Development
+types-psycopg2>=2.9.0
+types-PyYAML>=6.0.0
 
 # PDF Processing (for paper upload features)
-PyPDF2>=3.0.0
-pypdf>=3.0.0  # Alternative PDF library with better text extraction
+# Note: Using pypdf as primary, PyPDF2 is deprecated
+pypdf>=3.0.0
+
+# Bibliography Parsing
+# Note: Currently not actively used but reserved for future batch import features
+# bibtexparser>=1.4.0  # Commented out - not imported in current code
+# pybtex>=0.24.0  # Commented out - not imported in current code
 
 # Academic Analysis (for advanced features)
 # numpy>=1.20.0

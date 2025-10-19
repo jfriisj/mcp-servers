@@ -8,12 +8,15 @@ framework-agnostic and focusing on systematic literature review workflows.
 
 import os
 import re
+import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
-from ..domain.models import ResearchPaper, Author, Journal, Citation
+from ..domain.models import ResearchPaper, Author, Journal
 from ..repositories.paper_repository import PaperRepository
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchDocumentService:
@@ -318,10 +321,169 @@ class ResearchDocumentService:
             created_paper = self.paper_repository.create(paper)
             
             # Perform citation analysis after creation
-            if auto_extract_metadata:
+            if auto_extract_metadata and created_paper.id:
                 self._analyze_paper_citations(created_paper.id, file_path)
             
             return created_paper
+
+        except Exception as e:
+            raise ResearchDocumentError(f"Failed to create research paper: {str(e)}") from e
+
+    def upload_paper_with_full_text(
+        self,
+        file_path: str,
+        title: Optional[str] = None,
+        authors: Optional[List[Author]] = None,
+        journal: Optional[Journal] = None,
+        publication_year: Optional[int] = None,
+        doi: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        auto_extract_metadata: bool = True,
+        replace_existing: bool = True
+    ) -> Tuple[ResearchPaper, bool]:
+        """
+        Upload research paper with full text, replacing existing if needed.
+
+        This method handles full-text paper uploads with a priority flag to ensure
+        full-text versions are weighted higher than versions without full text.
+
+        Academic Business Logic:
+        1. Check if paper already exists (by title, DOI, or file path)
+        2. If exists and replace_existing=True: Update with full-text version
+        3. If exists and replace_existing=False: Return existing without update
+        4. If new: Create new paper record
+
+        Args:
+            file_path: Absolute path to academic paper file (full-text version)
+            title: Optional title override
+            authors: Optional author list
+            journal: Optional journal information
+            publication_year: Year of publication
+            doi: Digital Object Identifier (used for duplicate detection)
+            tags: Research topic tags including 'full-text' tag
+            auto_extract_metadata: Whether to extract metadata from file
+            replace_existing: Whether to replace existing papers with full-text version
+
+        Returns:
+            Tuple of (ResearchPaper, is_new_upload)
+            - is_new_upload: True if new paper, False if existing paper updated/returned
+
+        Raises:
+            ValueError: If file validation fails or academic rules violated
+            FileNotFoundError: If file doesn't exist
+            ResearchDocumentError: If processing or persistence fails
+
+        Academic Rules:
+        - Full-text versions are prioritized over abstracts-only
+        - Updates preserve existing screening decisions and metadata
+        - Proper tagging to identify full-text papers
+        """
+        # 1. Validate file
+        file_ext, file_size, file_path_obj = self._validate_file_path(file_path)
+
+        # 2. Extract and merge metadata
+        metadata = self._extract_and_merge_metadata(
+            file_path=file_path,
+            auto_extract=auto_extract_metadata,
+            title=title,
+            authors=authors,
+            journal=journal,
+            publication_year=publication_year,
+            doi=doi
+        )
+
+        # 3. Validate academic metadata
+        self._validate_paper_metadata(
+            title=metadata["title"],
+            authors=metadata["authors"],
+            publication_year=metadata["publication_year"],
+            abstract=metadata.get("abstract"),
+            doi=doi
+        )
+
+        # 4. Check for existing paper
+        existing_paper = None
+        
+        # Try to find by DOI
+        if doi:
+            try:
+                existing = self.paper_repository.get_by_doi(doi)
+                if existing:
+                    existing_paper = existing
+            except Exception as e:
+                logger.debug(f"Could not find paper by DOI: {e}")
+        
+        # Try to find by title similarity
+        if not existing_paper and metadata.get("title"):
+            try:
+                # Simple title matching
+                all_papers = self.paper_repository.list_all()
+                for paper in all_papers:
+                    if paper.title and paper.title.lower() == metadata["title"].lower():
+                        existing_paper = paper
+                        break
+            except Exception:
+                # Ignore errors during title matching
+                pass
+
+        # 5. Handle update or create
+        if existing_paper:
+            if replace_existing:
+                # Update existing paper with full-text version
+                existing_paper.abstract = metadata.get("abstract", existing_paper.abstract)
+                existing_paper.total_pages = metadata.get("total_pages", existing_paper.total_pages)
+                existing_paper.total_words = metadata.get("total_words", existing_paper.total_words)
+                existing_paper.file_path = file_path
+                existing_paper.file_type = file_ext[1:]
+                existing_paper.file_size = file_size
+                
+                # Add full-text tag if not present
+                if existing_paper.tags:
+                    if "full-text" not in existing_paper.tags:
+                        existing_paper.tags.append("full-text")
+                else:
+                    existing_paper.tags = ["full-text"]
+                
+                # Merge additional tags
+                if tags:
+                    for tag in tags:
+                        if tag not in existing_paper.tags:
+                            existing_paper.tags.append(tag)
+                
+                try:
+                    updated_paper = self.paper_repository.update(existing_paper)
+                    return (updated_paper, False)  # False indicates update, not new
+                except Exception as e:
+                    raise ResearchDocumentError(
+                        f"Failed to update research paper with full text: {str(e)}"
+                    ) from e
+            else:
+                # Return existing without update
+                return (existing_paper, False)
+
+        # 6. Create new paper if no existing version found
+        paper = self._build_research_paper_entity(
+            file_path=file_path,
+            file_ext=file_ext,
+            file_size=file_size,
+            metadata=metadata,
+            doi=doi,
+            tags=tags if tags else ["full-text"]
+        )
+
+        # Ensure full-text tag is present
+        if "full-text" not in paper.tags:
+            paper.tags.append("full-text")
+
+        # 7. Persist and analyze
+        try:
+            created_paper = self.paper_repository.create(paper)
+            
+            # Perform citation analysis after creation
+            if auto_extract_metadata and created_paper.id:
+                self._analyze_paper_citations(created_paper.id, file_path)
+            
+            return (created_paper, True)  # True indicates new upload
 
         except Exception as e:
             raise ResearchDocumentError(f"Failed to create research paper: {str(e)}") from e
@@ -435,7 +597,7 @@ class ResearchDocumentService:
             raise ValueError(f"Research paper {paper_id} not found")
 
         try:
-            classification = self._classify_paper(paper.title, paper.abstract, paper.keywords)
+            classification = self._classify_paper(paper.title, paper.abstract or "", paper.keywords)
             
             # Update paper with classification
             if classification.get("methodology") and not paper.methodology:
@@ -854,7 +1016,7 @@ class ResearchDocumentService:
         }
         
         if citation_counts:
-            stats["average_citations"] = sum(citation_counts) / len(citation_counts)
+            stats["average_citations"] = int(sum(citation_counts) / len(citation_counts))
             stats["max_citations"] = max(citation_counts)
             stats["papers_with_citations"] = len(citation_counts)
         
@@ -870,7 +1032,7 @@ class ResearchDocumentService:
         Returns:
             Dictionary with methodology, study type, year, journal, file type, and author distributions
         """
-        distributions = {
+        distributions: Dict[str, Dict[str, int]] = {
             "methodologies": {},
             "study_types": {},
             "publication_years": {},
@@ -1175,7 +1337,8 @@ class ResearchDocumentService:
                 for i in range(max_pages):
                     try:
                         text_content += pdf_reader.pages[i].extract_text()
-                    except:
+                    except Exception:
+                        # Skip pages that can't be extracted
                         continue
                 
                 # Extract title - try PDF metadata first, then text analysis
@@ -1464,7 +1627,7 @@ class ResearchDocumentService:
                 methodology_scores[methodology] = score
         
         if methodology_scores:
-            classification["methodology"] = max(methodology_scores, key=methodology_scores.get)
+            classification["methodology"] = max(methodology_scores, key=lambda x: methodology_scores.get(x, 0))
         
         # Study type classification
         study_type_indicators = {
@@ -1483,7 +1646,7 @@ class ResearchDocumentService:
                 study_type_scores[study_type] = score
         
         if study_type_scores:
-            classification["study_type"] = max(study_type_scores, key=study_type_scores.get)
+            classification["study_type"] = max(study_type_scores, key=lambda x: study_type_scores.get(x, 0))
         
         return classification
 
@@ -1615,7 +1778,6 @@ class ResearchDocumentService:
     def _extract_paper_content(self, paper: ResearchPaper) -> str:
         """Extract content from paper file."""
         import os
-        import PyPDF2
         
         if not paper.file_path or not os.path.exists(paper.file_path):
             # Use available metadata if no file
@@ -1756,7 +1918,7 @@ class ResearchDocumentService:
 
     def _analyze_document_content(self, content: str, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze document content for academic features."""
-        analysis = {}
+        analysis: Dict[str, Any] = {}
         
         # Count citations
         citation_patterns = [
@@ -1949,10 +2111,11 @@ class ResearchDocumentService:
             
             if skipped_entries:
                 # Group by reason
-                by_reason = {}
+                by_reason: Dict[str, List[int]] = {}
                 for entry in skipped_entries:
-                    reason = entry['reason']
-                    by_reason.setdefault(reason, []).append(entry['entry_num'])
+                    reason: str = str(entry['reason'])  # type: ignore
+                    entry_num: int = int(entry['entry_num'])  # type: ignore
+                    by_reason.setdefault(reason, []).append(entry_num)
                 
                 summary_lines.append("  Failure breakdown:")
                 for reason, entry_nums in sorted(by_reason.items()):

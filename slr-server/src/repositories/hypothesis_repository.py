@@ -3,10 +3,9 @@ Hypothesis Repository for systematic literature review hypothesis management.
 """
 
 import logging
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import List
 
-from .base_repository import BaseRepository, EntityNotFoundError
+from .base_repository import BaseRepository
 from ..domain.models import ResearchHypothesis, HypothesisStatus
 from ..database.connection import DatabaseConnection
 
@@ -17,8 +16,29 @@ class HypothesisRepository(BaseRepository[ResearchHypothesis]):
     """Repository for managing hypothesis data."""
     
     def __init__(self, db_connection: DatabaseConnection):
-        super().__init__(db_connection, ResearchHypothesis, "hypotheses")
+        super().__init__(db_connection)
         self.logger = logger.getChild(self.__class__.__name__)
+    
+    # Implement required abstract methods from BaseRepository
+    def create(self, entity: ResearchHypothesis) -> ResearchHypothesis:
+        """Create a new hypothesis (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def get_by_id(self, entity_id: int):
+        """Get hypothesis by ID (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def update(self, entity: ResearchHypothesis) -> ResearchHypothesis:
+        """Update hypothesis (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def delete(self, entity_id: int) -> bool:
+        """Delete hypothesis (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def list_all(self, filters=None):
+        """List all hypotheses (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
     
     async def get_by_research_question_id(self, research_question_id: int) -> List[ResearchHypothesis]:
         """Get all hypotheses for a research question."""
@@ -29,8 +49,9 @@ class HypothesisRepository(BaseRepository[ResearchHypothesis]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (research_question_id,))
-            return [ResearchHypothesis(**result) for result in results]
+            cursor = self.db.execute(query, (research_question_id,))
+            results = cursor.fetchall()
+            return [ResearchHypothesis(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting hypotheses for research question {research_question_id}: {e}")
@@ -45,8 +66,9 @@ class HypothesisRepository(BaseRepository[ResearchHypothesis]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (status.value,))
-            return [ResearchHypothesis(**result) for result in results]
+            cursor = self.db.execute(query, (status.value,))
+            results = cursor.fetchall()
+            return [ResearchHypothesis(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting hypotheses for status {status}: {e}")
@@ -64,8 +86,9 @@ class HypothesisRepository(BaseRepository[ResearchHypothesis]):
         params = (search_pattern, search_pattern)
         
         try:
-            results = await self.db_connection.fetch_all(query, params)
-            return [ResearchHypothesis(**result) for result in results]
+            cursor = self.db.execute(query, params)
+            results = cursor.fetchall()
+            return [ResearchHypothesis(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error searching hypotheses for text '{search_text}': {e}")
@@ -80,11 +103,12 @@ class HypothesisRepository(BaseRepository[ResearchHypothesis]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (
+            cursor = self.db.execute(query, (
                 HypothesisStatus.REJECTED.value,
                 HypothesisStatus.ARCHIVED.value
             ))
-            return [ResearchHypothesis(**result) for result in results]
+            results = cursor.fetchall()
+            return [ResearchHypothesis(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting active hypotheses: {e}")

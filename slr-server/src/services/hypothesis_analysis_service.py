@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import re
 import math
 
-from ..domain.models import ResearchPaper, ResearchHypothesis, EvidenceItem
+from ..domain.models import ResearchPaper, ResearchHypothesis, EvidenceItem, HypothesisType, EvidenceLevel as ModelEvidenceLevel
 from ..repositories.paper_repository import PaperRepository
 
 
@@ -135,14 +135,16 @@ class HypothesisAnalysisService:
     - Provides comprehensive hypothesis testing results
     """
 
-    def __init__(self, paper_repository: PaperRepository):
+    def __init__(self, paper_repository: PaperRepository, hypothesis_repository=None):
         """
         Initialize HypothesisAnalysisService.
 
         Args:
             paper_repository: Repository for research paper access
+            hypothesis_repository: Optional repository for persisting hypotheses
         """
         self.paper_repository = paper_repository
+        self._hypothesis_repository = hypothesis_repository
         self._grade_criteria = self._initialize_grade_criteria()
         self._statistical_methods = self._initialize_statistical_methods()
 
@@ -610,21 +612,23 @@ class HypothesisAnalysisService:
             match = re.search(pattern, research_question, re.IGNORECASE)
             if match:
                 return ResearchHypothesis(
+                    paper_id=-1,  # Placeholder for hypotheses not from specific papers
                     hypothesis_text=research_question,
-                    hypothesis_type="primary",
+                    hypothesis_type=HypothesisType.PRIMARY,
                     direction="directional",
                     intervention=match.group(1).strip(),
                     expected_outcome=match.group(2).strip() if len(match.groups()) > 1 else None,
-                    statistical_test="t_test",  # Default
+                    statistical_tests=["t_test"],  # Default as list
                     significance_level=0.05
                 )
 
         # If no pattern matches, create null hypothesis
         return ResearchHypothesis(
+            paper_id=-1,  # Placeholder for hypotheses not from specific papers
             hypothesis_text=f"Null hypothesis: {research_question}",
-            hypothesis_type="null",
+            hypothesis_type=HypothesisType.NULL,
             direction="non_directional",
-            statistical_test="t_test",
+            statistical_tests=["t_test"],
             significance_level=0.05
         )
 
@@ -634,12 +638,12 @@ class HypothesisAnalysisService:
         
         # Look for hypotheses in abstract
         if paper.abstract:
-            abstract_hypotheses = self._find_hypotheses_in_text(paper.abstract)
+            abstract_hypotheses = self._find_hypotheses_in_text(paper.abstract, paper.id or -1)
             hypotheses.extend(abstract_hypotheses)
 
         return hypotheses
 
-    def _find_hypotheses_in_text(self, text: str) -> List[ResearchHypothesis]:
+    def _find_hypotheses_in_text(self, text: str, paper_id: int = -1) -> List[ResearchHypothesis]:
         """Find hypothesis statements in text."""
         hypotheses = []
         
@@ -655,10 +659,11 @@ class HypothesisAnalysisService:
             matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
             for match in matches:
                 hypothesis = ResearchHypothesis(
+                    paper_id=paper_id,
                     hypothesis_text=match.strip(),
-                    hypothesis_type="extracted",
+                    hypothesis_type=HypothesisType.EXTRACTED,
                     direction="directional",
-                    statistical_test="unspecified",
+                    statistical_tests=["unspecified"],
                     significance_level=0.05
                 )
                 hypotheses.append(hypothesis)
@@ -670,7 +675,7 @@ class HypothesisAnalysisService:
     ) -> List[ResearchHypothesis]:
         """Remove duplicate and consolidate similar hypotheses."""
         # Simple deduplication based on text similarity
-        unique_hypotheses = []
+        unique_hypotheses: List[ResearchHypothesis] = []
         
         for hypothesis in hypotheses:
             is_duplicate = False
@@ -704,28 +709,22 @@ class HypothesisAnalysisService:
         self,
         paper: ResearchPaper,
         hypothesis: ResearchHypothesis,
-        outcome_measures: List[str] = None
+        outcome_measures: Optional[List[str]] = None
     ) -> List[EvidenceItem]:
         """Extract evidence from paper relevant to hypothesis."""
         evidence_items = []
 
         # Create evidence item from paper
         evidence = EvidenceItem(
-            paper_id=paper.id,
-            evidence_type="study_result",
-            strength="moderate",  # Default, would be assessed
-            relevance_score=0.7,  # Default
+            paper_id=paper.id or -1,
+            evidence_text=f"Hypothesis: {hypothesis.hypothesis_text} | Intervention: {hypothesis.intervention or 'unspecified'}",
             outcome_measure=hypothesis.expected_outcome or "primary_outcome",
-            intervention=hypothesis.intervention or "intervention",
-            population="study_population",
-            setting="clinical",
             effect_size=None,  # Would be extracted from results
             confidence_interval=None,
             p_value=None,
-            sample_size=paper.sample_size,
-            study_design=paper.study_type or "unspecified",
+            sample_size=paper.sample_size if hasattr(paper, 'sample_size') else None,
             risk_of_bias="unclear",
-            notes=f"Evidence from: {paper.title}"
+            context_section=f"Evidence from: {paper.title}"
         )
 
         evidence_items.append(evidence)
@@ -735,14 +734,8 @@ class HypothesisAnalysisService:
         self, evidence_items: List[EvidenceItem]
     ) -> List[EvidenceItem]:
         """Classify evidence by strength and quality."""
-        for evidence in evidence_items:
-            # Classify based on study design
-            if evidence.study_design in ["randomized_controlled_trial", "rct"]:
-                evidence.strength = "strong"
-            elif evidence.study_design in ["cohort", "case_control"]:
-                evidence.strength = "moderate"
-            else:
-                evidence.strength = "weak"
+        # Evidence strength classification would be based on evidence_level and other GRADE criteria
+        # Simplified implementation - would use study design from paper metadata
 
         return evidence_items
 
@@ -883,16 +876,18 @@ class HypothesisAnalysisService:
         self, evidence_items: List[EvidenceItem]
     ) -> EvidenceLevel:
         """Determine initial GRADE rating based on study designs."""
-        study_designs = [item.study_design for item in evidence_items]
+        # Since EvidenceItem doesn't have study_design, use evidence_level
+        # This is simplified - would need paper metadata for study design
+        evidence_levels = [item.evidence_level for item in evidence_items]
         
-        # Check for randomized trials
-        if any("randomized" in design.lower() or "rct" in design.lower()
-               for design in study_designs):
+        # Check for high-quality evidence
+        if any(level in [ModelEvidenceLevel.SYSTEMATIC_REVIEW, ModelEvidenceLevel.META_ANALYSIS, ModelEvidenceLevel.RANDOMIZED_TRIAL]
+               for level in evidence_levels):
             return EvidenceLevel.HIGH
         
-        # Check for observational studies
-        if any(design.lower() in ["cohort", "case_control", "cross_sectional"]
-               for design in study_designs):
+        # Check for moderate-quality evidence  
+        if any(level in [ModelEvidenceLevel.COHORT_STUDY, ModelEvidenceLevel.CASE_CONTROL]
+               for level in evidence_levels):
             return EvidenceLevel.LOW
         
         # Default to very low

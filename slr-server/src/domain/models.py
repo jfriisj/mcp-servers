@@ -16,7 +16,6 @@ Domain Models:
 - Journal: Publication venue information
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -55,6 +54,8 @@ class HypothesisType(Enum):
     IMPLICIT = "implicit"
     NULL = "null"
     ALTERNATIVE = "alternative"
+    PRIMARY = "primary"  # Primary research hypothesis
+    EXTRACTED = "extracted"  # Extracted from paper text
 
 
 class EvidenceLevel(Enum):
@@ -948,7 +949,7 @@ class QualityAssessment:
     id: Optional[int] = None
     framework: AssessmentFramework = AssessmentFramework.PRISMA
     overall_rating: QualityRating = QualityRating.UNCLEAR
-    criteria_scores: Dict[str, Union[QualityRating, int, float]] = field(default_factory=dict)
+    criteria_scores: Dict[str, Any] = field(default_factory=dict)  # Can store simple scores or nested dicts with justification
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
     bias_assessment: Dict[str, str] = field(default_factory=dict)
@@ -1146,6 +1147,11 @@ class ResearchHypothesis:
     effect_size: Optional[float] = None
     confidence_interval: Optional[str] = None
     context_section: Optional[str] = None  # where in paper it was found
+    # Additional hypothesis analysis attributes
+    direction: Optional[str] = None  # directional, non_directional
+    intervention: Optional[str] = None  # intervention being tested
+    expected_outcome: Optional[str] = None  # expected result
+    significance_level: Optional[float] = None  # statistical significance threshold
     created_at: Optional[datetime] = None
 
     def __post_init__(self):
@@ -1289,21 +1295,7 @@ These models extend the core SLR system to support complete workflow management
 and user guidance throughout the systematic literature review process.
 """
 
-
-
-from dataclasses import dataclass, field
-
-from datetime import datetime, timezone
-
-from enum import Enum
-
-from typing import Any, Dict, List, Optional
-
-import json
-
-
-
-
+# These imports are already at the top of the file - no need to duplicate them here
 
 class SLRPhase(Enum):
 

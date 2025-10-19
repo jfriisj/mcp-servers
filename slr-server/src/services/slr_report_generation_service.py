@@ -15,9 +15,8 @@ Provides comprehensive report generation including:
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import List, Optional
 from dataclasses import dataclass
-from pathlib import Path
 
 from ..domain.models import ResearchPaper
 from ..repositories.paper_repository import PaperRepository
@@ -411,7 +410,7 @@ Quality assessment was conducted for all {len(papers)} included studies using ap
 
     async def _generate_citation_analysis_sections(self, papers: List[ResearchPaper]) -> List[ReportSection]:
         """Generate citation analysis sections."""
-        sections = []
+        sections: List[ReportSection] = []
         
         if not self.citation_service:
             return sections

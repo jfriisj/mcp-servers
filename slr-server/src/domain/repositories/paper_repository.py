@@ -6,7 +6,7 @@ Defines the contract for paper data access operations following DIP.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from ..domain.models import ResearchPaper
+from ..models import ResearchPaper
 
 
 class IPaperRepository(ABC):

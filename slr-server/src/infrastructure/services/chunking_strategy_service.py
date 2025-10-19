@@ -204,7 +204,7 @@ class ChunkingStrategyService(IChunkingStrategyService):
         sections = []
         lines = content.split('\n')
         current_section = None
-        current_content = []
+        current_content: List[str] = []
         
         section_keywords = [
             'abstract', 'introduction', 'background', 'literature review',

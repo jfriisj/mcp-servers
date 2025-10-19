@@ -11,22 +11,25 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import mcp.server.stdio
 import mcp.types as types
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
 
+if TYPE_CHECKING:
+    from .container import Container
+
 # Handle imports for both module and direct execution
 try:
-    from .container import initialize_application
-    from .handlers.mcp_handler import SLRMCPHandler
+    from .container import initialize_application  # type: ignore
+    from .handlers.mcp_handler import SLRMCPHandler  # type: ignore
 except ImportError:
     # Fallback for direct execution
     sys.path.append(str(Path(__file__).parent))
-    from container import initialize_application
-    from handlers.mcp_handler import SLRMCPHandler
+    from container import initialize_application  # type: ignore[no-redef,assignment]
+    from handlers.mcp_handler import SLRMCPHandler  # type: ignore[no-redef]
 
 # Configure logging
 logging.basicConfig(
@@ -57,7 +60,7 @@ class SLRMCPServer:
         """
         self.connection_string = connection_string
         self.project_root = project_root or Path.cwd()
-        self.container = None
+        self.container: Optional['Container'] = None
         self.mcp_handler: Optional[SLRMCPHandler] = None
 
         # Create MCP server instance
@@ -579,14 +582,14 @@ async def main() -> None:
     """Main entry point for SLR MCP Server."""
     # Import database configuration system
     try:
-        from .database.config import DatabaseConfig, get_database_path
+        from .database.config import DatabaseConfig, get_database_path  # type: ignore
     except ImportError:
         # Fallback for direct execution
         sys.path.append(str(Path(__file__).parent))
-        from database.config import DatabaseConfig, get_database_path
+        from database.config import DatabaseConfig, get_database_path  # type: ignore[no-redef]
     
     # Log database configuration and get database path
-    database_config = DatabaseConfig.log_configuration()
+    DatabaseConfig.log_configuration()
     database_path = get_database_path()
     
     # Get project root from environment

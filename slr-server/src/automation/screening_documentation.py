@@ -14,8 +14,8 @@ import json
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict, field
+from typing import Dict, List, Optional
+from dataclasses import dataclass, asdict
 import logging
 
 logger = logging.getLogger(__name__)

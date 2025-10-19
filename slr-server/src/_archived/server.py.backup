@@ -1,0 +1,756 @@
+"""
+Systematic Literature Review MCP Server.
+
+Provides MCP-compliant tools for academic research workflows including
+document management, quality assessment, research question validation,
+hypothesis testing, and evidence synthesis.
+"""
+
+import logging
+from typing import Any, Dict, List, Optional, Sequence
+
+from mcp import types
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+
+from .handlers.mcp_handler import SLRMCPHandler
+from .services import (
+    ResearchDocumentService, QualityAssessmentService,
+    ResearchQuestionService, HypothesisAnalysisService,
+    AcademicChunkingService
+)
+from .repositories import PaperRepository
+from .database import Database
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize server
+app = Server("slr-mcp-server")
+
+# Global handler instance (will be initialized with dependencies)
+handler: Optional[SLRMCPHandler] = None
+
+
+def initialize_dependencies():
+    """Initialize service dependencies and handler."""
+    global handler
+    
+    # Initialize database
+    database = Database("slr_database.db")
+    
+    # Initialize repositories
+    paper_repository = PaperRepository(database)
+    
+    # Initialize services
+    research_document_service = ResearchDocumentService(paper_repository)
+    quality_assessment_service = QualityAssessmentService(paper_repository)
+    research_question_service = ResearchQuestionService()
+    hypothesis_analysis_service = HypothesisAnalysisService(paper_repository)
+    academic_chunking_service = AcademicChunkingService(paper_repository)
+    
+    # Initialize MCP handler
+    handler = SLRMCPHandler(
+        research_document_service=research_document_service,
+        quality_assessment_service=quality_assessment_service,
+        research_question_service=research_question_service,
+        hypothesis_analysis_service=hypothesis_analysis_service,
+        academic_chunking_service=academic_chunking_service
+    )
+    logger.info("SLR MCP Server dependencies initialized")
+
+
+@app.list_tools()
+async def list_tools() -> List[types.Tool]:
+    """List available MCP tools for systematic literature review."""
+    return [
+        types.Tool(
+            name="upload-paper",
+            description="Upload and process research paper with metadata extraction",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the research paper file (PDF or text)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Paper title (optional, will be extracted if not provided)"
+                    },
+                    "authors": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of author names (optional)"
+                    },
+                    "doi": {
+                        "type": "string",
+                        "description": "Digital Object Identifier (optional)"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Classification tags (optional)"
+                    }
+                },
+                "required": ["file_path"]
+            }
+        ),
+        types.Tool(
+            name="upload-paper-with-full-text",
+            description="Upload research paper with full-text content, replacing existing abstracts",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the research paper file with full text (PDF or text)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Paper title (optional, will be extracted if not provided)"
+                    },
+                    "authors": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of author names (optional)"
+                    },
+                    "publication_year": {
+                        "type": "integer",
+                        "description": "Year of publication (optional)"
+                    },
+                    "doi": {
+                        "type": "string",
+                        "description": "Digital Object Identifier (used for duplicate detection)"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Classification tags (optional)"
+                    },
+                    "auto_extract_metadata": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to extract metadata from file"
+                    },
+                    "replace_existing": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to replace existing papers with full-text version"
+                    }
+                },
+                "required": ["file_path"]
+            }
+        ),
+        types.Tool(
+            name="assess-quality",
+            description="Assess paper quality using systematic evaluation frameworks",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper to assess"
+                    },
+                    "framework": {
+                        "type": "string",
+                        "enum": ["prisma", "strobe", "consort", "quadas"],
+                        "default": "prisma",
+                        "description": "Quality assessment framework"
+                    },
+                    "reviewer_id": {
+                        "type": "string",
+                        "default": "default",
+                        "description": "Identifier for the reviewer"
+                    },
+                    "criterion_scores": {
+                        "type": "object",
+                        "description": "Manual criterion scores override (optional)"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="validate-research-question",
+            description="Validate research question using PICO or SPIDER frameworks",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "question_text": {
+                        "type": "string",
+                        "description": "The research question to validate"
+                    },
+                    "framework": {
+                        "type": "string",
+                        "enum": ["pico", "spider"],
+                        "default": "pico",
+                        "description": "Validation framework to use"
+                    }
+                },
+                "required": ["question_text"]
+            }
+        ),
+        types.Tool(
+            name="analyze-citations",
+            description="Perform citation network analysis on research paper",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper to analyze"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="index-paper",
+            description="Create intelligent academic chunks and indexes for paper",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper to index"
+                    },
+                    "strategy": {
+                        "type": "string",
+                        "enum": ["academic_section", "citation_aware", "topic_based"],
+                        "default": "academic_section",
+                        "description": "Chunking strategy to use"
+                    },
+                    "optimization_level": {
+                        "type": "string",
+                        "enum": ["basic", "intermediate", "advanced"],
+                        "default": "intermediate",
+                        "description": "Optimization level for chunking"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Force reindexing even if paper is already indexed"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="synthesize-evidence",
+            description="Synthesize evidence from multiple papers for a research question",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "research_question": {
+                        "type": "string",
+                        "description": "The research question to investigate"
+                    },
+                    "paper_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "List of paper IDs to analyze"
+                    },
+                    "include_meta_analysis": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to include meta-analysis in synthesis"
+                    }
+                },
+                "required": ["research_question", "paper_ids"]
+            }
+        ),
+        # ===== NEWLY ADDED TOOLS =====
+        types.Tool(
+            name="get-paper",
+            description="Retrieve a research paper by ID with full metadata and content",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper to retrieve"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="list-papers",
+            description="List research papers with optional filtering and pagination",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Number of papers to return"
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of papers to skip"
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Filter criteria (authors, publication_year, tags, etc.)"
+                    }
+                }
+            }
+        ),
+        types.Tool(
+            name="search-papers",
+            description="Search research papers using semantic or keyword search",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "search_type": {
+                        "type": "string",
+                        "enum": ["semantic", "keyword"],
+                        "default": "semantic",
+                        "description": "Type of search to perform"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum number of results"
+                    }
+                },
+                "required": ["query"]
+            }
+        ),
+        types.Tool(
+            name="upload-bibliography-batch",
+            description="Batch upload multiple papers from BibTeX or RIS bibliography file",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to BibTeX or RIS file"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Tags to apply to all papers"
+                    },
+                    "auto_extract_metadata": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to extract metadata from file"
+                    }
+                },
+                "required": ["file_path"]
+            }
+        ),
+        types.Tool(
+            name="get-quality-assessment",
+            description="Retrieve quality assessment results for a paper",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper"
+                    },
+                    "reviewer_id": {
+                        "type": "string",
+                        "description": "Optional reviewer filter"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="get-paper-structure",
+            description="Get the structure (sections, subsections) of a research paper",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "ID of the paper"
+                    }
+                },
+                "required": ["paper_id"]
+            }
+        ),
+        types.Tool(
+            name="generate-slr-report",
+            description="Generate comprehensive systematic literature review report",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paper_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "IDs of papers to include"
+                    },
+                    "output_path": {
+                        "type": "string",
+                        "description": "Path where to save the report"
+                    },
+                    "report_format": {
+                        "type": "string",
+                        "enum": ["markdown", "latex", "docx"],
+                        "default": "markdown",
+                        "description": "Output format for the report"
+                    },
+                    "include_citation_analysis": {
+                        "type": "boolean",
+                        "default": True
+                    },
+                    "include_quality_assessment": {
+                        "type": "boolean",
+                        "default": True
+                    }
+                },
+                "required": ["paper_ids", "output_path"]
+            }
+        ),
+        types.Tool(
+            name="detect-remove-duplicates",
+            description="Detect and optionally remove duplicate papers from the corpus",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "similarity_threshold": {
+                        "type": "number",
+                        "default": 0.85,
+                        "description": "Threshold for duplicate detection (0.0-1.0)"
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "If true, only detect without removing"
+                    }
+                }
+            }
+        ),
+        types.Tool(
+            name="create-slr-project",
+            description="Create a new systematic literature review project",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_name": {
+                        "type": "string",
+                        "description": "Name of the project"
+                    },
+                    "research_domain": {
+                        "type": "string",
+                        "description": "Research domain (e.g., healthcare, software engineering)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Project description"
+                    },
+                    "team_lead": {
+                        "type": "string",
+                        "description": "Team lead name"
+                    },
+                    "team_members": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of team member names"
+                    },
+                    "research_question": {
+                        "type": "string",
+                        "description": "Primary research question"
+                    },
+                    "estimated_timeline_weeks": {
+                        "type": "integer",
+                        "description": "Estimated timeline in weeks"
+                    }
+                },
+                "required": ["project_name", "research_domain"]
+            }
+        ),
+        types.Tool(
+            name="get-slr-progress",
+            description="Get comprehensive progress dashboard for SLR project",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "SLR project ID"
+                    }
+                },
+                "required": ["project_id"]
+            }
+        ),
+        types.Tool(
+            name="get-next-steps",
+            description="Get AI-powered recommendations for next actions in SLR workflow",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "SLR project ID"
+                    },
+                    "current_phase": {
+                        "type": "string",
+                        "enum": ["planning", "search", "screening", "quality_assessment", "data_extraction", "analysis", "reporting"],
+                        "description": "Current project phase"
+                    }
+                },
+                "required": ["project_id"]
+            }
+        ),
+        types.Tool(
+            name="create-screening-workflow",
+            description="Setup multi-stage screening process for study selection",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "SLR project ID"
+                    },
+                    "inclusion_criteria": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Inclusion criteria"
+                    },
+                    "exclusion_criteria": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Exclusion criteria"
+                    },
+                    "reviewers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Reviewer IDs"
+                    },
+                    "screening_stages": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["title_abstract", "full_text", "final_selection"]
+                        },
+                        "description": "Screening stages"
+                    }
+                },
+                "required": ["project_id", "inclusion_criteria", "exclusion_criteria", "reviewers"]
+            }
+        ),
+        types.Tool(
+            name="screen-paper",
+            description="Record screening decision with rationale for study selection",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "SLR project ID"
+                    },
+                    "paper_id": {
+                        "type": "integer",
+                        "description": "Paper ID to screen"
+                    },
+                    "reviewer_id": {
+                        "type": "string",
+                        "description": "Reviewer identifier"
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": ["title_abstract", "full_text", "final_selection"],
+                        "description": "Screening stage"
+                    },
+                    "decision": {
+                        "type": "string",
+                        "enum": ["include", "exclude", "uncertain"],
+                        "description": "Screening decision"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for decision"
+                    },
+                    "exclusion_criteria": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Applicable exclusion criteria"
+                    },
+                    "confidence_level": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Confidence in decision (0-1)"
+                    }
+                },
+                "required": ["project_id", "paper_id", "reviewer_id", "stage", "decision"]
+            }
+        ),
+        types.Tool(
+            name="get-slr-guide",
+            description="Interactive methodology guidance and best practices for SLR",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "SLR methodology topic"
+                    },
+                    "current_phase": {
+                        "type": "string",
+                        "enum": ["planning", "search", "screening", "quality_assessment", "data_extraction", "analysis", "reporting"],
+                        "description": "Current SLR phase"
+                    },
+                    "experience_level": {
+                        "type": "string",
+                        "enum": ["beginner", "intermediate", "advanced"],
+                        "default": "beginner",
+                        "description": "Experience level"
+                    }
+                },
+                "required": ["topic"]
+            }
+        ),
+        types.Tool(
+            name="test-hypothesis",
+            description="Test research hypothesis against evidence from papers",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "hypothesis_text": {
+                        "type": "string",
+                        "description": "The research hypothesis to test"
+                    },
+                    "paper_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "List of paper IDs containing evidence"
+                    },
+                    "significance_level": {
+                        "type": "number",
+                        "default": 0.05,
+                        "description": "Statistical significance level (alpha)"
+                    }
+                },
+                "required": ["hypothesis_text", "paper_ids"]
+            }
+        )
+    ]
+
+
+@app.call_tool()
+async def call_tool(name: str, arguments: Dict[str, Any]) -> Sequence[types.TextContent]:
+    """Handle MCP tool calls."""
+    if handler is None:
+        return [types.TextContent(
+            type="text",
+            text='{"success": false, "error": "Server not initialized", "error_type": "system"}'
+        )]
+    
+    try:
+        result = None
+        
+        # Paper Management Tools
+        if name == "upload-paper":
+            result = await handler.handle_upload_paper(arguments)
+        elif name == "upload-paper-with-full-text":
+            result = await handler.handle_upload_paper_with_full_text(arguments)
+        elif name == "upload-bibliography-batch":
+            result = await handler.handle_upload_bibliography_batch(arguments)
+        elif name == "get-paper":
+            result = await handler.handle_get_paper(arguments)
+        elif name == "list-papers":
+            result = await handler.handle_list_papers(arguments)
+        elif name == "search-papers":
+            result = await handler.handle_search_papers(arguments)
+        
+        # Quality Assessment Tools
+        elif name == "assess-quality":
+            result = await handler.handle_assess_quality(arguments)
+        elif name == "get-quality-assessment":
+            result = await handler.handle_get_quality_assessment(arguments)
+        
+        # Citation & Structure Tools
+        elif name == "analyze-citations":
+            result = await handler.handle_analyze_citations(arguments)
+        elif name == "get-paper-structure":
+            result = await handler.handle_get_paper_structure(arguments)
+        
+        # Research Validation & Evidence Tools
+        elif name == "validate-research-question":
+            result = await handler.validate_research_question(arguments)
+        elif name == "synthesize-evidence":
+            result = await handler.handle_synthesize_evidence(arguments)
+        
+        # Indexing & Report Tools
+        elif name == "index-paper":
+            result = await handler.handle_index_paper(arguments)
+        elif name == "generate-slr-report":
+            result = await handler.handle_generate_slr_report(arguments)
+        
+        # Maintenance Tools
+        elif name == "detect-remove-duplicates":
+            result = await handler.handle_detect_remove_duplicates(arguments)
+        
+        # Workflow & Project Management Tools
+        elif name == "create-slr-project":
+            result = await handler.workflow_handler.handle_create_slr_project(arguments)
+        elif name == "get-slr-progress":
+            result = await handler.workflow_handler.handle_get_slr_progress(arguments)
+        elif name == "get-next-steps":
+            result = await handler.workflow_handler.handle_get_next_steps(arguments)
+        elif name == "create-screening-workflow":
+            result = await handler.workflow_handler.handle_create_screening_workflow(arguments)
+        elif name == "screen-paper":
+            result = await handler.workflow_handler.handle_screen_paper(arguments)
+        elif name == "get-slr-guide":
+            result = await handler.workflow_handler.handle_get_slr_guide(arguments)
+        
+        # Note: test-hypothesis tool defined but handler not yet implemented
+        elif name == "test-hypothesis":
+            return [types.TextContent(
+                type="text",
+                text="❌ test-hypothesis handler not yet implemented"
+            )]
+        
+        else:
+            return [types.TextContent(
+                type="text",
+                text=f"Unknown tool: {name}"
+            )]
+        
+        # Convert CallToolResult to TextContent list
+        if result is not None:
+            if hasattr(result, 'content') and result.content:
+                # Return content from CallToolResult (should be list of TextContent)
+                return list(result.content)  # type: ignore
+            elif isinstance(result, dict):
+                import json
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(result, ensure_ascii=False, indent=2)
+                )]
+        
+        return [types.TextContent(type="text", text="No result")]
+    
+    except Exception as e:
+        logger.error(f"Tool execution error for {name}: {str(e)}")
+        return [types.TextContent(
+            type="text", 
+            text=f"Error: {str(e)}"
+        )]
+
+
+async def main():
+    """Run the SLR MCP server."""
+    initialize_dependencies()
+    async with stdio_server() as (read_stream, write_stream):
+        logger.info("Starting SLR MCP Server...")
+        await app.run(read_stream, write_stream, app.create_initialization_options())
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

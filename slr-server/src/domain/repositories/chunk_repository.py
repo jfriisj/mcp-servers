@@ -6,7 +6,7 @@ Defines the contract for academic chunk data access operations.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from ..domain.models import AcademicChunk
+from ..models import AcademicChunk
 
 
 class IChunkRepository(ABC):

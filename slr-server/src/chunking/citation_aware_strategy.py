@@ -7,7 +7,7 @@ Optimized for citation analysis and reference network building.
 """
 
 import re
-from typing import List, Tuple, Set
+from typing import List, Tuple
 
 from ..domain.models import AcademicChunk, ResearchPaper
 from .base_academic_strategy import BaseAcademicStrategy
@@ -268,7 +268,7 @@ class CitationAwareStrategy(BaseAcademicStrategy):
 
         chunks = []
         current_start = 0
-        current_citations = []
+        current_citations: List[Tuple[int, int, str, str]] = []
         
         for i, (cit_start, cit_end, cit_text, context) in enumerate(citations):
             # Calculate context boundaries

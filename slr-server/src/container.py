@@ -4,11 +4,10 @@ Dependency injection container for the SLR MCP Server.
 
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from .database.connection import DatabaseConnection
 from .database.adapter import DatabaseFactory, DatabaseAdapter
-from .database.schema import create_tables
 from .repositories.paper_repository import PaperRepository
 from .repositories.chunk_repository import ChunkRepository
 from .repositories.quality_assessment_repository import QualityAssessmentRepository
@@ -25,6 +24,12 @@ from .services.evidence_synthesis_service import EvidenceSynthesisService
 from .services.slr_report_generation_service import SLRReportGenerator
 from .services.slr_workflow_service import SLRWorkflowService
 from .services.project_service import ProjectService
+from .automation.screening_documentation import ScreeningDocumentationSystem
+
+# Import TYPE_CHECKING to avoid circular imports
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .handlers.mcp_handler import SLRMCPHandler
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,7 @@ class Container:
         self._report_generator: Optional[SLRReportGenerator] = None
         self._slr_workflow_service: Optional[SLRWorkflowService] = None
         self._project_service: Optional[ProjectService] = None
+        self._screening_doc_system: Optional[ScreeningDocumentationSystem] = None
         
         # Handlers
         self._mcp_handler: Optional['SLRMCPHandler'] = None
@@ -215,6 +221,15 @@ class Container:
         if self._slr_workflow_service is None:
             self._slr_workflow_service = SLRWorkflowService()
         return self._slr_workflow_service
+    
+    def get_screening_documentation_system(self) -> ScreeningDocumentationSystem:
+        """Get screening documentation system instance."""
+        if self._screening_doc_system is None:
+            self._screening_doc_system = ScreeningDocumentationSystem(
+                project_root=self.project_root,
+                project_name="real-time-translation-platform"
+            )
+        return self._screening_doc_system
     
     def get_mcp_handler(self) -> 'SLRMCPHandler':
         """Get MCP handler instance."""

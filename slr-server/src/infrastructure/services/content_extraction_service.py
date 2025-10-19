@@ -7,7 +7,6 @@ Follows SRP by only handling content extraction.
 
 import os
 from pathlib import Path
-from typing import Optional
 import logging
 
 from ...domain.services.chunking_service import IContentExtractionService

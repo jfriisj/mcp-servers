@@ -7,7 +7,7 @@ Extends the basic chunking concept with academic-specific features.
 
 import re
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Tuple
 
 from ..domain.models import AcademicChunk, ResearchPaper
 

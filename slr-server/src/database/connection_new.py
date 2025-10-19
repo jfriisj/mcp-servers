@@ -4,9 +4,7 @@ Supports SQLite (default) and PostgreSQL for large projects.
 """
 
 import logging
-import os
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
 from .adapter import DatabaseAdapter, DatabaseFactory

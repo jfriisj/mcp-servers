@@ -12,12 +12,11 @@ Provides comprehensive citation analysis including:
 
 import re
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Set, Union, Sequence
+from typing import Dict, List, Any, Optional, Tuple, Union, Sequence
 from dataclasses import dataclass
 from collections import defaultdict, Counter
 import math
 
-from ..domain.models import ResearchPaper, AcademicChunk
 from ..repositories.paper_repository import PaperRepository
 
 logger = logging.getLogger(__name__)
@@ -323,8 +322,8 @@ class CitationAnalysisService:
         if not citations:
             return []
         
-        unique_citations = []
-        seen_texts = set()
+        unique_citations: List[Any] = []
+        seen_texts: set[str] = set()
         
         for citation in sorted(citations, key=lambda x: x.position):
             # Check if we've seen this exact citation text
@@ -582,7 +581,7 @@ class CitationAnalysisService:
 
     def _group_by_decade(self, year_counts: Counter) -> Dict[str, int]:
         """Group citation counts by decade."""
-        decades = defaultdict(int)
+        decades: Dict[str, int] = defaultdict(int)
         
         for year, count in year_counts.items():
             decade = (year // 10) * 10

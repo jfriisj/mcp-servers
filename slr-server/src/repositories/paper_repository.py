@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..domain.models import ResearchPaper, Author, Journal
-from .base_repository import BaseRepository, DatabaseConnection, RepositoryError, EntityNotFoundError
+from .base_repository import BaseRepository, RepositoryError, EntityNotFoundError
 
 
 class PaperRepository(BaseRepository[ResearchPaper]):
@@ -110,6 +110,56 @@ class PaperRepository(BaseRepository[ResearchPaper]):
 
         except sqlite3.Error as e:
             raise RepositoryError(f"Failed to create research paper: {e}", e)
+
+    def get_by_doi(self, doi: str) -> Optional[ResearchPaper]:
+        """
+        Retrieve a research paper by Digital Object Identifier (DOI).
+
+        Args:
+            doi: Digital Object Identifier
+
+        Returns:
+            ResearchPaper instance if found, None otherwise
+
+        Raises:
+            RepositoryError: If query fails
+        """
+        try:
+            cursor = self.db.execute(
+                """
+                SELECT rp.*, j.name as journal_name, j.issn, j.publisher, 
+                       j.impact_factor, j.quartile, j.open_access
+                FROM research_papers rp
+                LEFT JOIN journals j ON rp.journal_id = j.id
+                WHERE rp.doi = ?
+                """,
+                (doi,)
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            # Get authors for this paper
+            paper_id = row[0]
+            authors = self._get_paper_authors(paper_id)
+
+            # Parse journal if present
+            journal = None
+            if row[43]:  # journal_name
+                journal = Journal(
+                    name=row[43],
+                    issn=row[44],
+                    publisher=row[45],
+                    impact_factor=row[46],
+                    quartile=row[47],
+                    open_access=bool(row[48])
+                )
+
+            return self._row_to_paper(row, authors, journal)
+
+        except sqlite3.Error as e:
+            raise RepositoryError(f"Failed to get research paper by DOI {doi}: {e}", e)
 
     def get_by_id(self, paper_id: int) -> Optional[ResearchPaper]:
         """

@@ -98,8 +98,14 @@ class ResearchQuestionService:
     - Provides actionable improvement recommendations
     """
 
-    def __init__(self):
-        """Initialize ResearchQuestionService with framework definitions."""
+    def __init__(self, question_repository=None):
+        """
+        Initialize ResearchQuestionService with framework definitions.
+        
+        Args:
+            question_repository: Optional repository for persisting research questions
+        """
+        self._question_repository = question_repository
         self._frameworks = self._initialize_frameworks()
         self._component_keywords = self._initialize_component_keywords()
         self._quality_indicators = self._initialize_quality_indicators()
@@ -185,7 +191,7 @@ class ResearchQuestionService:
         """
         validation = self.validate_research_question(question_text, framework)
         
-        decomposition = {
+        decomposition: Dict[str, Any] = {
             "main_question": question_text,
             "framework": framework.value,
             "sub_questions": {},
@@ -226,7 +232,7 @@ class ResearchQuestionService:
     def optimize_for_databases(
         self,
         question_text: str,
-        target_databases: List[str] = None
+        target_databases: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Optimize research question for database searching.
@@ -244,7 +250,7 @@ class ResearchQuestionService:
         validation = self.validate_research_question(question_text)
         decomposition = self.decompose_research_question(question_text)
 
-        optimization = {
+        optimization: Dict[str, Any] = {
             "original_question": question_text,
             "searchability_score": validation.searchability_score,
             "database_strategies": {},
@@ -253,26 +259,32 @@ class ResearchQuestionService:
             "search_filters": {},
             "optimization_suggestions": []
         }
+        
+        # Type hints for nested dicts to fix MyPy indexed assignment errors
+        database_strategies: Dict[str, Any] = optimization["database_strategies"]  # type: ignore
+        mesh_terms: Dict[str, Any] = optimization["mesh_terms"]  # type: ignore
+        boolean_queries: Dict[str, Any] = optimization["boolean_queries"]  # type: ignore
+        search_filters: Dict[str, Any] = optimization["search_filters"]  # type: ignore
 
         # Generate database-specific strategies
         for database in target_databases:
             database_strategy = self._generate_database_strategy(
                 decomposition, database, validation
             )
-            optimization["database_strategies"][database] = database_strategy
+            database_strategies[database] = database_strategy
             
             # Generate MeSH terms (for medical databases)
             if database.lower() in ["pubmed", "medline"]:
-                mesh_terms = self._generate_mesh_terms(decomposition)
-                optimization["mesh_terms"][database] = mesh_terms
+                mesh_terms_result = self._generate_mesh_terms(decomposition)
+                mesh_terms[database] = mesh_terms_result
             
             # Generate boolean queries
             boolean_query = self._generate_boolean_query(decomposition, database)
-            optimization["boolean_queries"][database] = boolean_query
+            boolean_queries[database] = boolean_query
             
             # Generate search filters
-            search_filters = self._generate_search_filters(validation, database)
-            optimization["search_filters"][database] = search_filters
+            search_filters_result = self._generate_search_filters(validation, database)
+            search_filters[database] = search_filters_result
 
         # Generate optimization suggestions
         optimization["optimization_suggestions"] = self._generate_optimization_suggestions(
@@ -284,7 +296,7 @@ class ResearchQuestionService:
     def assess_novelty(
         self,
         question_text: str,
-        existing_reviews: List[Dict[str, Any]] = None,
+        existing_reviews: Optional[List[Dict[str, Any]]] = None,
         domain_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -348,7 +360,7 @@ class ResearchQuestionService:
     def refine_research_question(
         self,
         question_text: str,
-        improvement_priorities: List[str] = None
+        improvement_priorities: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Provide specific refinement suggestions for research question.
@@ -362,7 +374,7 @@ class ResearchQuestionService:
         """
         validation = self.validate_research_question(question_text)
         
-        refinement = {
+        refinement: Dict[str, Any] = {
             "original_question": question_text,
             "current_score": validation.overall_score,
             "target_level": ValidationLevel.EXCELLENT.value,
@@ -373,12 +385,15 @@ class ResearchQuestionService:
             "structural_improvements": [],
             "priority_actions": []
         }
+        
+        # Type hint for component_improvements dict to fix indexed assignment error
+        component_improvements: Dict[str, Any] = refinement["component_improvements"]  # type: ignore
 
         # Component-specific improvements
         for analysis in validation.component_analyses:
             if analysis.component.value in (improvement_priorities or []) or not analysis.present:
                 improvements = self._generate_component_improvements(analysis, question_text)
-                refinement["component_improvements"][analysis.component.value] = improvements
+                component_improvements[analysis.component.value] = improvements
 
         # Generate alternative formulations
         refinement["alternative_formulations"] = self._generate_alternative_formulations(
@@ -884,7 +899,7 @@ class ResearchQuestionService:
 
     def _create_concept_hierarchy(self, decomposition: Dict[str, Any]) -> Dict[str, List[str]]:
         """Create hierarchical concept structure."""
-        hierarchy = {
+        hierarchy: Dict[str, List[str]] = {
             "primary": [],
             "secondary": [],
             "tertiary": []

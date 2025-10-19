@@ -6,8 +6,7 @@ Defines the contract for research document operations.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from pathlib import Path
-from ..domain.models import ResearchPaper
+from ..models import ResearchPaper
 
 
 class IDocumentService(ABC):

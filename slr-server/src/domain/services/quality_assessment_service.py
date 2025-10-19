@@ -5,8 +5,8 @@ Defines the contract for quality assessment operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-from ..domain.models import ResearchPaper, QualityAssessment
+from typing import List, Dict, Any
+from ..models import ResearchPaper, QualityAssessment
 
 
 class IQualityAssessmentService(ABC):

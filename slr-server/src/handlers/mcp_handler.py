@@ -2,11 +2,10 @@
 MCP Handler for Systematic Literature Review operations.
 """
 
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict
 
-from mcp.types import CallToolResult, TextContent, ImageContent, EmbeddedResource
+from mcp.types import CallToolResult, TextContent
 
 from ..container import Container
 from .slr_workflow_handlers import SLRWorkflowMCPHandler
@@ -54,6 +53,57 @@ class SLRMCPHandler:
                 content=[TextContent(
                     type="text",
                     text=f"Error uploading paper: {str(e)}"
+                )],
+                isError=True
+            )
+    
+    async def handle_upload_paper_with_full_text(self, arguments: Dict[str, Any]) -> CallToolResult:
+        """Handle full-text paper upload with override capability."""
+        try:
+            research_doc_service = self.container.get_document_service()
+            
+            paper, is_new = research_doc_service.upload_paper_with_full_text(
+                file_path=arguments["file_path"],
+                title=arguments.get("title"),
+                authors=arguments.get("authors"),
+                publication_year=arguments.get("publication_year"),
+                doi=arguments.get("doi"),
+                tags=arguments.get("tags", []),
+                auto_extract_metadata=arguments.get("auto_extract_metadata", True),
+                replace_existing=arguments.get("replace_existing", True)
+            )
+            
+            action = "uploaded" if is_new else "updated"
+            response_text = f"""
+✅ Full-Text Paper {action.capitalize()} Successfully!
+
+📄 Paper Details:
+• ID: {paper.id}
+• Title: {paper.title}
+• DOI: {paper.doi or "Not specified"}
+• Publication Year: {paper.publication_year or "Not specified"}
+• File Size: {paper.file_size or "N/A"} bytes
+• Total Pages: {paper.total_pages or "N/A"}
+• Total Words: {paper.total_words or "N/A"}
+
+📌 Status: {"New paper created" if is_new else "Existing paper updated with full-text version"}
+
+✨ Tags: {', '.join(paper.tags) if paper.tags else "None"}
+            """
+            
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=response_text.strip()
+                )]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error uploading full-text paper: {e}")
+            return CallToolResult(
+                content=[TextContent(
+                    type="text",
+                    text=f"❌ Error uploading full-text paper: {str(e)}"
                 )],
                 isError=True
             )
@@ -142,7 +192,7 @@ class SLRMCPHandler:
                 authors_str = ', '.join([author.name for author in paper.authors])
                 result_parts.append(f"✍️ **Authors:** {authors_str}")
             else:
-                result_parts.append(f"✍️ **Authors:** None")
+                result_parts.append("✍️ **Authors:** None")
             
             # Publication details
             if paper.publication_year:
@@ -294,13 +344,13 @@ class SLRMCPHandler:
         """Handle get quality assessment MCP tool call."""
         try:
             # Get the quality assessment service
-            quality_service = self.container.get_quality_service()
+            self.container.get_quality_service()
             
             # Get paper repository to find assessments
             paper_repo = self.container.get_paper_repository()
             
             paper_id = arguments["paper_id"]
-            reviewer_id = arguments.get("reviewer_id")
+            arguments.get("reviewer_id")
             
             # For now, return a simple message since the quality service
             # doesn't have a direct get_assessment method yet
@@ -437,7 +487,7 @@ class SLRMCPHandler:
                 # Return existing chunks if not forcing re-indexing
                 chunks = existing_chunks
                 result_text = f"⚡ Paper {paper_id} already indexed with {len(chunks)} chunks (use force=True to re-index).\n\n"
-                result_text += f"📊 Existing chunks:\n\n"
+                result_text += "📊 Existing chunks:\n\n"
                 
                 for i, chunk in enumerate(chunks[:10]):  # Show first 10 chunks
                     section_emoji = {"abstract": "📝", "introduction": "🚀", "methods": "🔬", 
@@ -452,7 +502,7 @@ class SLRMCPHandler:
                 avg_words = total_words / len(chunks) if chunks else 0
                 citations = sum(chunk.citation_count or 0 for chunk in chunks)
                 
-                result_text += f"\n\n📊 Summary:\n"
+                result_text += "\n\n📊 Summary:\n"
                 result_text += f"• Total words: {total_words:,}\n"
                 result_text += f"• Average chunk size: {avg_words:.0f} words\n"
                 result_text += f"• Total citations: {citations}\n"
@@ -482,7 +532,7 @@ class SLRMCPHandler:
             avg_words = total_words / len(chunks) if chunks else 0
             citations = sum(chunk.citation_count or 0 for chunk in chunks)
             
-            result_text += f"\n\n📊 Summary:\n"
+            result_text += "\n\n📊 Summary:\n"
             result_text += f"• Total words: {total_words:,}\n"
             result_text += f"• Average chunk size: {avg_words:.0f} words\n"
             result_text += f"• Total citations: {citations}\n"
@@ -580,9 +630,9 @@ class SLRMCPHandler:
                     features = analysis["academic_features"]
                     result_text += f"• Academic sections detected: {len(features.get('sections', []))}\n"
                     if features.get("has_methodology"):
-                        result_text += f"• Methodology section: ✅\n"
+                        result_text += "• Methodology section: ✅\n"
                     if features.get("has_results"):
-                        result_text += f"• Results section: ✅\n"
+                        result_text += "• Results section: ✅\n"
             
             return CallToolResult(
                 content=[TextContent(
@@ -690,7 +740,7 @@ class SLRMCPHandler:
             result = await evidence_service.synthesize_evidence(paper_ids, synthesis_method, outcome_measures)
             
             # Format results
-            result_text = f"🔬 Evidence Synthesis Results\n\n"
+            result_text = "🔬 Evidence Synthesis Results\n\n"
             result_text += f"**Method:** {result.synthesis_method}\n"
             result_text += f"**Studies:** {result.total_studies}\n"
             if result.total_participants:
@@ -761,11 +811,13 @@ class SLRMCPHandler:
             )
             
         except Exception as e:
-            logger.error(f"Error synthesizing evidence: {e}")
+            import traceback
+            tb = traceback.format_exc()
+            logger.error(f"Error synthesizing evidence: {e}\n{tb}")
             return CallToolResult(
                 content=[TextContent(
                     type="text",
-                    text=f"Error synthesizing evidence: {str(e)}"
+                    text=f"Error synthesizing evidence: {str(e)}\n\nTraceback:\n{tb}"
                 )],
                 isError=True
             )
@@ -792,9 +844,9 @@ class SLRMCPHandler:
             )
             
             # Format results
-            result_text = f"📋 SLR Report Generated Successfully!\n\n"
+            result_text = "📋 SLR Report Generated Successfully!\n\n"
             
-            result_text += f"📄 **Report Details:**\n"
+            result_text += "📄 **Report Details:**\n"
             result_text += f"• Papers included: {result.total_papers}\n"
             result_text += f"• Format: {result.report_format.upper()}\n"
             result_text += f"• Output file: {result.output_path}\n"
@@ -804,42 +856,42 @@ class SLRMCPHandler:
             
             if result.file_size:
                 file_size_kb = result.file_size / 1024
-                result_text += f"📊 **File Statistics:**\n"
+                result_text += "📊 **File Statistics:**\n"
                 result_text += f"• File size: {file_size_kb:.1f} KB\n"
                 if result.generation_time:
                     result_text += f"• Generation time: {result.generation_time:.2f} seconds\n"
                 result_text += "\n"
             
-            result_text += f"📋 **Report Sections Generated:**\n"
+            result_text += "📋 **Report Sections Generated:**\n"
             for i, section in enumerate(result.sections_generated, 1):
                 result_text += f"{i}. {section}\n"
             result_text += "\n"
             
-            result_text += f"📖 **Report Contents Include:**\n"
-            result_text += f"• PRISMA-compliant structure\n"
-            result_text += f"• Executive summary and abstract\n"
-            result_text += f"• Comprehensive methodology section\n"
-            result_text += f"• Detailed study characteristics\n"
-            result_text += f"• Results and findings synthesis\n"
+            result_text += "📖 **Report Contents Include:**\n"
+            result_text += "• PRISMA-compliant structure\n"
+            result_text += "• Executive summary and abstract\n"
+            result_text += "• Comprehensive methodology section\n"
+            result_text += "• Detailed study characteristics\n"
+            result_text += "• Results and findings synthesis\n"
             
             if result.includes_quality_assessment:
-                result_text += f"• Quality assessment and risk of bias\n"
+                result_text += "• Quality assessment and risk of bias\n"
             
             if result.includes_citation_analysis:
-                result_text += f"• Citation network analysis\n"
+                result_text += "• Citation network analysis\n"
             
-            result_text += f"• Discussion and implications\n"
-            result_text += f"• Evidence-based conclusions\n"
-            result_text += f"• Complete reference list\n"
-            result_text += f"• Detailed appendices\n\n"
+            result_text += "• Discussion and implications\n"
+            result_text += "• Evidence-based conclusions\n"
+            result_text += "• Complete reference list\n"
+            result_text += "• Detailed appendices\n\n"
             
-            result_text += f"✨ **Ready for Use:**\n"
-            result_text += f"The generated report follows systematic review best practices and is ready for:\n"
-            result_text += f"• Academic submission\n"
-            result_text += f"• Peer review\n"
-            result_text += f"• Policy development\n"
-            result_text += f"• Clinical guideline development\n"
-            result_text += f"• Further analysis and reporting\n"
+            result_text += "✨ **Ready for Use:**\n"
+            result_text += "The generated report follows systematic review best practices and is ready for:\n"
+            result_text += "• Academic submission\n"
+            result_text += "• Peer review\n"
+            result_text += "• Policy development\n"
+            result_text += "• Clinical guideline development\n"
+            result_text += "• Further analysis and reporting\n"
             
             return CallToolResult(
                 content=[TextContent(
@@ -966,7 +1018,7 @@ class SLRMCPHandler:
             remaining_count = result.get("total_papers_after", 0)
             
             if result.get("dry_run", True):
-                result_text = f"🔍 **Duplicate Detection Analysis (Dry Run)**\n\n"
+                result_text = "🔍 **Duplicate Detection Analysis (Dry Run)**\n\n"
                 result_text += f"• **Duplicates Found**: {duplicates_found}\n"
                 result_text += f"• **Total Papers**: {result.get('total_papers_before', 0)}\n"
                 result_text += f"• **Unique Papers**: {result.get('total_papers_before', 0) - duplicates_found}\n"
@@ -974,7 +1026,7 @@ class SLRMCPHandler:
                     result_text += f"\n**Duplicate Groups Found**: {result.get('duplicate_groups', 0)}\n"
                     result_text += "⚠️  Run with dry_run=false to remove duplicates"
             else:
-                result_text = f"✅ **Duplicate Removal Completed**\n\n"
+                result_text = "✅ **Duplicate Removal Completed**\n\n"
                 result_text += f"• **Duplicates Removed**: {removed_count}\n"
                 result_text += f"• **Papers Remaining**: {remaining_count}\n"
                 if result.get('total_papers_before', 0) > 0:
@@ -1028,7 +1080,7 @@ class SLRMCPHandler:
                 )
             
             # Format success response
-            result_text = f"✅ **SLR Project Created Successfully**\n\n"
+            result_text = "✅ **SLR Project Created Successfully**\n\n"
             result_text += f"• **Project Name**: {project.name}\n"
             result_text += f"• **Display Name**: {project.display_name}\n"
             result_text += f"• **Description**: {project.description}\n"

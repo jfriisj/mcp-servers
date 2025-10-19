@@ -243,7 +243,7 @@ class AcademicChunkingService:
             raise ValueError("Batch size cannot exceed 1000 papers")
 
         results = {}
-        processing_stats = {
+        processing_stats: Dict[str, Any] = {
             "total_papers": len(paper_ids),
             "successful": 0,
             "failed": 0,
@@ -257,17 +257,20 @@ class AcademicChunkingService:
                     paper_id, strategy, optimization_level
                 )
                 results[paper_id] = chunks
-                processing_stats["successful"] += 1
-                processing_stats["total_chunks"] += len(chunks)
+                successful: int = processing_stats["successful"]  # type: ignore
+                processing_stats["successful"] = successful + 1
+                total_chunks: int = processing_stats["total_chunks"]  # type: ignore
+                processing_stats["total_chunks"] = total_chunks + len(chunks)
             except Exception:
                 # Log error and continue with next paper
                 results[paper_id] = []
-                processing_stats["failed"] += 1
+                failed: int = processing_stats["failed"]  # type: ignore
+                processing_stats["failed"] = failed + 1
 
         processing_stats["end_time"] = datetime.now()
-        processing_stats["duration"] = (
-            processing_stats["end_time"] - processing_stats["start_time"]
-        ).total_seconds()
+        start_time: datetime = processing_stats["start_time"]  # type: ignore
+        end_time: datetime = processing_stats["end_time"]  # type: ignore
+        processing_stats["duration"] = (end_time - start_time).total_seconds()
 
         # Store processing statistics for monitoring
         self._store_batch_processing_stats(processing_stats)
@@ -424,11 +427,11 @@ class AcademicChunkingService:
         """
         # Get papers for analysis
         if paper_ids:
-            papers = [
+            papers_maybe: List[Optional[ResearchPaper]] = [
                 self.paper_repository.get_by_id(pid) 
                 for pid in paper_ids
             ]
-            papers = [p for p in papers if p and p.indexed]
+            papers: List[ResearchPaper] = [p for p in papers_maybe if p and p.indexed]
         else:
             papers = self.paper_repository.list_all({"indexed": True})
 
@@ -551,8 +554,6 @@ class AcademicChunkingService:
     def _extract_paper_content(self, paper: ResearchPaper) -> str:
         """Extract content from paper file."""
         import os
-        import PyPDF2
-        import fitz  # pymupdf
         from pathlib import Path
         
         # Start with basic metadata
@@ -988,323 +989,6 @@ class AcademicChunkingService:
         )
         
         return optimized_chunk
-
-    # ===== PDF Extraction Methods =====
-    
-    def _extract_paper_content(self, paper: ResearchPaper) -> Optional[str]:
-        """
-        Extract text content from a research paper file (PDF).
-        
-        Args:
-            paper: Research paper with file_path
-            
-        Returns:
-            Extracted text content or None if extraction fails
-        """
-        if not paper.file_path:
-            logger.warning(f"Paper {paper.id} has no file_path")
-            return None
-        
-        try:
-            # Handle both Windows and Unix-style paths
-            file_path = paper.file_path.replace('/c/', 'c:/').replace('\\', '/')
-            
-            # Check if file exists
-            import os
-            if not os.path.exists(file_path):
-                logger.warning(f"Paper {paper.id}: File not found at {file_path}")
-                return None
-            
-            # Only process PDF files
-            if not file_path.lower().endswith('.pdf'):
-                logger.debug(f"Paper {paper.id}: Skipping non-PDF file ({file_path})")
-                return None
-            
-            # Extract PDF text using pypdf
-            try:
-                from pypdf import PdfReader
-            except ImportError:
-                try:
-                    from PyPDF2 import PdfReader
-                except ImportError:
-                    logger.error("PDF library not available. Install: pip install pypdf")
-                    return None
-            
-            reader = PdfReader(file_path)
-            text_content = []
-            
-            # Extract text from all pages
-            for page_num, page in enumerate(reader.pages):
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
-                except Exception as e:
-                    logger.warning(f"Paper {paper.id}: Error extracting page {page_num}: {e}")
-                    # Continue with other pages
-                    continue
-            
-            if not text_content:
-                logger.warning(f"Paper {paper.id}: No text extracted from PDF")
-                return None
-            
-            combined_content = "\n\n".join(text_content)
-            logger.info(f"Paper {paper.id}: Extracted {len(combined_content)} characters from PDF")
-            return combined_content
-            
-        except Exception as e:
-            logger.error(f"Paper {paper.id}: Error extracting content: {e}")
-            return None
-    
-    def _simple_chunk_content(
-        self, 
-        paper: ResearchPaper, 
-        content: str, 
-        strategy: IndexingStrategy
-    ) -> List[AcademicChunk]:
-        """
-        Create initial chunks using the specified strategy.
-        
-        Args:
-            paper: Research paper metadata
-            content: Extracted text content
-            strategy: Chunking strategy to use
-            
-        Returns:
-            List of raw academic chunks
-        """
-        if not content or len(content.strip()) < 10:
-            logger.warning(f"Paper {paper.id}: Content too short for chunking ({len(content)} chars)")
-            return []
-        
-        try:
-            # Get strategy from factory
-            chunking_strategy = self.strategy_factory.get_strategy(paper, content)
-            
-            # Apply strategy chunking
-            chunks = chunking_strategy.chunk(paper, content)
-            logger.info(f"Paper {paper.id}: Created {len(chunks)} chunks using {chunking_strategy.get_strategy_name()}")
-            return chunks
-            
-        except Exception as e:
-            logger.error(f"Paper {paper.id}: Error in strategy chunking: {e}")
-            # Fall back to simple chunking
-            return self._fallback_chunk_by_paragraphs(paper, content)
-    
-    def _fallback_chunk_by_paragraphs(self, paper: ResearchPaper, content: str) -> List[AcademicChunk]:
-        """
-        Simple fallback: chunk by paragraphs when strategies fail.
-        
-        Args:
-            paper: Research paper
-            content: Text content
-            
-        Returns:
-            List of chunks split by paragraphs
-        """
-        chunks = []
-        paragraphs = content.split('\n\n')
-        
-        for chunk_idx, para in enumerate(paragraphs):
-            if len(para.strip()) < 10:  # Skip very short paragraphs
-                continue
-            
-            word_count = len(para.split())
-            chunk = AcademicChunk(
-                paper_id=paper.id,
-                chunk_index=chunk_idx,
-                content=para,
-                section_type='paragraph',  # Use 'paragraph' instead of 'body'
-                title=None,
-                word_count=word_count,
-                citation_count=0,
-                figure_count=0,
-                table_count=0,
-                research_elements=[],
-                semantic_tags=[],
-                metadata={'extraction_method': 'fallback_paragraph'},
-                confidence_score=0.5,
-                created_at=datetime.now()
-            )
-            chunks.append(chunk)
-        
-        logger.info(f"Paper {paper.id}: Created {len(chunks)} fallback chunks")
-        return chunks
-    
-    def _apply_academic_enhancements(
-        self,
-        chunks: List[AcademicChunk],
-        paper: ResearchPaper,
-        optimization_level: OptimizationLevel
-    ) -> List[AcademicChunk]:
-        """
-        Apply academic enhancements to raw chunks.
-        
-        Args:
-            chunks: Raw chunks from strategy
-            paper: Research paper metadata
-            optimization_level: Optimization level
-            
-        Returns:
-            Enhanced chunks
-        """
-        enhanced_chunks = []
-        
-        for chunk in chunks:
-            # Extract key concepts
-            key_concepts = self._extract_key_concepts(chunk.content)
-            
-            # Count citations (simple regex-based)
-            citation_count = len(self._find_citations_in_text(chunk.content))
-            
-            # Detect research elements
-            research_elements = self._detect_research_elements(chunk.content)
-            
-            # Generate semantic tags
-            semantic_tags = self._generate_semantic_tags(chunk.content, key_concepts)
-            
-            # Update chunk
-            enhanced_chunk = AcademicChunk(
-                paper_id=chunk.paper_id,
-                chunk_index=chunk.chunk_index,
-                content=chunk.content,
-                section_type=chunk.section_type,
-                title=chunk.title,
-                word_count=chunk.word_count,
-                citation_count=citation_count,
-                figure_count=chunk.figure_count,
-                table_count=chunk.table_count,
-                research_elements=research_elements,
-                semantic_tags=semantic_tags,
-                metadata={
-                    **chunk.metadata,
-                    'key_concepts': key_concepts,
-                    'enhanced': True,
-                    'optimization_level': optimization_level.value if hasattr(optimization_level, 'value') else str(optimization_level)
-                },
-                confidence_score=self._calculate_chunk_confidence(chunk),
-                created_at=chunk.created_at
-            )
-            enhanced_chunks.append(enhanced_chunk)
-        
-        return enhanced_chunks
-    
-    def _optimize_for_agents(
-        self,
-        chunks: List[AcademicChunk],
-        optimization_level: OptimizationLevel,
-        agent_context: Optional[str]
-    ) -> List[AcademicChunk]:
-        """
-        Optimize chunks for AI agent processing.
-        
-        Args:
-            chunks: Enhanced chunks
-            optimization_level: Optimization level
-            agent_context: Optional context for agents
-            
-        Returns:
-            Agent-optimized chunks
-        """
-        optimized_chunks = []
-        
-        for chunk in chunks:
-            metadata = chunk.metadata.copy()
-            metadata['agent_context'] = agent_context or 'general_analysis'
-            metadata['optimization_level'] = optimization_level.value if hasattr(optimization_level, 'value') else str(optimization_level)
-            
-            # Add processing hints
-            metadata['processing_hints'] = self._generate_processing_hints(chunk, metadata)
-            
-            optimized_chunk = AcademicChunk(
-                paper_id=chunk.paper_id,
-                chunk_index=chunk.chunk_index,
-                content=chunk.content,
-                section_type=chunk.section_type,
-                title=chunk.title,
-                word_count=chunk.word_count,
-                citation_count=chunk.citation_count,
-                figure_count=chunk.figure_count,
-                table_count=chunk.table_count,
-                research_elements=chunk.research_elements,
-                semantic_tags=chunk.semantic_tags,
-                metadata=metadata,
-                confidence_score=chunk.confidence_score,
-                created_at=chunk.created_at
-            )
-            optimized_chunks.append(optimized_chunk)
-        
-        return optimized_chunks
-    
-    def _assess_chunk_quality(
-        self,
-        chunks: List[AcademicChunk],
-        paper: ResearchPaper
-    ) -> List[AcademicChunk]:
-        """
-        Assess and filter chunks by quality.
-        
-        Args:
-            chunks: Chunks to assess
-            paper: Research paper
-            
-        Returns:
-            Quality-assessed chunks
-        """
-        quality_chunks = []
-        
-        for chunk in chunks:
-            # Calculate quality score
-            quality_score = self._calculate_chunk_quality_score(chunk, paper)
-            
-            # Update metadata with quality info
-            metadata = chunk.metadata.copy()
-            metadata['quality_score'] = quality_score
-            
-            # Set confidence based on quality
-            confidence = min(1.0, quality_score)
-            
-            quality_chunk = AcademicChunk(
-                paper_id=chunk.paper_id,
-                chunk_index=chunk.chunk_index,
-                content=chunk.content,
-                section_type=chunk.section_type,
-                title=chunk.title,
-                word_count=chunk.word_count,
-                citation_count=chunk.citation_count,
-                figure_count=chunk.figure_count,
-                table_count=chunk.table_count,
-                research_elements=chunk.research_elements,
-                semantic_tags=chunk.semantic_tags,
-                metadata=metadata,
-                confidence_score=confidence,
-                created_at=chunk.created_at
-            )
-            
-            # Only include chunks with reasonable quality
-            if quality_score > 0.2:  # Very low threshold to include fallback chunks
-                quality_chunks.append(quality_chunk)
-        
-        return quality_chunks
-    
-    # ===== Helper Methods for Content Analysis =====
-    
-    def _extract_key_concepts(self, content: str) -> List[str]:
-        """Extract key concepts from content using simple heuristics."""
-        concepts = []
-        
-        # Find words in all caps (often indicate key terms)
-        import re
-        all_caps = re.findall(r'\b([A-Z]{2,})\b', content)
-        concepts.extend(list(set(all_caps))[:10])
-        
-        # Find common academic terms
-        academic_terms = ['hypothesis', 'methodology', 'algorithm', 'framework', 'system', 'approach', 'analysis', 'evaluation']
-        for term in academic_terms:
-            if term.lower() in content.lower():
-                concepts.append(term)
-        
-        return list(set(concepts))[:20]  # Return unique, limit to 20
     
     def _find_citations_in_text(self, content: str) -> List[str]:
         """Find citation patterns in text."""

@@ -5,13 +5,13 @@ This module provides MCP tool handlers for systematic literature review
 workflow management, progress tracking, and user guidance.
 """
 
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from mcp.types import CallToolResult, TextContent
 
 from ..container import Container
+from ..automation.screening_documentation import ScreeningDecision
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +292,37 @@ Key Activities: {result['phase_status']['key_activities']}
                 confidence_level=confidence_level
             )
             
+            # Trigger auto-documentation of screening decision
+            try:
+                doc_system = self.container.get_screening_documentation_system()
+                
+                # Get paper details for documentation
+                paper_repo = self.container.get_paper_repository()
+                paper = paper_repo.get_by_id(paper_id)
+                
+                # Create screening decision object
+                screening_decision = ScreeningDecision(
+                    paper_id=paper_id,
+                    reviewer_id=reviewer_id,
+                    decision=decision,
+                    confidence_level=confidence_level or 0.5,
+                    reason=reason or "No reason provided",
+                    exclusion_criteria=exclusion_criteria or [],
+                    stage=stage
+                )
+                
+                # Log decision and auto-generate documentation
+                doc_system.log_paper_decision(
+                    decision=screening_decision,
+                    paper_title=paper.title if paper else f"Paper {paper_id}",
+                    paper_year=paper.publication_year or 0 if paper else 0
+                )
+                
+                logger.info(f"✅ Auto-documentation generated for paper {paper_id}")
+            except Exception as doc_error:
+                logger.warning(f"⚠️ Auto-documentation generation issue: {str(doc_error)}")
+                # Don't fail the screening just because documentation had an issue
+            
             decision_emoji = "✅" if decision == "include" else "❌"
             
             response_text = f"""
@@ -345,6 +376,12 @@ Key Activities: {result['phase_status']['key_activities']}
 • Ensure second reviewer completes screening for this paper
 • Check for conflicts if decisions differ
 • Update overall screening progress
+
+📄 Auto-Documentation:
+• Decision JSON log created in logs/
+• Progress tracker updated in screening_progress.csv
+• Master log updated in screening_log.json
+• Files auto-saved to projects/real-time-translation-platform/
             """
             
             return CallToolResult(

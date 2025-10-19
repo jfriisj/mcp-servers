@@ -161,3 +161,4 @@ data/study_buddy.db-shm
 study_buddy/data/study_buddy.db-shm
 study_buddy/data/study_buddy.db-wal
 slr-server/data/
+slr-server/projects/

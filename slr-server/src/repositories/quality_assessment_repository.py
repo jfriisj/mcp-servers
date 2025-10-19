@@ -2,12 +2,13 @@
 Quality Assessment Repository for systematic literature review quality evaluations.
 """
 
+import json
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from .base_repository import BaseRepository, EntityNotFoundError
-from ..domain.models import QualityAssessment, AssessmentFramework, AssessmentStatus
+from ..domain.models import QualityAssessment, AssessmentFramework, AssessmentStatus, QualityRating
 from ..database.connection import DatabaseConnection
 
 logger = logging.getLogger(__name__)
@@ -103,12 +104,14 @@ class QualityAssessmentRepository(BaseRepository[QualityAssessment]):
         )
         
         try:
-            params = paper_ids + reviewer_ids
+            # Cast to ensure type compatibility
+            params_list: List[Any] = list(paper_ids) + list(reviewer_ids)
+            params = tuple(params_list)
             cursor = self.db.execute(query, params)
             rows = cursor.fetchall()
             
             # Group by paper_id and reviewer_id
-            assessments_by_paper = {}
+            assessments_by_paper: Dict[int, Dict[str, Any]] = {}
             for row in rows:
                 paper_id = row[0]
                 reviewer_id = row[1]
@@ -190,28 +193,47 @@ class QualityAssessmentRepository(BaseRepository[QualityAssessment]):
         
         try:
             now = datetime.now().isoformat()
+            # Map overall_rating to overall_score (enum to numeric)
+            rating_to_score = {
+                QualityRating.HIGH: 1.0,
+                QualityRating.MEDIUM: 0.6,
+                QualityRating.LOW: 0.3,
+                QualityRating.UNCLEAR: 0.0
+            }
+            overall_score = rating_to_score.get(assessment.overall_rating, 0.0)
+            
+            # Map recommendation to status
+            recommendation_to_status = {
+                "include": "approved",
+                "exclude": "rejected",
+                "uncertain": "pending"
+            }
+            status = recommendation_to_status.get(assessment.recommendation or "", "pending")
+            
             cursor = self.db.execute(
                 query,
-                (
+                tuple([
                     assessment.paper_id,
                     assessment.reviewer_id,
                     assessment.framework.value if assessment.framework else None,
-                    assessment.overall_score,
-                    assessment.criteria_scores,
+                    overall_score,
+                    json.dumps(assessment.criteria_scores) if assessment.criteria_scores else "{}",
                     assessment.assessment_date.isoformat() if assessment.assessment_date else now,
                     assessment.notes,
-                    assessment.status.value if assessment.status else AssessmentStatus.PENDING.value,
+                    status,
                     now,
                     now
-                )
+                ])
             )
             
             assessment_id = cursor.lastrowid
             self.db.commit()
             
             # Return created assessment with ID
-            created_assessment = self.get_by_id(assessment_id)
-            return created_assessment if created_assessment else assessment
+            if assessment_id:
+                created_assessment = self.get_by_id(assessment_id)
+                return created_assessment if created_assessment else assessment
+            return assessment
             
         except Exception as e:
             self.logger.error(f"Error creating quality assessment: {e}")
@@ -246,16 +268,33 @@ class QualityAssessmentRepository(BaseRepository[QualityAssessment]):
         """
         
         try:
+            # Map overall_rating to overall_score
+            rating_to_score = {
+                QualityRating.HIGH: 1.0,
+                QualityRating.MEDIUM: 0.6,
+                QualityRating.LOW: 0.3,
+                QualityRating.UNCLEAR: 0.0
+            }
+            overall_score = rating_to_score.get(assessment.overall_rating, 0.0)
+            
+            # Map recommendation to status
+            recommendation_to_status = {
+                "include": "approved",
+                "exclude": "rejected",
+                "uncertain": "pending"
+            }
+            status = recommendation_to_status.get(assessment.recommendation or "", "pending")
+            
             cursor = self.db.execute(
                 query,
-                (
-                    assessment.overall_score,
-                    assessment.criteria_scores,
+                tuple([
+                    overall_score,
+                    json.dumps(assessment.criteria_scores) if assessment.criteria_scores else "{}",
                     assessment.notes,
-                    assessment.status.value if assessment.status else None,
+                    status,
                     datetime.now().isoformat(),
                     assessment.id
-                )
+                ])
             )
             
             if cursor.rowcount == 0:
@@ -318,7 +357,7 @@ class QualityAssessmentRepository(BaseRepository[QualityAssessment]):
         query += " ORDER BY assessment_date DESC"
         
         try:
-            cursor = self.db.execute(query, params)
+            cursor = self.db.execute(query, tuple(params))
             rows = cursor.fetchall()
             
             return [self._row_to_assessment(row) for row in rows]
@@ -329,24 +368,41 @@ class QualityAssessmentRepository(BaseRepository[QualityAssessment]):
     
     def _row_to_assessment(self, row: tuple) -> QualityAssessment:
         """Convert database row to QualityAssessment instance."""
-        import json
-        
         # Expected column order: id, paper_id, reviewer_id, framework, overall_score, 
         # criteria_scores, assessment_date, notes, status, created_at, updated_at
-        assessment_date = datetime.fromisoformat(row[6]) if row[6] else None
-        created_at = datetime.fromisoformat(row[9]) if len(row) > 9 and row[9] else None
-        updated_at = datetime.fromisoformat(row[10]) if len(row) > 10 and row[10] else None
+        # Type ignore: MyPy can't infer tuple size from cursor.fetchone()
+        assessment_date = datetime.fromisoformat(row[6]) if row[6] else None  # type: ignore
+        created_at = datetime.fromisoformat(row[9]) if len(row) > 9 and row[9] else None  # type: ignore
         
-        return QualityAssessment(
-            id=row[0],
-            paper_id=row[1],
-            reviewer_id=row[2],
-            framework=AssessmentFramework(row[3]) if row[3] else AssessmentFramework.PRISMA,
-            overall_score=row[4],
-            criteria_scores=json.loads(row[5]) if row[5] else {},
+        # Map overall_score (numeric) back to overall_rating (enum)
+        overall_score = float(row[4]) if row[4] else 0.0  # type: ignore
+        if overall_score >= 0.8:
+            overall_rating = QualityRating.HIGH
+        elif overall_score >= 0.5:
+            overall_rating = QualityRating.MEDIUM
+        elif overall_score > 0.0:
+            overall_rating = QualityRating.LOW
+        else:
+            overall_rating = QualityRating.UNCLEAR
+        
+        # Map status (string) back to recommendation
+        status = row[8] if len(row) > 8 else "pending"  # type: ignore
+        status_to_recommendation = {
+            "approved": "include",
+            "rejected": "exclude",
+            "pending": "uncertain"
+        }
+        recommendation = status_to_recommendation.get(status, "uncertain")  # type: ignore
+        
+        return QualityAssessment(  # type: ignore[misc]
+            id=row[0],  # type: ignore
+            paper_id=row[1],  # type: ignore
+            reviewer_id=row[2],  # type: ignore
+            framework=AssessmentFramework(row[3]) if row[3] else AssessmentFramework.PRISMA,  # type: ignore
+            overall_rating=overall_rating,
+            criteria_scores=json.loads(row[5]) if row[5] else {},  # type: ignore
             assessment_date=assessment_date,
-            notes=row[7],
-            status=AssessmentStatus(row[8]) if len(row) > 8 and row[8] else AssessmentStatus.PENDING,
-            created_at=created_at,
-            updated_at=updated_at
+            notes=row[7],  # type: ignore
+            recommendation=recommendation,
+            created_at=created_at
         )

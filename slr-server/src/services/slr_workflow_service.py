@@ -6,13 +6,12 @@ guidance for systematic literature review projects following best practices.
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
 from ..domain.models import (
-    SLRProject, SLRTask, ScreeningRecord, ProjectProgress,
-    SLRPhase, ProjectStatus, TaskStatus, TaskPriority,
-    ScreeningDecision, ScreeningStage
+    SLRProjectWorkflow as SLRProject, SLRTask, ProjectProgress,
+    SLRPhase, ProjectStatusOld as ProjectStatus, TaskPriority
 )
 
 logger = logging.getLogger(__name__)
@@ -146,13 +145,21 @@ class SLRWorkflowService:
         ]
         
         for i, task_data in enumerate(planning_tasks):
+            # Type hints for dict access to fix MyPy object type errors
+            title: str = str(task_data["title"])
+            description: str = str(task_data["description"])
+            priority_value: Any = task_data["priority"]  # type: ignore
+            priority: TaskPriority = TaskPriority(priority_value) if isinstance(priority_value, str) else priority_value
+            estimated_hours_value: Any = task_data.get("estimated_hours")  # type: ignore
+            estimated_hours: Optional[float] = float(estimated_hours_value) if estimated_hours_value else None
+            
             task = SLRTask(
                 project_id=project.id or int(datetime.utcnow().timestamp()),
-                title=task_data["title"],
-                description=task_data["description"],
+                title=title,
+                description=description,
                 phase=SLRPhase.PLANNING,
-                priority=task_data["priority"],
-                estimated_hours=task_data["estimated_hours"],
+                priority=priority,
+                estimated_hours=estimated_hours,
                 due_date=datetime.now(timezone.utc) + timedelta(days=7 * (i + 1))
             )
             tasks.append(task)
@@ -730,22 +737,23 @@ class SLRWorkflowService:
         }
         
         # Calculate screening statistics
-        screening_stats = {
+        screening_stats: Dict[str, Any] = {
             "decision_recorded": True,
             "requires_second_reviewer": stage in ["title_abstract", "full_text"],
             "conflict_detected": False,
-            "agreement_score": None
+            "agreement_score": None,
+            "resolution_required": False  # Initialize to avoid type error
         }
         
         # Check for conflicts with other reviewers
         # (In real implementation, this would query the database)
-        other_decisions = []  # Would fetch from database
+        other_decisions: List[Any] = []  # Would fetch from database
         
         if other_decisions:
             agreement_score = self._calculate_reviewer_agreement(screening_record, other_decisions)
-            screening_stats["agreement_score"] = agreement_score
+            screening_stats["agreement_score"] = float(agreement_score) if agreement_score is not None else None
             
-            if agreement_score < 0.8:
+            if agreement_score and agreement_score < 0.8:
                 screening_stats["conflict_detected"] = True
                 screening_stats["resolution_required"] = True
         

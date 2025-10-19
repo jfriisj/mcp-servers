@@ -7,7 +7,7 @@ and ensures all project artifacts are placed in correct locations.
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ class ProjectStructureValidator:
         )
         
         if proposed_path == correct_path:
-            return True, f"✅ File path is correct", None
+            return True, "✅ File path is correct", None
         
         return (
             False,

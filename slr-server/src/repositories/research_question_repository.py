@@ -3,10 +3,9 @@ Research Question Repository for systematic literature review research question 
 """
 
 import logging
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import List
 
-from .base_repository import BaseRepository, EntityNotFoundError
+from .base_repository import BaseRepository
 from ..domain.models import ResearchQuestion, QuestionFramework, QuestionStatus
 from ..database.connection import DatabaseConnection
 
@@ -17,8 +16,29 @@ class ResearchQuestionRepository(BaseRepository[ResearchQuestion]):
     """Repository for managing research question data."""
     
     def __init__(self, db_connection: DatabaseConnection):
-        super().__init__(db_connection, ResearchQuestion, "research_questions")
+        super().__init__(db_connection)
         self.logger = logger.getChild(self.__class__.__name__)
+    
+    # Implement required abstract methods from BaseRepository
+    def create(self, entity: ResearchQuestion) -> ResearchQuestion:
+        """Create a new research question (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def get_by_id(self, entity_id: int):
+        """Get research question by ID (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def update(self, entity: ResearchQuestion) -> ResearchQuestion:
+        """Update research question (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def delete(self, entity_id: int) -> bool:
+        """Delete research question (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
+    
+    def list_all(self, filters=None):
+        """List all research questions (stub for async implementation)."""
+        raise NotImplementedError("Use async methods for this repository")
     
     async def get_by_framework(self, framework: QuestionFramework) -> List[ResearchQuestion]:
         """Get all research questions using a specific framework."""
@@ -29,8 +49,9 @@ class ResearchQuestionRepository(BaseRepository[ResearchQuestion]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (framework.value,))
-            return [ResearchQuestion(**result) for result in results]
+            cursor = self.db.execute(query, (framework.value,))
+            results = cursor.fetchall()
+            return [ResearchQuestion(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting questions for framework {framework}: {e}")
@@ -45,8 +66,9 @@ class ResearchQuestionRepository(BaseRepository[ResearchQuestion]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (status.value,))
-            return [ResearchQuestion(**result) for result in results]
+            cursor = self.db.execute(query, (status.value,))
+            results = cursor.fetchall()
+            return [ResearchQuestion(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting questions for status {status}: {e}")
@@ -66,8 +88,9 @@ class ResearchQuestionRepository(BaseRepository[ResearchQuestion]):
         params = (search_pattern,) * 5
         
         try:
-            results = await self.db_connection.fetch_all(query, params)
-            return [ResearchQuestion(**result) for result in results]
+            cursor = self.db.execute(query, params)
+            results = cursor.fetchall()
+            return [ResearchQuestion(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error searching questions for text '{search_text}': {e}")
@@ -82,8 +105,9 @@ class ResearchQuestionRepository(BaseRepository[ResearchQuestion]):
         """
         
         try:
-            results = await self.db_connection.fetch_all(query, (QuestionStatus.ARCHIVED.value,))
-            return [ResearchQuestion(**result) for result in results]
+            cursor = self.db.execute(query, (QuestionStatus.ARCHIVED.value,))
+            results = cursor.fetchall()
+            return [ResearchQuestion(**dict(zip([col[0] for col in cursor.description], row))) for row in results]
             
         except Exception as e:
             self.logger.error(f"Error getting active questions: {e}")
