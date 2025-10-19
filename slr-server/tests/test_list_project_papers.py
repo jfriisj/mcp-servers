@@ -13,7 +13,9 @@ def test_list_project_papers():
     print("=" * 70)
     print()
     
-    db_path = Path(__file__).parent / "database" / "slr_database.db"
+    # Absolute path to slr-server root
+    SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+    db_path = SLR_SERVER_ROOT / "database" / "slr_database.db"
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     

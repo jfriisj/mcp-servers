@@ -12,7 +12,8 @@ from unittest.mock import Mock
 
 # Adjust path for imports
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+SLR_SERVER_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
+sys.path.insert(0, str(SLR_SERVER_ROOT))
 
 from src.domain.models import SLRProject
 from src.repositories.project_repository import ProjectRepository

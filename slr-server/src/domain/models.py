@@ -745,7 +745,10 @@ class AcademicChunk:
         valid_sections = {
             "abstract", "introduction", "background", "methods", "methodology",
             "results", "findings", "discussion", "conclusion", "conclusions",
-            "references", "appendix", "body", "unknown"
+            "references", "appendix", "body", "unknown",
+            # Database chunk types
+            "title", "methodology", "results", "discussion", "paragraph",
+            "figure", "table", "equation", "citation", "section"
         }
         if self.section_type not in valid_sections:
             raise ValueError(f"Invalid section_type: {self.section_type}")

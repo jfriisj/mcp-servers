@@ -3,9 +3,11 @@ import sys
 import os
 from pathlib import Path
 
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
 # Set up the path correctly
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
-os.chdir(str(Path(__file__).parent / 'src'))
+sys.path.insert(0, str(SLR_SERVER_ROOT / 'src'))
 
 # Import with corrected path
 from repositories.paper_repository import PaperRepository  
@@ -14,7 +16,8 @@ from database.connection import DatabaseConnection
 def test_list_papers():
     try:
         print("Creating database connection...")
-        db = DatabaseConnection("../slr_database.db")
+        db_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+        db = DatabaseConnection(db_path)
         
         print("Creating paper repository...")
         repo = PaperRepository(db)

@@ -33,6 +33,9 @@ class ChunkRepository(BaseRepository[AcademicChunk]):
 
     def create(self, chunk: AcademicChunk) -> AcademicChunk:
         """Create a new chunk."""
+        # Normalize section_type to valid database values
+        normalized_section_type = self._normalize_section_type(chunk.section_type)
+        
         insert_sql = """
         INSERT INTO chunks (
             paper_id, chunk_index, content, chunk_type, section_title,
@@ -45,7 +48,7 @@ class ChunkRepository(BaseRepository[AcademicChunk]):
             chunk.paper_id,
             chunk.chunk_index,
             chunk.content,
-            chunk.section_type,  # maps to chunk_type
+            normalized_section_type,  # maps to chunk_type (normalized)
             chunk.title,         # maps to section_title
             chunk.start_page,
             chunk.end_page,
@@ -61,6 +64,40 @@ class ChunkRepository(BaseRepository[AcademicChunk]):
         logger.debug(f"Created chunk {chunk.id} for paper {chunk.paper_id}")
         
         return chunk
+
+    @staticmethod
+    def _normalize_section_type(section_type: str) -> str:
+        """
+        Normalize section types to valid database values.
+        
+        Database allows: title, abstract, introduction, methodology, results,
+        discussion, conclusion, references, section, paragraph, figure, table,
+        equation, citation
+        """
+        section_lower = section_type.lower().strip()
+        
+        # Valid database types
+        valid_types = {
+            'title', 'abstract', 'introduction', 'methodology', 'results',
+            'discussion', 'conclusion', 'references', 'section', 'paragraph',
+            'figure', 'table', 'equation', 'citation'
+        }
+        
+        if section_lower in valid_types:
+            return section_lower
+        
+        # Mapping invalid types to valid ones
+        mapping = {
+            'methods': 'methodology',
+            'findings': 'results',
+            'background': 'section',
+            'body': 'section',
+            'unknown': 'section',
+            'appendix': 'section',
+            'conclusions': 'conclusion',
+        }
+        
+        return mapping.get(section_lower, 'section')  # Default to 'section'
 
     def get_by_id(self, chunk_id: int) -> Optional[AcademicChunk]:
         """Get chunk by ID."""

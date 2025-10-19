@@ -6,6 +6,10 @@ Tests the new upload_paper_to_project functionality that links papers to specifi
 
 import json
 from pathlib import Path
+
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
 from src.infrastructure.database_connection import DatabaseConnection
 from src.repositories.project_repository import ProjectRepository
 from src.repositories.paper_repository import PaperRepository
@@ -22,7 +26,7 @@ def test_phase3_upload_paper_to_project():
     print()
     
     # Initialize database connection
-    db_path = Path(__file__).parent / "database" / "slr_database.db"
+    db_path = SLR_SERVER_ROOT / "database" / "slr_database.db"
     db_conn = DatabaseConnection(str(db_path))
     
     # Initialize repositories
@@ -54,7 +58,7 @@ def test_phase3_upload_paper_to_project():
     print("-" * 70)
     
     # Create a test markdown file as a paper
-    test_paper_path = Path(__file__).parent / "test_paper.md"
+    test_paper_path = SLR_SERVER_ROOT / "test_paper.md"
     test_paper_content = """# Test Research Paper
 
 ## Abstract

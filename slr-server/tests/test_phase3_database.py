@@ -13,7 +13,9 @@ def test_phase3_database():
     print("=" * 70)
     print()
     
-    db_path = Path(__file__).parent / "database" / "slr_database.db"
+    # Absolute path to slr-server root
+    SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+    db_path = SLR_SERVER_ROOT / "database" / "slr_database.db"
     
     if not db_path.exists():
         print(f"❌ Database not found at {db_path}")

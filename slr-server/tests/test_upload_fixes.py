@@ -7,8 +7,11 @@ Tests: failure reporting, detailed error messages, entry validation.
 import sys
 from pathlib import Path
 
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
 # Setup path for imports
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+sys.path.insert(0, str(SLR_SERVER_ROOT / 'src'))
 
 from src.services.research_document_service import ResearchDocumentService
 from src.repositories.paper_repository import PaperRepository
@@ -23,7 +26,7 @@ def test_upload_with_failure_reporting():
     doc_service = ResearchDocumentService(paper_repo)
     
     # Upload File 6 which had parsing issues
-    file_path = "data/papers/Primo_BibTeX_Export (6).bib"
+    file_path = str(SLR_SERVER_ROOT / "data" / "papers" / "Primo_BibTeX_Export (6).bib")
     
     print(f"\n📚 Testing upload of {Path(file_path).name}")
     print("=" * 70)

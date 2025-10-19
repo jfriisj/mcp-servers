@@ -8,8 +8,11 @@ import sys
 import traceback
 from pathlib import Path
 
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
 # Add src to Python path for imports
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(SLR_SERVER_ROOT / "src"))
 
 async def test_mcp_handlers():
     """Test MCP handlers directly"""

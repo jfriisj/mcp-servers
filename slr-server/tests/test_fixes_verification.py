@@ -3,7 +3,12 @@
 """Test the upload fixes"""
 
 import sys
-sys.path.insert(0, 'src')
+from pathlib import Path
+
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
+sys.path.insert(0, str(SLR_SERVER_ROOT / 'src'))
 
 from database.connection import DatabaseConnection
 from repositories.paper_repository import PaperRepository
@@ -14,7 +19,7 @@ db = db_conn.connect()
 repo = PaperRepository(db)
 service = ResearchDocumentService(repo)
 
-file_path = "data/papers/Primo_BibTeX_Export (6).bib"
+file_path = str(SLR_SERVER_ROOT / "data" / "papers" / "Primo_BibTeX_Export (6).bib")
 
 try:
     result = service.upload_bibliography_batch(file_path=file_path)

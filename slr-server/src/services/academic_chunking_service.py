@@ -113,6 +113,47 @@ class AcademicChunkingService:
         self._optimization_configs = self._initialize_optimization_configs()
         self._quality_metrics = self._initialize_quality_metrics()
 
+    @staticmethod
+    def _normalize_section_type(section_type: str) -> str:
+        """
+        Normalize section types to valid database values.
+        
+        Database allows: title, abstract, introduction, methodology, results,
+        discussion, conclusion, references, section, paragraph, figure, table,
+        equation, citation
+        
+        Mapping:
+        - methods/methodology -> methodology
+        - findings/results -> results
+        - background/body/unknown -> section
+        - conclusion/conclusions -> conclusion
+        - appendix -> section
+        """
+        section_lower = section_type.lower().strip()
+        
+        # Direct mappings
+        valid_types = {
+            'title', 'abstract', 'introduction', 'methodology', 'results',
+            'discussion', 'conclusion', 'references', 'section', 'paragraph',
+            'figure', 'table', 'equation', 'citation'
+        }
+        
+        if section_lower in valid_types:
+            return section_lower
+        
+        # Mapping invalid types to valid ones
+        mapping = {
+            'methods': 'methodology',
+            'findings': 'results',
+            'background': 'section',
+            'body': 'section',
+            'unknown': 'section',
+            'appendix': 'section',
+            'conclusions': 'conclusion',
+        }
+        
+        return mapping.get(section_lower, 'section')  # Default to 'section'
+
     def index_paper(
         self,
         paper_id: int,
@@ -948,6 +989,400 @@ class AcademicChunkingService:
         
         return optimized_chunk
 
+    # ===== PDF Extraction Methods =====
+    
+    def _extract_paper_content(self, paper: ResearchPaper) -> Optional[str]:
+        """
+        Extract text content from a research paper file (PDF).
+        
+        Args:
+            paper: Research paper with file_path
+            
+        Returns:
+            Extracted text content or None if extraction fails
+        """
+        if not paper.file_path:
+            logger.warning(f"Paper {paper.id} has no file_path")
+            return None
+        
+        try:
+            # Handle both Windows and Unix-style paths
+            file_path = paper.file_path.replace('/c/', 'c:/').replace('\\', '/')
+            
+            # Check if file exists
+            import os
+            if not os.path.exists(file_path):
+                logger.warning(f"Paper {paper.id}: File not found at {file_path}")
+                return None
+            
+            # Only process PDF files
+            if not file_path.lower().endswith('.pdf'):
+                logger.debug(f"Paper {paper.id}: Skipping non-PDF file ({file_path})")
+                return None
+            
+            # Extract PDF text using pypdf
+            try:
+                from pypdf import PdfReader
+            except ImportError:
+                try:
+                    from PyPDF2 import PdfReader
+                except ImportError:
+                    logger.error("PDF library not available. Install: pip install pypdf")
+                    return None
+            
+            reader = PdfReader(file_path)
+            text_content = []
+            
+            # Extract text from all pages
+            for page_num, page in enumerate(reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content.append(page_text)
+                except Exception as e:
+                    logger.warning(f"Paper {paper.id}: Error extracting page {page_num}: {e}")
+                    # Continue with other pages
+                    continue
+            
+            if not text_content:
+                logger.warning(f"Paper {paper.id}: No text extracted from PDF")
+                return None
+            
+            combined_content = "\n\n".join(text_content)
+            logger.info(f"Paper {paper.id}: Extracted {len(combined_content)} characters from PDF")
+            return combined_content
+            
+        except Exception as e:
+            logger.error(f"Paper {paper.id}: Error extracting content: {e}")
+            return None
+    
+    def _simple_chunk_content(
+        self, 
+        paper: ResearchPaper, 
+        content: str, 
+        strategy: IndexingStrategy
+    ) -> List[AcademicChunk]:
+        """
+        Create initial chunks using the specified strategy.
+        
+        Args:
+            paper: Research paper metadata
+            content: Extracted text content
+            strategy: Chunking strategy to use
+            
+        Returns:
+            List of raw academic chunks
+        """
+        if not content or len(content.strip()) < 10:
+            logger.warning(f"Paper {paper.id}: Content too short for chunking ({len(content)} chars)")
+            return []
+        
+        try:
+            # Get strategy from factory
+            chunking_strategy = self.strategy_factory.get_strategy(paper, content)
+            
+            # Apply strategy chunking
+            chunks = chunking_strategy.chunk(paper, content)
+            logger.info(f"Paper {paper.id}: Created {len(chunks)} chunks using {chunking_strategy.get_strategy_name()}")
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Paper {paper.id}: Error in strategy chunking: {e}")
+            # Fall back to simple chunking
+            return self._fallback_chunk_by_paragraphs(paper, content)
+    
+    def _fallback_chunk_by_paragraphs(self, paper: ResearchPaper, content: str) -> List[AcademicChunk]:
+        """
+        Simple fallback: chunk by paragraphs when strategies fail.
+        
+        Args:
+            paper: Research paper
+            content: Text content
+            
+        Returns:
+            List of chunks split by paragraphs
+        """
+        chunks = []
+        paragraphs = content.split('\n\n')
+        
+        for chunk_idx, para in enumerate(paragraphs):
+            if len(para.strip()) < 10:  # Skip very short paragraphs
+                continue
+            
+            word_count = len(para.split())
+            chunk = AcademicChunk(
+                paper_id=paper.id,
+                chunk_index=chunk_idx,
+                content=para,
+                section_type='paragraph',  # Use 'paragraph' instead of 'body'
+                title=None,
+                word_count=word_count,
+                citation_count=0,
+                figure_count=0,
+                table_count=0,
+                research_elements=[],
+                semantic_tags=[],
+                metadata={'extraction_method': 'fallback_paragraph'},
+                confidence_score=0.5,
+                created_at=datetime.now()
+            )
+            chunks.append(chunk)
+        
+        logger.info(f"Paper {paper.id}: Created {len(chunks)} fallback chunks")
+        return chunks
+    
+    def _apply_academic_enhancements(
+        self,
+        chunks: List[AcademicChunk],
+        paper: ResearchPaper,
+        optimization_level: OptimizationLevel
+    ) -> List[AcademicChunk]:
+        """
+        Apply academic enhancements to raw chunks.
+        
+        Args:
+            chunks: Raw chunks from strategy
+            paper: Research paper metadata
+            optimization_level: Optimization level
+            
+        Returns:
+            Enhanced chunks
+        """
+        enhanced_chunks = []
+        
+        for chunk in chunks:
+            # Extract key concepts
+            key_concepts = self._extract_key_concepts(chunk.content)
+            
+            # Count citations (simple regex-based)
+            citation_count = len(self._find_citations_in_text(chunk.content))
+            
+            # Detect research elements
+            research_elements = self._detect_research_elements(chunk.content)
+            
+            # Generate semantic tags
+            semantic_tags = self._generate_semantic_tags(chunk.content, key_concepts)
+            
+            # Update chunk
+            enhanced_chunk = AcademicChunk(
+                paper_id=chunk.paper_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                section_type=chunk.section_type,
+                title=chunk.title,
+                word_count=chunk.word_count,
+                citation_count=citation_count,
+                figure_count=chunk.figure_count,
+                table_count=chunk.table_count,
+                research_elements=research_elements,
+                semantic_tags=semantic_tags,
+                metadata={
+                    **chunk.metadata,
+                    'key_concepts': key_concepts,
+                    'enhanced': True,
+                    'optimization_level': optimization_level.value if hasattr(optimization_level, 'value') else str(optimization_level)
+                },
+                confidence_score=self._calculate_chunk_confidence(chunk),
+                created_at=chunk.created_at
+            )
+            enhanced_chunks.append(enhanced_chunk)
+        
+        return enhanced_chunks
+    
+    def _optimize_for_agents(
+        self,
+        chunks: List[AcademicChunk],
+        optimization_level: OptimizationLevel,
+        agent_context: Optional[str]
+    ) -> List[AcademicChunk]:
+        """
+        Optimize chunks for AI agent processing.
+        
+        Args:
+            chunks: Enhanced chunks
+            optimization_level: Optimization level
+            agent_context: Optional context for agents
+            
+        Returns:
+            Agent-optimized chunks
+        """
+        optimized_chunks = []
+        
+        for chunk in chunks:
+            metadata = chunk.metadata.copy()
+            metadata['agent_context'] = agent_context or 'general_analysis'
+            metadata['optimization_level'] = optimization_level.value if hasattr(optimization_level, 'value') else str(optimization_level)
+            
+            # Add processing hints
+            metadata['processing_hints'] = self._generate_processing_hints(chunk, metadata)
+            
+            optimized_chunk = AcademicChunk(
+                paper_id=chunk.paper_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                section_type=chunk.section_type,
+                title=chunk.title,
+                word_count=chunk.word_count,
+                citation_count=chunk.citation_count,
+                figure_count=chunk.figure_count,
+                table_count=chunk.table_count,
+                research_elements=chunk.research_elements,
+                semantic_tags=chunk.semantic_tags,
+                metadata=metadata,
+                confidence_score=chunk.confidence_score,
+                created_at=chunk.created_at
+            )
+            optimized_chunks.append(optimized_chunk)
+        
+        return optimized_chunks
+    
+    def _assess_chunk_quality(
+        self,
+        chunks: List[AcademicChunk],
+        paper: ResearchPaper
+    ) -> List[AcademicChunk]:
+        """
+        Assess and filter chunks by quality.
+        
+        Args:
+            chunks: Chunks to assess
+            paper: Research paper
+            
+        Returns:
+            Quality-assessed chunks
+        """
+        quality_chunks = []
+        
+        for chunk in chunks:
+            # Calculate quality score
+            quality_score = self._calculate_chunk_quality_score(chunk, paper)
+            
+            # Update metadata with quality info
+            metadata = chunk.metadata.copy()
+            metadata['quality_score'] = quality_score
+            
+            # Set confidence based on quality
+            confidence = min(1.0, quality_score)
+            
+            quality_chunk = AcademicChunk(
+                paper_id=chunk.paper_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                section_type=chunk.section_type,
+                title=chunk.title,
+                word_count=chunk.word_count,
+                citation_count=chunk.citation_count,
+                figure_count=chunk.figure_count,
+                table_count=chunk.table_count,
+                research_elements=chunk.research_elements,
+                semantic_tags=chunk.semantic_tags,
+                metadata=metadata,
+                confidence_score=confidence,
+                created_at=chunk.created_at
+            )
+            
+            # Only include chunks with reasonable quality
+            if quality_score > 0.2:  # Very low threshold to include fallback chunks
+                quality_chunks.append(quality_chunk)
+        
+        return quality_chunks
+    
+    # ===== Helper Methods for Content Analysis =====
+    
+    def _extract_key_concepts(self, content: str) -> List[str]:
+        """Extract key concepts from content using simple heuristics."""
+        concepts = []
+        
+        # Find words in all caps (often indicate key terms)
+        import re
+        all_caps = re.findall(r'\b([A-Z]{2,})\b', content)
+        concepts.extend(list(set(all_caps))[:10])
+        
+        # Find common academic terms
+        academic_terms = ['hypothesis', 'methodology', 'algorithm', 'framework', 'system', 'approach', 'analysis', 'evaluation']
+        for term in academic_terms:
+            if term.lower() in content.lower():
+                concepts.append(term)
+        
+        return list(set(concepts))[:20]  # Return unique, limit to 20
+    
+    def _find_citations_in_text(self, content: str) -> List[str]:
+        """Find citation patterns in text."""
+        import re
+        # Simple citation patterns: [1], (Author, year), etc.
+        patterns = [
+            r'\[\d+\]',  # [1], [2], etc.
+            r'\([A-Z][a-z]+,\s*\d{4}\)',  # (Author, 2021)
+            r'et\s+al\.\s*\(\d{4}\)'  # et al. (2021)
+        ]
+        
+        citations = []
+        for pattern in patterns:
+            citations.extend(re.findall(pattern, content))
+        
+        return citations
+    
+    def _detect_research_elements(self, content: str) -> List[str]:
+        """Detect research elements in content."""
+        elements = []
+        content_lower = content.lower()
+        
+        # Check for research method indicators
+        if 'hypothesis' in content_lower or 'hypothes' in content_lower:
+            elements.append('hypothesis')
+        if 'objective' in content_lower or 'aim' in content_lower:
+            elements.append('objective')
+        if 'method' in content_lower or 'procedure' in content_lower:
+            elements.append('methodology')
+        if 'result' in content_lower or 'finding' in content_lower or 'outcome' in content_lower:
+            elements.append('result')
+        if 'conclusion' in content_lower or 'conclude' in content_lower:
+            elements.append('conclusion')
+        if 'limitation' in content_lower:
+            elements.append('limitation')
+        
+        return elements
+    
+    def _generate_semantic_tags(self, content: str, concepts: List[str]) -> List[str]:
+        """Generate semantic tags for content."""
+        tags = []
+        content_lower = content.lower()
+        
+        # Research method tags
+        if 'quantitative' in content_lower or 'statistical' in content_lower or 'numerical' in content_lower:
+            tags.append('quantitative')
+        if 'qualitative' in content_lower or 'interview' in content_lower or 'thematic' in content_lower:
+            tags.append('qualitative')
+        if 'experiment' in content_lower or 'control group' in content_lower:
+            tags.append('experimental')
+        
+        # Add concepts as tags
+        tags.extend(concepts[:5])
+        
+        return list(set(tags))[:15]
+    
+    def _calculate_chunk_confidence(self, chunk: AcademicChunk) -> float:
+        """Calculate confidence score for chunk."""
+        score = 0.5  # Base score
+        
+        # Increase confidence if chunk has content
+        if chunk.word_count and chunk.word_count > 50:
+            score += 0.2
+        
+        # Increase if it has research elements
+        if chunk.research_elements:
+            score += 0.15
+        
+        # Increase if it has semantic tags
+        if chunk.semantic_tags:
+            score += 0.1
+        
+        # Increase if it has citations
+        if chunk.citation_count and chunk.citation_count > 0:
+            score += 0.05
+        
+        return min(1.0, score)
+    
     # Placeholder methods for additional functionality
     def _store_batch_processing_stats(self, stats):
         """Store batch processing statistics."""

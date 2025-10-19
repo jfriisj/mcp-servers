@@ -348,20 +348,50 @@ class SLRMCPHandler:
             
             strategy = strategy_map.get(strategy_name, IndexingStrategy.HYBRID)
             
-            # Get the academic chunking service
+            # Get repositories and services
+            chunk_repository = self.container.get_chunk_repository()
             chunking_service = self.container.get_chunking_service()
             
-            # If force is True, clear existing chunks first
-            if force:
-                chunk_repository = self.container.get_chunk_repository()
-                existing_chunks = chunk_repository.get_by_paper_id(paper_id)
-                if existing_chunks:
-                    for chunk in existing_chunks:
-                        if chunk.id is not None:
-                            chunk_repository.delete(chunk.id)
-                    logger.info(f"Cleared {len(existing_chunks)} existing chunks for paper {paper_id}")
+            # Check for existing chunks
+            existing_chunks = chunk_repository.get_by_paper_id(paper_id)
             
-            # Index the paper
+            # If force is True, clear existing chunks first
+            if force and existing_chunks:
+                for chunk in existing_chunks:
+                    if chunk.id is not None:
+                        chunk_repository.delete(chunk.id)
+                logger.info(f"Cleared {len(existing_chunks)} existing chunks for paper {paper_id}")
+                existing_chunks = []  # Reset after deletion
+            elif existing_chunks and not force:
+                # Return existing chunks if not forcing re-indexing
+                chunks = existing_chunks
+                result_text = f"⚡ Paper {paper_id} already indexed with {len(chunks)} chunks (use force=True to re-index).\n\n"
+                result_text += f"📊 Existing chunks:\n\n"
+                
+                for i, chunk in enumerate(chunks[:10]):  # Show first 10 chunks
+                    section_emoji = {"abstract": "📝", "introduction": "🚀", "methods": "🔬", 
+                                   "results": "📈", "discussion": "💭", "conclusion": "🎯"}.get(chunk.section_type, "📄")
+                    result_text += f"{section_emoji} {chunk.section_type.title()}: {chunk.title or 'Untitled'} ({chunk.word_count} words)\n"
+                
+                if len(chunks) > 10:
+                    result_text += f"\n... and {len(chunks) - 10} more chunks"
+                
+                # Add summary statistics
+                total_words = sum(chunk.word_count or 0 for chunk in chunks)
+                avg_words = total_words / len(chunks) if chunks else 0
+                citations = sum(chunk.citation_count or 0 for chunk in chunks)
+                
+                result_text += f"\n\n📊 Summary:\n"
+                result_text += f"• Total words: {total_words:,}\n"
+                result_text += f"• Average chunk size: {avg_words:.0f} words\n"
+                result_text += f"• Total citations: {citations}\n"
+                result_text += f"• Section types: {len(set(chunk.section_type for chunk in chunks))}"
+                
+                return CallToolResult(
+                    content=[TextContent(type="text", text=result_text)]
+                )
+            
+            # Index the paper (either force=True or no existing chunks)
             chunks = chunking_service.index_paper(paper_id, strategy)
             
             # Format the response

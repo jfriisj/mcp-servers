@@ -20,7 +20,9 @@ def test_phase3_integration():
     print("=" * 80)
     print()
     
-    db_path = Path(__file__).parent / "database" / "slr_database.db"
+    # Absolute path to slr-server root
+    SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+    db_path = SLR_SERVER_ROOT / "database" / "slr_database.db"
     test_project_name = f"test-phase3-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     
     conn = sqlite3.connect(db_path)

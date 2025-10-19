@@ -16,8 +16,8 @@ pybtex>=0.24.0
 # aiosqlite>=0.17.0
 
 # PDF Processing (for paper upload features)
-# PyPDF2>=3.0.0
-# pymupdf>=1.23.0  # Also known as 'fitz'
+PyPDF2>=3.0.0
+pypdf>=3.0.0  # Alternative PDF library with better text extraction
 
 # Academic Analysis (for advanced features)
 # numpy>=1.20.0

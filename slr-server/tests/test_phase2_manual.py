@@ -13,8 +13,11 @@ import sys
 from pathlib import Path
 from pprint import pprint
 
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
 # Add parent directory to path for proper imports
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(SLR_SERVER_ROOT / "src"))
 
 from src.container import Container
 from src.domain.models import SLRProject
@@ -29,13 +32,14 @@ def test_create_project_from_markdown():
     
     # Initialize container with correct database path
     print("1️⃣ Initializing container...")
-    container = Container(database_path="database/slr_database.db")
+    database_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+    container = Container(database_path=database_path)
     project_service = container.get_project_service()
     print("✅ Container initialized\n")
     
     # Test parameters
     project_name = "microservices-patterns"
-    file_path = "test-project-description.md"
+    file_path = str(SLR_SERVER_ROOT / "test-project-description.md")
     description = "Fallback description if extraction fails"
     
     print("2️⃣ Test Parameters:")
@@ -165,7 +169,8 @@ def test_list_projects():
     print("=" * 80)
     print()
     
-    container = Container(database_path="database/slr_database.db")
+    database_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+    container = Container(database_path=database_path)
     project_repo = container.get_project_repository()
     
     projects = project_repo.list_all()

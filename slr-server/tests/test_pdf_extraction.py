@@ -6,7 +6,10 @@ Test PDF extraction for Phase 2
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
+sys.path.insert(0, str(SLR_SERVER_ROOT / "src"))
 
 from src.container import Container
 
@@ -18,7 +21,8 @@ def test_pdf_extraction():
     print("=" * 80)
     print()
     
-    container = Container(database_path="database/slr_database.db")
+    database_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+    container = Container(database_path=database_path)
     project_service = container.get_project_service()
     
     # Test with existing PDF

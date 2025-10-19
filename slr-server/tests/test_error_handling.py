@@ -6,7 +6,10 @@ Test error handling for Phase 2
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Absolute path to slr-server root
+SLR_SERVER_ROOT = Path(__file__).parent.parent.absolute()
+
+sys.path.insert(0, str(SLR_SERVER_ROOT / "src"))
 
 from src.container import Container
 from src.repositories.base_repository import DuplicateEntityError
@@ -19,7 +22,8 @@ def test_duplicate_project_name():
     print("=" * 80)
     print()
     
-    container = Container(database_path="database/slr_database.db")
+    database_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+    container = Container(database_path=database_path)
     project_service = container.get_project_service()
     
     project_name = "duplicate-test-project"
@@ -66,7 +70,8 @@ def test_invalid_file_path():
     print("=" * 80)
     print()
     
-    container = Container(database_path="database/slr_database.db")
+    database_path = str(SLR_SERVER_ROOT / "database" / "slr_database.db")
+    container = Container(database_path=database_path)
     project_service = container.get_project_service()
     
     try:

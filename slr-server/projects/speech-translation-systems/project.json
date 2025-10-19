@@ -1,0 +1,15 @@
+{
+  "name": "speech-translation-systems",
+  "display_name": "Speech Translation Systems",
+  "description": "A systematic literature review examining speech translation systems, focusing on real-time translation platforms, technologies, approaches, and evaluation metrics in multilingual communication.",
+  "research_questions": [
+    "What are the main approaches and architectures used in speech translation systems?",
+    "What are the key performance metrics and evaluation frameworks for speech translation systems?",
+    "How do contemporary speech translation systems handle real-time processing and latency constraints?",
+    "What are the current challenges and limitations in speech translation quality and coverage?",
+    "What languages and language pairs are currently supported by state-of-the-art systems?"
+  ],
+  "created_date": "2025-10-18T12:17:59.570694+00:00",
+  "status": "active",
+  "phase": "planning"
+}

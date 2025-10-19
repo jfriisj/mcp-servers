@@ -13,7 +13,7 @@ from mcp import types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
-from .mcp_handler import SLRMCPHandler
+from .handlers.mcp_handler import SLRMCPHandler
 from .services import (
     ResearchDocumentService, QualityAssessmentService,
     ResearchQuestionService, HypothesisAnalysisService,
